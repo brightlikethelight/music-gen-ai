@@ -1,160 +1,109 @@
-# 🎵 MusicGen AI - Advanced Music Generation System
+# MusicGen Unified
 
-<div align="center">
-  
 [![PyPI version](https://badge.fury.io/py/musicgen-unified.svg)](https://badge.fury.io/py/musicgen-unified)
-[![PyPI](https://img.shields.io/pypi/v/musicgen-unified.svg)](https://pypi.org/project/musicgen-unified/)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Harvard CS 109B](https://img.shields.io/badge/Harvard-CS%20109B-crimson.svg)](docs/cs109b/)
 
-**State-of-the-art AI music generation system developed as part of Harvard CS 109B Advanced Data Science**
+A unified interface for AI music generation using Facebook's MusicGen model. This project provides a clean, easy-to-use command-line interface and Python API for generating music from text descriptions.
 
-📦 **[Available on PyPI](https://pypi.org/project/musicgen-unified/)** | 📊 **[View CS 109B Presentation](docs/cs109b/CS_109B_Final_Presentation.pdf)** | 📓 **[Explore Notebook](docs/cs109b/CS_109B_Final_Notebook.ipynb)** | 🚀 **[Quick Start](#quick-start)** | 📖 **[Documentation](docs/)**
+**Academic Context**: This work was inspired by and developed as part of Harvard's CS 109B: Advanced Data Science course, demonstrating practical applications of machine learning in audio generation.
 
-</div>
-
----
-
-## 🎓 Academic Excellence
-
-This project was developed as the final project for **Harvard's CS 109B: Advanced Data Science** course. It demonstrates cutting-edge machine learning techniques applied to music generation.
-
-<div align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <h3>📊 Final Presentation</h3>
-        <a href="docs/cs109b/CS_109B_Final_Presentation.pdf">
-          <img src="https://img.shields.io/badge/View-Presentation-red.svg?style=for-the-badge" alt="View Presentation">
-        </a>
-        <br><sub>Comprehensive overview of the project</sub>
-      </td>
-      <td align="center">
-        <h3>📓 Implementation Notebook</h3>
-        <a href="docs/cs109b/CS_109B_Final_Notebook.ipynb">
-          <img src="https://img.shields.io/badge/Open-Notebook-orange.svg?style=for-the-badge" alt="Open Notebook">
-        </a>
-        <br><sub>Complete code and analysis</sub>
-      </td>
-    </tr>
-  </table>
-</div>
-
-## ✨ Features
-
-- 🎵 **High-Quality Music Generation** - Create 30+ second instrumental tracks from text descriptions
-- 🚀 **Production-Ready** - Deployed on PyPI with comprehensive API and CLI interfaces
-- 🔧 **Advanced Architecture** - Built on Facebook's MusicGen with custom enhancements
-- 📊 **Batch Processing** - Generate multiple tracks simultaneously with parallel processing
-- 🎯 **Prompt Engineering** - AI-powered prompt enhancement for better results
-- 🌐 **Multiple Interfaces** - CLI, REST API, and Web UI
-
-## 🚀 Quick Start
-
-### Installation from PyPI
-
-Install the latest version directly from PyPI:
+## Installation
 
 ```bash
 pip install musicgen-unified
 ```
 
-**PyPI Package**: https://pypi.org/project/musicgen-unified/
+## Quick Start
 
-### Basic Usage
+### Command Line Interface
 
 ```bash
-# Generate music from text
-musicgen generate "upbeat jazz piano with drums"
+# Generate music from text description
+musicgen generate "upbeat jazz piano with drums" --duration 30
 
 # Start web interface
 musicgen serve
 
-# Process batch jobs
-musicgen batch playlist.csv
+# Process multiple generations from CSV
+musicgen batch input.csv
 
 # View system information
 musicgen info
 ```
 
-### Verify Installation
+### Python API
 
-```bash
-# Check version and system info
-musicgen --version
-musicgen info
+```python
+from musicgen import MusicGenerator
+
+# Initialize generator
+generator = MusicGenerator()
+
+# Generate music
+audio = generator.generate(
+    prompt="peaceful acoustic guitar melody",
+    duration=30.0
+)
+
+# Save to file
+generator.save_audio(audio, "output.wav")
 ```
 
-## 🏗️ Architecture
+## Features
 
-```
-music_gen/
-├── src/musicgen/       # Core package implementation
-├── docs/               # Comprehensive documentation
-│   └── cs109b/        # Harvard CS 109B course materials ⭐
-├── examples/          # Usage examples and demos
-├── tests/            # Test suite
-└── docker/           # Containerization configs
-```
+- **Text-to-Music Generation**: Create instrumental music from natural language descriptions
+- **Multiple Interfaces**: Command-line tool, Python API, and web interface
+- **Batch Processing**: Generate multiple tracks efficiently
+- **Prompt Engineering**: Built-in prompt enhancement for better results
+- **Multiple Output Formats**: WAV, MP3 support
 
-## 📚 Documentation
+## Technical Details
 
-- [Installation Guide](docs/installation.md)
-- [API Reference](docs/api/)
-- [Configuration Options](docs/configuration.md)
-- [Advanced Usage](docs/advanced.md)
-- [CS 109B Project Details](docs/cs109b/)
-
-## 🧪 Technical Specifications
-
-- **Models**: Small (300M), Medium (1.5B), Large (3.3B) parameters
-- **Audio Quality**: 32kHz, 16-bit PCM/MP3
-- **Performance**: 0.1x-1.0x realtime (hardware dependent)
+- **Model**: Facebook's MusicGen (Small: 300M, Medium: 1.5B, Large: 3.3B parameters)
+- **Audio Quality**: 32kHz, 16-bit
 - **Dependencies**: PyTorch 2.2+, Transformers 4.43+, NumPy 1.26.x
+- **Python**: 3.10+
 
-## 🚀 Deployment
+## Project Structure
 
-### Docker
-
-```bash
-docker run -p 8080:8080 musicgen-unified:latest
+```
+musicgen-unified/
+├── src/musicgen/           # Core package
+├── docs/                   # Documentation
+│   └── cs109b/            # Academic project materials
+├── tests/                  # Test suite
+└── examples/              # Usage examples
 ```
 
-### Kubernetes
+## CS 109B Academic Materials
 
-```bash
-kubectl apply -f kubernetes/deployment.yaml
-```
+This project includes materials from Harvard's CS 109B course:
 
-## 🤝 Contributing
+- **[Final Presentation](docs/cs109b/CS_109B_Final_Presentation.pdf)**: Project overview and technical approach
+- **[Implementation Notebook](docs/cs109b/CS_109B_Final_Notebook.ipynb)**: Complete analysis and implementation details
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+## Documentation
 
-## 📄 License
+See the `docs/cs109b/` directory for academic project materials and implementation details.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## Contributing
 
-## 🙏 Acknowledgments
+Contributions are welcome! Please open an issue or submit a pull request.
 
-- Harvard CS 109B teaching staff for guidance and support
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+## Acknowledgments
+
 - Facebook Research for the original MusicGen model
-- The open-source community for invaluable tools and libraries
+- Harvard CS 109B teaching staff
+- The open-source community
 
-## 📬 Contact & Links
+## Contact
 
-- **Author**: Bright Liu (brightliu@college.harvard.edu)
-- **Course**: CS 109B - Advanced Data Science, Harvard University
+- **Author**: Bright Liu
+- **Email**: brightliu@college.harvard.edu
 - **GitHub**: [brightlikethelight/music-gen-ai](https://github.com/brightlikethelight/music-gen-ai)
-- **PyPI Package**: [musicgen-unified](https://pypi.org/project/musicgen-unified/)
-
----
-
-<div align="center">
-  <p>
-    <strong>📦 <a href="https://pypi.org/project/musicgen-unified/">Install from PyPI</a></strong> | 
-    <strong>📊 <a href="docs/cs109b/CS_109B_Final_Presentation.pdf">CS 109B Presentation</a></strong> | 
-    <strong>📓 <a href="docs/cs109b/CS_109B_Final_Notebook.ipynb">Implementation Notebook</a></strong>
-  </p>
-  <i>Developed with ❤️ at Harvard University</i>
-</div>
+- **PyPI**: [musicgen-unified](https://pypi.org/project/musicgen-unified/)
