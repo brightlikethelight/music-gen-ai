@@ -1,0 +1,311 @@
+{
+  "index_patterns": ["musicgen-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "5s",
+      "index.lifecycle.name": "musicgen-policy",
+      "index.lifecycle.rollover_alias": "musicgen",
+      "index.mapping.total_fields.limit": 2000,
+      "index.max_result_window": 100000,
+      "analysis": {
+        "analyzer": {
+          "path_analyzer": {
+            "tokenizer": "path_hierarchy",
+            "filter": ["lowercase"]
+          }
+        }
+      }
+    },
+    "mappings": {
+      "dynamic": "true",
+      "dynamic_templates": [
+        {
+          "strings_as_keywords": {
+            "match_mapping_type": "string",
+            "match": "*_id",
+            "mapping": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        {
+          "durations_as_float": {
+            "match": "*_ms",
+            "mapping": {
+              "type": "float"
+            }
+          }
+        },
+        {
+          "counts_as_long": {
+            "match": "*_count",
+            "mapping": {
+              "type": "long"
+            }
+          }
+        }
+      ],
+      "properties": {
+        "@timestamp": {
+          "type": "date",
+          "format": "strict_date_optional_time||epoch_millis"
+        },
+        "timestamp": {
+          "type": "date",
+          "format": "strict_date_optional_time||epoch_millis"
+        },
+        "message": {
+          "type": "text",
+          "analyzer": "standard",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 512
+            }
+          }
+        },
+        "log": {
+          "properties": {
+            "level": {
+              "type": "keyword"
+            },
+            "logger": {
+              "type": "keyword"
+            }
+          }
+        },
+        "service": {
+          "properties": {
+            "name": {
+              "type": "keyword"
+            },
+            "version": {
+              "type": "keyword"
+            },
+            "environment": {
+              "type": "keyword"
+            }
+          }
+        },
+        "trace": {
+          "properties": {
+            "id": {
+              "type": "keyword"
+            },
+            "correlation_id": {
+              "type": "keyword"
+            }
+          }
+        },
+        "span": {
+          "properties": {
+            "id": {
+              "type": "keyword"
+            }
+          }
+        },
+        "user": {
+          "properties": {
+            "id": {
+              "type": "keyword"
+            },
+            "email": {
+              "type": "keyword"
+            }
+          }
+        },
+        "source": {
+          "properties": {
+            "ip": {
+              "type": "ip"
+            },
+            "geo": {
+              "properties": {
+                "country_name": {
+                  "type": "keyword"
+                },
+                "country_code2": {
+                  "type": "keyword"
+                },
+                "city_name": {
+                  "type": "keyword"
+                },
+                "region_name": {
+                  "type": "keyword"
+                },
+                "location": {
+                  "type": "geo_point"
+                }
+              }
+            }
+          }
+        },
+        "http": {
+          "properties": {
+            "request": {
+              "properties": {
+                "method": {
+                  "type": "keyword"
+                },
+                "body": {
+                  "properties": {
+                    "bytes": {
+                      "type": "long"
+                    }
+                  }
+                }
+              }
+            },
+            "response": {
+              "properties": {
+                "status_code": {
+                  "type": "short"
+                },
+                "time": {
+                  "type": "float"
+                },
+                "body": {
+                  "properties": {
+                    "bytes": {
+                      "type": "long"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "url": {
+          "properties": {
+            "path": {
+              "type": "text",
+              "analyzer": "path_analyzer",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 512
+                }
+              }
+            },
+            "query": {
+              "type": "keyword",
+              "ignore_above": 1024
+            }
+          }
+        },
+        "event": {
+          "properties": {
+            "action": {
+              "type": "keyword"
+            },
+            "outcome": {
+              "type": "keyword"
+            },
+            "severity": {
+              "type": "keyword"
+            },
+            "category": {
+              "type": "keyword"
+            }
+          }
+        },
+        "error": {
+          "properties": {
+            "code": {
+              "type": "keyword"
+            },
+            "message": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 512
+                }
+              }
+            },
+            "type": {
+              "type": "keyword"
+            },
+            "stack_trace": {
+              "type": "text",
+              "index": false
+            }
+          }
+        },
+        "system": {
+          "properties": {
+            "memory": {
+              "properties": {
+                "usage_mb": {
+                  "type": "float"
+                },
+                "usage_percent": {
+                  "type": "float"
+                }
+              }
+            },
+            "cpu": {
+              "properties": {
+                "usage_percent": {
+                  "type": "float"
+                }
+              }
+            }
+          }
+        },
+        "database": {
+          "properties": {
+            "query": {
+              "properties": {
+                "count": {
+                  "type": "long"
+                },
+                "time": {
+                  "type": "float"
+                }
+              }
+            }
+          }
+        },
+        "labels": {
+          "type": "object",
+          "dynamic": true
+        },
+        "tags": {
+          "type": "keyword"
+        },
+        "correlation_id": {
+          "type": "keyword"
+        },
+        "duration_ms": {
+          "type": "float"
+        },
+        "status_code": {
+          "type": "short"
+        },
+        "method": {
+          "type": "keyword"
+        },
+        "path": {
+          "type": "text",
+          "analyzer": "path_analyzer",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 512
+            }
+          }
+        }
+      }
+    }
+  },
+  "version": 1,
+  "_meta": {
+    "description": "Template for Music Gen AI structured logs",
+    "created_by": "musicgen-logging-system",
+    "version": "1.0.0"
+  }
+}

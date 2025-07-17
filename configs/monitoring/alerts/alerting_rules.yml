@@ -1,0 +1,412 @@
+# Prometheus alerting rules for Music Gen AI
+# Comprehensive alerting for SLO violations, system health, and business metrics
+
+groups:
+  # Critical System Alerts
+  - name: musicgen.critical.alerts
+    rules:
+      - alert: ServiceDown
+        expr: up{job=~"musicgen-.*"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: musicgen
+        annotations:
+          summary: "Music Gen service is down"
+          description: "Service {{ $labels.instance }} ({{ $labels.job }}) has been down for more than 1 minute."
+          runbook_url: "https://docs.musicgen.ai/runbooks/service-down"
+
+      - alert: HighMemoryUsage
+        expr: musicgen:memory_utilization_5m > 90
+        for: 2m
+        labels:
+          severity: critical
+          service: musicgen
+        annotations:
+          summary: "Critical memory usage detected"
+          description: "Memory usage on {{ $labels.instance }} is {{ $value }}% (threshold: 90%)"
+          runbook_url: "https://docs.musicgen.ai/runbooks/high-memory"
+
+      - alert: HighCPUUsage
+        expr: musicgen:cpu_utilization_5m > 85
+        for: 5m
+        labels:
+          severity: critical
+          service: musicgen
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage on {{ $labels.instance }} is {{ $value }}% for more than 5 minutes"
+          runbook_url: "https://docs.musicgen.ai/runbooks/high-cpu"
+
+      - alert: DiskSpaceCritical
+        expr: musicgen:disk_utilization_5m > 95
+        for: 1m
+        labels:
+          severity: critical
+          service: musicgen
+        annotations:
+          summary: "Critical disk space usage"
+          description: "Disk usage on {{ $labels.instance }}:{{ $labels.mount_point }} is {{ $value }}%"
+          runbook_url: "https://docs.musicgen.ai/runbooks/disk-space"
+
+      - alert: DatabaseDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: database
+        annotations:
+          summary: "Database is down"
+          description: "PostgreSQL database has been unreachable for more than 1 minute"
+          runbook_url: "https://docs.musicgen.ai/runbooks/database-down"
+
+  # SLO Violation Alerts
+  - name: musicgen.slo.violations
+    rules:
+      - alert: APIAvailabilitySLOViolation
+        expr: musicgen:sli_api_availability_5m < 99.9
+        for: 5m
+        labels:
+          severity: critical
+          service: musicgen
+          slo: api_availability_99_9
+        annotations:
+          summary: "API availability SLO violation"
+          description: "API availability is {{ $value }}% (target: 99.9%) for more than 5 minutes"
+          impact: "Users may experience service unavailability"
+          runbook_url: "https://docs.musicgen.ai/runbooks/slo-api-availability"
+
+      - alert: APILatencySLOViolation
+        expr: musicgen:sli_api_latency_p95_5m > 2.0
+        for: 3m
+        labels:
+          severity: high
+          service: musicgen
+          slo: api_latency_p95_2s
+        annotations:
+          summary: "API latency SLO violation"
+          description: "95th percentile API latency is {{ $value }}s (target: <2s) for more than 3 minutes"
+          impact: "Users experiencing slow response times"
+          runbook_url: "https://docs.musicgen.ai/runbooks/slo-api-latency"
+
+      - alert: GenerationSuccessSLOViolation
+        expr: musicgen:sli_generation_success_rate_5m < 99.5
+        for: 10m
+        labels:
+          severity: high
+          service: musicgen
+          slo: generation_success_99_5
+        annotations:
+          summary: "Music generation success rate SLO violation"
+          description: "Generation success rate is {{ $value }}% (target: 99.5%) for more than 10 minutes"
+          impact: "Users unable to generate music successfully"
+          runbook_url: "https://docs.musicgen.ai/runbooks/slo-generation-success"
+
+      - alert: GenerationLatencySLOViolation
+        expr: musicgen:sli_generation_latency_p90_5m > 30
+        for: 5m
+        labels:
+          severity: medium
+          service: musicgen
+          slo: generation_latency_p90_30s
+        annotations:
+          summary: "Music generation latency SLO violation"
+          description: "90th percentile generation time is {{ $value }}s (target: <30s) for more than 5 minutes"
+          impact: "Users experiencing slow music generation"
+          runbook_url: "https://docs.musicgen.ai/runbooks/slo-generation-latency"
+
+      - alert: ModelLoadTimeSLOViolation
+        expr: musicgen:sli_model_load_p99_5m > 10
+        for: 2m
+        labels:
+          severity: medium
+          service: musicgen
+          slo: model_load_time_p99_10s
+        annotations:
+          summary: "Model load time SLO violation"
+          description: "99th percentile model load time is {{ $value }}s (target: <10s) for more than 2 minutes"
+          impact: "Slow model initialization affecting generation startup"
+          runbook_url: "https://docs.musicgen.ai/runbooks/slo-model-load"
+
+  # Error Budget Burn Rate Alerts
+  - name: musicgen.error.budget.alerts
+    rules:
+      - alert: HighErrorBudgetBurnRate1h
+        expr: musicgen:error_budget_api_availability_burn_rate_1h > 14.4
+        for: 2m
+        labels:
+          severity: critical
+          service: musicgen
+          alert_type: error_budget_burn
+        annotations:
+          summary: "High error budget burn rate (1h)"
+          description: "API availability error budget burning at {{ $value }}x rate (threshold: 14.4x for 1h)"
+          impact: "Error budget will be exhausted in ~2 hours if this continues"
+          runbook_url: "https://docs.musicgen.ai/runbooks/error-budget-burn"
+
+      - alert: HighErrorBudgetBurnRate6h
+        expr: musicgen:error_budget_api_availability_burn_rate_1h > 6.0
+        for: 15m
+        labels:
+          severity: high
+          service: musicgen
+          alert_type: error_budget_burn
+        annotations:
+          summary: "High error budget burn rate (6h)"
+          description: "API availability error budget burning at {{ $value }}x rate (threshold: 6x for 6h)"
+          impact: "Error budget will be exhausted in ~5 hours if this continues"
+          runbook_url: "https://docs.musicgen.ai/runbooks/error-budget-burn"
+
+      - alert: ErrorBudgetExhausted
+        expr: musicgen:error_budget_api_availability_remaining_30d <= 0
+        for: 1m
+        labels:
+          severity: critical
+          service: musicgen
+          alert_type: error_budget_exhausted
+        annotations:
+          summary: "Error budget exhausted"
+          description: "API availability error budget for 30-day period has been exhausted"
+          impact: "SLO target cannot be met for this period"
+          runbook_url: "https://docs.musicgen.ai/runbooks/error-budget-exhausted"
+
+  # API Health Alerts
+  - name: musicgen.api.health
+    rules:
+      - alert: HighErrorRate
+        expr: sum(musicgen:api_error_rate_5m) * 100 > 5
+        for: 3m
+        labels:
+          severity: high
+          service: musicgen
+        annotations:
+          summary: "High API error rate"
+          description: "API error rate is {{ $value }}% (threshold: 5%) for more than 3 minutes"
+          impact: "Users experiencing frequent API failures"
+
+      - alert: HighAPILatency
+        expr: musicgen:api_latency_p95_5m > 5.0
+        for: 5m
+        labels:
+          severity: medium
+          service: musicgen
+        annotations:
+          summary: "High API latency"
+          description: "95th percentile API latency is {{ $value }}s (threshold: 5s) for more than 5 minutes"
+          impact: "Users experiencing slow response times"
+
+      - alert: LowRequestVolume
+        expr: musicgen:total_request_volume_5m < 10
+        for: 10m
+        labels:
+          severity: medium
+          service: musicgen
+        annotations:
+          summary: "Unusually low request volume"
+          description: "API request volume is {{ $value }} req/s (expected: >10 req/s) for more than 10 minutes"
+          impact: "Possible service discovery or load balancer issues"
+
+      - alert: TooManyRequests
+        expr: sum(rate(musicgen_http_requests_total{status_code="429"}[5m])) * 100 > 1
+        for: 2m
+        labels:
+          severity: medium
+          service: musicgen
+        annotations:
+          summary: "High rate limiting"
+          description: "Rate limiting triggered for {{ $value }}% of requests for more than 2 minutes"
+          impact: "Users being rate limited"
+
+  # Business Logic Alerts
+  - name: musicgen.business.alerts
+    rules:
+      - alert: HighGenerationFailureRate
+        expr: sum(musicgen:generation_errors_rate_5m) * 100 > 2
+        for: 5m
+        labels:
+          severity: high
+          service: musicgen
+        annotations:
+          summary: "High music generation failure rate"
+          description: "Generation failure rate is {{ $value }}% (threshold: 2%) for more than 5 minutes"
+          impact: "Users unable to generate music successfully"
+
+      - alert: ModelLoadFailures
+        expr: rate(musicgen_model_load_duration_seconds_count{result="error"}[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: medium
+          service: musicgen
+        annotations:
+          summary: "Model loading failures detected"
+          description: "Model load failure rate is {{ $value }} failures/s for more than 3 minutes"
+          impact: "Models may not be available for generation"
+
+      - alert: LowCacheHitRate
+        expr: avg(musicgen:model_cache_hit_rate_5m) < 0.8
+        for: 10m
+        labels:
+          severity: medium
+          service: musicgen
+        annotations:
+          summary: "Low model cache hit rate"
+          description: "Model cache hit rate is {{ $value }} (threshold: 0.8) for more than 10 minutes"
+          impact: "Increased model loading times"
+
+      - alert: QueueBackup
+        expr: max(musicgen_queue_depth) > 100
+        for: 5m
+        labels:
+          severity: medium
+          service: musicgen
+        annotations:
+          summary: "Task queue backup detected"
+          description: "Queue depth is {{ $value }} tasks (threshold: 100) for more than 5 minutes"
+          impact: "Increased processing latency"
+
+      - alert: NoActiveUsers
+        expr: musicgen:active_users_5m == 0
+        for: 15m
+        labels:
+          severity: low
+          service: musicgen
+        annotations:
+          summary: "No active users detected"
+          description: "No active users for more than 15 minutes"
+          impact: "Possible service availability or discovery issues"
+
+  # Infrastructure Alerts
+  - name: musicgen.infrastructure.alerts
+    rules:
+      - alert: HighNetworkLatency
+        expr: increase(musicgen_network_bytes_total[5m]) / 1024 / 1024 > 1000
+        for: 5m
+        labels:
+          severity: medium
+          service: musicgen
+        annotations:
+          summary: "High network I/O"
+          description: "Network I/O is {{ $value }} MB/5min (threshold: 1000 MB) on {{ $labels.instance }}"
+          impact: "Possible network bottleneck"
+
+      - alert: GPUHighTemperature
+        expr: musicgen_gpu_temperature_celsius > 85
+        for: 2m
+        labels:
+          severity: high
+          service: musicgen
+        annotations:
+          summary: "GPU temperature too high"
+          description: "GPU {{ $labels.gpu_id }} temperature is {{ $value }}°C (threshold: 85°C)"
+          impact: "GPU thermal throttling may occur"
+
+      - alert: GPUHighMemoryUsage
+        expr: musicgen:gpu_memory_utilization_5m > 90
+        for: 3m
+        labels:
+          severity: medium
+          service: musicgen
+        annotations:
+          summary: "GPU memory usage high"
+          description: "GPU {{ $labels.gpu_id }} memory usage is {{ $value }}% (threshold: 90%)"
+          impact: "GPU may run out of memory for large models"
+
+      - alert: DatabaseConnectionsHigh
+        expr: musicgen_database_connections_active > 80
+        for: 5m
+        labels:
+          severity: medium
+          service: database
+        annotations:
+          summary: "High database connection count"
+          description: "Active database connections: {{ $value }} (threshold: 80)"
+          impact: "May hit connection limit soon"
+
+      - alert: CacheMemoryHigh
+        expr: musicgen_cache_size_bytes / 1024 / 1024 / 1024 > 10
+        for: 10m
+        labels:
+          severity: medium
+          service: musicgen
+        annotations:
+          summary: "Cache memory usage high"
+          description: "Cache using {{ $value }} GB memory (threshold: 10 GB)"
+          impact: "High memory consumption by cache"
+
+  # Capacity Planning Alerts
+  - name: musicgen.capacity.alerts
+    rules:
+      - alert: HighResourceGrowthRate
+        expr: musicgen:cpu_utilization_trend_1h > 10
+        for: 30m
+        labels:
+          severity: medium
+          service: musicgen
+          alert_type: capacity_planning
+        annotations:
+          summary: "High CPU utilization growth rate"
+          description: "CPU utilization growing at {{ $value }}% per hour"
+          impact: "May need capacity scaling soon"
+
+      - alert: HighRequestGrowthRate
+        expr: musicgen:request_rate_growth_1h > 50
+        for: 15m
+        labels:
+          severity: medium
+          service: musicgen
+          alert_type: capacity_planning
+        annotations:
+          summary: "High request volume growth"
+          description: "Request volume growing at {{ $value }}% per hour"
+          impact: "May need to scale API instances"
+
+      - alert: StorageGrowthHigh
+        expr: musicgen:storage_growth_rate_24h > 20
+        for: 1h
+        labels:
+          severity: low
+          service: musicgen
+          alert_type: capacity_planning
+        annotations:
+          summary: "High storage growth rate"
+          description: "Storage usage growing at {{ $value }}% per day"
+          impact: "May need storage expansion planning"
+
+  # Anomaly Detection Alerts
+  - name: musicgen.anomaly.alerts
+    rules:
+      - alert: AnomalousRequestPattern
+        expr: abs(musicgen:total_request_volume_5m - avg_over_time(musicgen:total_request_volume_5m[1h] offset 1h)) > 2 * stddev_over_time(musicgen:total_request_volume_5m[1h] offset 1h)
+        for: 10m
+        labels:
+          severity: medium
+          service: musicgen
+          alert_type: anomaly
+        annotations:
+          summary: "Anomalous request pattern detected"
+          description: "Request volume deviates significantly from historical patterns"
+          impact: "Possible service issues or unusual traffic patterns"
+
+      - alert: AnomalousErrorPattern
+        expr: musicgen:total_error_volume_5m > 3 * avg_over_time(musicgen:total_error_volume_5m[24h] offset 24h)
+        for: 5m
+        labels:
+          severity: high
+          service: musicgen
+          alert_type: anomaly
+        annotations:
+          summary: "Anomalous error pattern detected"
+          description: "Error volume significantly higher than historical baseline"
+          impact: "Possible service degradation or new issue"
+
+      - alert: UnusualGenerationPattern
+        expr: abs(sum(musicgen:generation_throughput_5m) - avg_over_time(sum(musicgen:generation_throughput_5m)[1h] offset 1h)) > 2 * stddev_over_time(sum(musicgen:generation_throughput_5m)[1h] offset 1h)
+        for: 15m
+        labels:
+          severity: low
+          service: musicgen
+          alert_type: anomaly
+        annotations:
+          summary: "Unusual music generation pattern"
+          description: "Generation volume deviates from normal patterns"
+          impact: "Possible service or user behavior changes"

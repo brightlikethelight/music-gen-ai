@@ -1,0 +1,417 @@
+# MusicGen AI Microservices Docker Compose
+# Complete microservices deployment with all services, databases, and monitoring
+
+version: '3.8'
+
+services:
+  # API Gateway
+  gateway:
+    build:
+      context: ../../
+      dockerfile: infrastructure/docker/Dockerfile.gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - GENERATION_SERVICE_URL=http://generation:8001
+      - MODEL_SERVICE_URL=http://model:8002
+      - PROCESSING_SERVICE_URL=http://processing:8003
+      - STORAGE_SERVICE_URL=http://storage:8004
+      - USER_MGMT_SERVICE_URL=http://user-management:8005
+      - ANALYTICS_SERVICE_URL=http://analytics:8006
+      - JWT_SECRET=${JWT_SECRET:-dev_secret_change_in_production}
+    depends_on:
+      - redis
+      - generation
+      - model
+      - processing
+      - storage
+      - user-management
+      - analytics
+    networks:
+      - musicgen
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Generation Service
+  generation:
+    build:
+      context: ../../
+      dockerfile: infrastructure/docker/Dockerfile.generation
+    ports:
+      - "8001:8001"
+    environment:
+      - REDIS_URL=redis://redis:6379/1
+      - POSTGRES_URL=postgresql://musicgen:${POSTGRES_PASSWORD:-musicgen_pass}@postgres:5432/generation
+      - MODEL_SERVICE_URL=http://model:8002
+      - PROCESSING_SERVICE_URL=http://processing:8003
+      - STORAGE_SERVICE_URL=http://storage:8004
+    depends_on:
+      - redis
+      - postgres
+      - model
+    networks:
+      - musicgen
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Model Service (GPU enabled)
+  model:
+    build:
+      context: ../../
+      dockerfile: infrastructure/docker/Dockerfile.model
+    ports:
+      - "8002:8002"
+    environment:
+      - REDIS_URL=redis://redis:6379/2
+      - MODEL_CACHE_DIR=/app/cache/models
+      - CUDA_VISIBLE_DEVICES=0
+    volumes:
+      - model_cache:/app/cache/models
+      - huggingface_cache:/root/.cache/huggingface
+    networks:
+      - musicgen
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+
+  # Audio Processing Service
+  processing:
+    build:
+      context: ../../
+      dockerfile: infrastructure/docker/Dockerfile.processing
+    ports:
+      - "8003:8003"
+    environment:
+      - REDIS_URL=redis://redis:6379/3
+      - STORAGE_SERVICE_URL=http://storage:8004
+      - TEMP_DIR=/app/tmp
+    volumes:
+      - processing_temp:/app/tmp
+    networks:
+      - musicgen
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Storage Service
+  storage:
+    build:
+      context: ../../
+      dockerfile: infrastructure/docker/Dockerfile.storage
+    ports:
+      - "8004:8004"
+    environment:
+      - POSTGRES_URL=postgresql://musicgen:${POSTGRES_PASSWORD:-musicgen_pass}@postgres:5432/storage
+      - MINIO_URL=http://minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - REDIS_URL=redis://redis:6379/4
+    depends_on:
+      - postgres
+      - minio
+      - redis
+    networks:
+      - musicgen
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # User Management Service
+  user-management:
+    build:
+      context: ../../
+      dockerfile: infrastructure/docker/Dockerfile.user-management
+    ports:
+      - "8005:8005"
+    environment:
+      - POSTGRES_URL=postgresql://musicgen:${POSTGRES_PASSWORD:-musicgen_pass}@postgres:5432/users
+      - REDIS_URL=redis://redis:6379/5
+      - JWT_SECRET=${JWT_SECRET:-dev_secret_change_in_production}
+      - BCRYPT_ROUNDS=12
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - musicgen
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Analytics Service
+  analytics:
+    build:
+      context: ../../
+      dockerfile: infrastructure/docker/Dockerfile.analytics
+    ports:
+      - "8006:8006"
+    environment:
+      - TIMESCALEDB_URL=postgresql://musicgen:${POSTGRES_PASSWORD:-musicgen_pass}@timescaledb:5432/analytics
+      - REDIS_URL=redis://redis:6379/6
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      - timescaledb
+      - redis
+      - kafka
+    networks:
+      - musicgen
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Monitoring Service
+  monitoring:
+    build:
+      context: ../../
+      dockerfile: infrastructure/docker/Dockerfile.monitoring
+    ports:
+      - "8007:8007"
+    environment:
+      - PROMETHEUS_URL=http://prometheus:9090
+      - GRAFANA_URL=http://grafana:3000
+    depends_on:
+      - prometheus
+      - grafana
+    networks:
+      - musicgen
+    restart: unless-stopped
+
+  # Database Services
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=musicgen
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-musicgen_pass}
+      - POSTGRES_DB=musicgen
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+    networks:
+      - musicgen
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U musicgen"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=musicgen
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-musicgen_pass}
+      - POSTGRES_DB=analytics
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+    networks:
+      - musicgen
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U musicgen"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 1gb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - musicgen
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Object Storage
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-minioadmin}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - musicgen
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # Message Queue
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    networks:
+      - musicgen
+    restart: unless-stopped
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - musicgen
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Monitoring Stack
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=168h'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - musicgen
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - musicgen
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - musicgen
+    restart: unless-stopped
+
+  # Load Balancer (for production scaling)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - gateway
+    networks:
+      - musicgen
+    restart: unless-stopped
+
+  # Frontend Application
+  frontend:
+    build:
+      context: ../../frontend/web
+      dockerfile: Dockerfile.prod
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080
+      - REACT_APP_WS_URL=ws://localhost:8080
+    depends_on:
+      - gateway
+    networks:
+      - musicgen
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  timescaledb_data:
+  redis_data:
+  minio_data:
+  kafka_data:
+  zookeeper_data:
+  prometheus_data:
+  grafana_data:
+  model_cache:
+  huggingface_cache:
+  processing_temp:
+
+networks:
+  musicgen:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

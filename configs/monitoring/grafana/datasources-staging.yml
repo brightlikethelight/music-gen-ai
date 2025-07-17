@@ -1,0 +1,113 @@
+# Grafana Datasources Configuration for Staging Environment
+apiVersion: 1
+
+# List of datasources to insert/update depending
+# what's available in the database
+datasources:
+  # Main Prometheus datasource for staging metrics
+  - name: Prometheus-Staging
+    type: prometheus
+    access: proxy
+    url: http://prometheus-staging:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      httpMethod: POST
+      queryTimeout: 60s
+      timeInterval: 10s
+      # Enable exemplars for detailed tracing
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: jaeger-staging
+    secureJsonData: {}
+
+  # PostgreSQL datasource for database metrics
+  - name: PostgreSQL-Staging
+    type: postgres
+    access: proxy
+    url: postgres-staging:5432
+    database: musicgen_staging
+    user: musicgen
+    secureJsonData:
+      password: staging_password_change_me
+    jsonData:
+      sslmode: disable
+      maxOpenConns: 5
+      maxIdleConns: 2
+      connMaxLifetime: 14400
+      postgresVersion: 1500
+      timescaledb: false
+    editable: true
+
+  # Elasticsearch datasource for logs (if available)
+  - name: Elasticsearch-Staging
+    type: elasticsearch
+    access: proxy
+    url: http://elasticsearch-staging:9200
+    database: logstash-*
+    jsonData:
+      interval: Daily
+      timeField: "@timestamp"
+      esVersion: 80
+      logMessageField: message
+      logLevelField: level
+      maxConcurrentShardRequests: 5
+    editable: true
+
+  # Loki datasource for structured logs (if available)
+  # - name: Loki-Staging
+  #   type: loki
+  #   access: proxy
+  #   url: http://loki-staging:3100
+  #   jsonData:
+  #     maxLines: 1000
+  #     derivedFields:
+  #       - datasourceUid: jaeger-staging
+  #         matcherRegex: "trace_id=(\\w+)"
+  #         name: TraceID
+  #         url: "$${__value.raw}"
+  #   editable: true
+
+  # TestData datasource for dashboard development
+  - name: TestData
+    type: testdata
+    access: proxy
+    editable: true
+    jsonData: {}
+
+  # CloudWatch datasource (if using AWS)
+  # - name: CloudWatch-Staging
+  #   type: cloudwatch
+  #   access: proxy
+  #   jsonData:
+  #     authType: default
+  #     defaultRegion: us-east-1
+  #     customMetricsNamespaces: MusicGenAI/Staging
+  #   editable: true
+
+# Notification channels for staging alerts
+notifications:
+  - name: staging-slack
+    type: slack
+    settings:
+      url: ${SLACK_WEBHOOK_URL}
+      channel: "#musicgen-staging"
+      username: Grafana-Staging
+      title: "Staging Environment Alert"
+      text: "{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+    editable: true
+
+  - name: staging-email
+    type: email
+    settings:
+      addresses: staging-alerts@musicgen-ai.com
+      subject: "MusicGen Staging Alert: {{ .CommonLabels.alertname }}"
+      body: |
+        Alert: {{ .CommonLabels.alertname }}
+        Environment: Staging
+        
+        {{ range .Alerts }}
+        Summary: {{ .Annotations.summary }}
+        Description: {{ .Annotations.description }}
+        {{ end }}
+    editable: true

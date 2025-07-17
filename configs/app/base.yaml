@@ -1,0 +1,168 @@
+# Base Application Configuration
+# This is the foundation configuration that all environments inherit from
+
+defaults:
+  - _self_
+  - model: musicgen_small
+  - infrastructure: local
+
+# Application Information
+app:
+  name: "MusicGen AI"
+  version: "1.0.0"
+  description: "Production-ready text-to-music generation system"
+  environment: "development"  # Override in env-specific configs
+
+# API Configuration
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+  reload: true
+  debug: true
+  cors:
+    enabled: true
+    origins: ["http://localhost:3000", "http://localhost:8080"]
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    headers: ["*"]
+  rate_limiting:
+    enabled: false
+    requests_per_minute: 60
+    burst_limit: 10
+
+# Authentication & Security
+auth:
+  enabled: false  # Enable in production
+  jwt_secret: "${JWT_SECRET:default_dev_secret}"
+  jwt_algorithm: "HS256"
+  jwt_expiration_hours: 24
+  api_key_required: false
+  allowed_api_keys: []
+
+# Model Configuration
+model:
+  default_model: "facebook/musicgen-small"
+  cache_size: 3
+  cache_dir: "${MODEL_CACHE_DIR:./cache/models}"
+  device: "auto"  # auto, cpu, cuda, mps
+  mixed_precision: true
+  compile_model: false
+  download_timeout_seconds: 300
+
+# Generation Settings
+generation:
+  default_duration: 10.0
+  max_duration: 60.0
+  default_temperature: 0.8
+  default_top_k: 250
+  default_top_p: 0.0
+  max_batch_size: 4
+  timeout_seconds: 120
+  quality_mode: "standard"  # fast, standard, high
+
+# Audio Processing
+audio:
+  sample_rate: 24000
+  format: "wav"
+  bit_depth: 16
+  channels: 1
+  normalization: "peak"  # peak, rms, lufs
+  output_dir: "${AUDIO_OUTPUT_DIR:./outputs/audio}"
+  temp_dir: "${AUDIO_TEMP_DIR:./tmp/audio}"
+  cleanup_temp_files: true
+
+# Resource Management
+resources:
+  max_memory_usage_percent: 85.0
+  max_cpu_usage_percent: 90.0
+  cleanup_threshold_percent: 80.0
+  monitoring_interval_seconds: 30.0
+  auto_cleanup_enabled: true
+  gpu_memory_fraction: 0.8
+
+# Data & Storage
+data:
+  datasets_dir: "${DATASETS_DIR:./data/datasets}"
+  cache_dir: "${DATA_CACHE_DIR:./cache/data}"
+  preprocessing:
+    num_workers: 4
+    batch_size: 32
+    max_sequence_length: 1024
+
+# Training Configuration (when applicable)
+training:
+  enabled: false
+  checkpoints_dir: "${CHECKPOINTS_DIR:./checkpoints}"
+  logs_dir: "${LOGS_DIR:./logs}"
+  tensorboard_dir: "${TENSORBOARD_DIR:./runs}"
+  save_every_n_steps: 1000
+  validate_every_n_steps: 500
+  max_checkpoints: 5
+
+# Monitoring & Observability
+monitoring:
+  enabled: true
+  metrics:
+    enabled: true
+    port: 9090
+    endpoint: "/metrics"
+  health_check:
+    enabled: true
+    endpoint: "/health"
+    detailed_endpoint: "/health/detailed"
+  logging:
+    level: "INFO"
+    format: "json"
+    file_rotation: true
+    max_file_size_mb: 100
+    backup_count: 5
+
+# External Services
+external_services:
+  wandb:
+    enabled: false
+    project: "musicgen-ai"
+    entity: "${WANDB_ENTITY:}"
+    api_key: "${WANDB_API_KEY:}"
+  
+  redis:
+    enabled: false
+    host: "${REDIS_HOST:localhost}"
+    port: "${REDIS_PORT:6379}"
+    db: 0
+    password: "${REDIS_PASSWORD:}"
+  
+  postgresql:
+    enabled: false
+    host: "${POSTGRES_HOST:localhost}"
+    port: "${POSTGRES_PORT:5432}"
+    database: "${POSTGRES_DB:musicgen}"
+    username: "${POSTGRES_USER:musicgen}"
+    password: "${POSTGRES_PASSWORD:}"
+
+# Feature Flags
+features:
+  streaming_generation: false
+  multi_instrument: false
+  batch_processing: true
+  conditioning: true
+  model_switching: true
+  audio_effects: false
+  midi_export: false
+
+# Development Tools
+dev_tools:
+  profiling_enabled: false
+  debug_sql: false
+  mock_slow_operations: false
+  test_mode: false
+  hot_reload: true
+
+# Validation Settings
+validation:
+  strict_mode: false
+  validate_audio_output: true
+  validate_model_outputs: true
+  max_prompt_length: 1000
+  min_duration: 0.1
+  max_file_size_mb: 100

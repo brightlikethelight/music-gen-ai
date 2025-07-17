@@ -1,61 +1,47 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=65", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "music-gen-ai"
-version = "0.1.0"
-description = "Production-ready text-to-music generation system using transformer architecture with EnCodec tokenization"
+name = "musicgen-unified"
+version = "2.0.1"
+description = "Unified MusicGen interface for AI music generation - Harvard CS 109B Final Project"
 authors = [
-    {name = "Bright Liu", email = "your.email@example.com"}
+    {name = "Bright Liu", email = "brightliu@college.harvard.edu"}
 ]
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+    "Topic :: Multimedia :: Sound/Audio :: Sound Synthesis",
+    "Topic :: Education",
+]
+keywords = [
+    "music", "generation", "ai", "machine-learning", "deep-learning",
+    "pytorch", "transformers", "audio", "musicgen", "harvard", "cs109b"
 ]
 dependencies = [
-    "torch>=2.0.0",
-    "torchaudio>=2.0.0",
-    "pytorch-lightning>=2.0.0",
-    "hydra-core>=1.3.0",
-    "omegaconf>=2.3.0",
-    "transformers>=4.30.0",
-    "encodec>=0.1.1",
-    "fastapi>=0.100.0",
-    "uvicorn[standard]>=0.22.0",
-    "wandb>=0.15.0",
-    "librosa>=0.10.0",
-    "numpy>=1.21.0",
-    "scipy>=1.9.0",
-    "pandas>=1.5.0",
-    "scikit-learn>=1.2.0",
+    "numpy>=1.26.0,<2.0",
+    "scipy>=1.14.0,<2.0",
+    "torch>=2.2.0",
+    "transformers>=4.43.0",
+    "scikit-learn>=1.3.0",
     "soundfile>=0.12.0",
-    "pretty-midi>=0.2.9",
-    "pydantic>=2.0.0",
-    "python-multipart>=0.0.6",
-    "aiofiles>=23.0.0",
+    "librosa>=0.10.0",
+    "pydub>=0.25.0",
+    "typer[all]>=0.9.0",
     "rich>=13.0.0",
-    "typer>=0.9.0",
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.21.0",
-    "black>=23.0.0",
-    "isort>=5.12.0",
-    "flake8>=6.0.0",
-    "mypy>=1.0.0",
-    "pre-commit>=3.0.0",
-    "python-json-logger>=2.0.0",
+    "pandas>=2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -78,20 +64,20 @@ deployment = [
 ]
 
 [project.scripts]
-music-gen = "music_gen.cli:main"
-music-gen-train = "music_gen.training.cli:train"
-music-gen-inference = "music_gen.inference.cli:generate"
-music-gen-api = "music_gen.api.main:start_server"
+musicgen = "musicgen.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/Bright-L01/music-gen-ai"
-Repository = "https://github.com/Bright-L01/music-gen-ai"
-Issues = "https://github.com/Bright-L01/music-gen-ai/issues"
-Documentation = "https://github.com/Bright-L01/music-gen-ai/blob/main/README.md"
+Homepage = "https://github.com/brightlikethelight/music-gen-ai"
+Repository = "https://github.com/brightlikethelight/music-gen-ai"
+Issues = "https://github.com/brightlikethelight/music-gen-ai/issues"
+Documentation = "https://github.com/brightlikethelight/music-gen-ai/tree/main/docs"
+"CS 109B Project" = "https://github.com/brightlikethelight/music-gen-ai/tree/main/docs/cs109b"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["music_gen*"]
+where = ["src"]
+
+[tool.setuptools.package-data]
+musicgen = ["py.typed"]
 
 [tool.black]
 line-length = 100

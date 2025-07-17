@@ -1,0 +1,1182 @@
+openapi: 3.0.3
+info:
+  title: Music Gen AI API
+  version: 1.0.0
+  description: |
+    Production-ready AI music generation API that creates high-quality music from text prompts using transformer architecture with EnCodec audio tokenization.
+
+    ## Features
+    - **Text-to-Music Generation**: Generate music from natural language descriptions
+    - **Multiple Model Support**: Various model sizes for different use cases
+    - **Real-time Streaming**: Stream music generation progress
+    - **High-Quality Audio**: 32kHz sampling rate with EnCodec compression
+    - **Rate Limiting**: Tier-based usage controls
+    - **Authentication**: JWT-based secure access
+    - **Monitoring**: Comprehensive metrics and health endpoints
+
+    ## Getting Started
+    1. Sign up for an API key at [https://musicgen.ai/signup](https://musicgen.ai/signup)
+    2. Authenticate using JWT tokens or API keys
+    3. Start generating music with simple text prompts
+    4. Monitor your usage and billing in the dashboard
+
+    ## Support
+    - **Documentation**: [https://docs.musicgen.ai](https://docs.musicgen.ai)
+    - **Support**: [support@musicgen.ai](mailto:support@musicgen.ai)
+    - **Status Page**: [https://status.musicgen.ai](https://status.musicgen.ai)
+
+  termsOfService: https://musicgen.ai/terms
+  contact:
+    name: Music Gen AI Support
+    url: https://musicgen.ai/support
+    email: support@musicgen.ai
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.musicgen.ai/v1
+    description: Production server
+  - url: https://staging-api.musicgen.ai/v1
+    description: Staging server
+  - url: http://localhost:8000/api/v1
+    description: Local development server
+
+security:
+  - ApiKeyAuth: []
+  - JwtAuth: []
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Get API health status and system information
+      operationId: getHealth
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: healthy
+                timestamp: "2024-01-15T10:30:00Z"
+                version: "1.0.0"
+                uptime_seconds: 86400
+                components:
+                  database: healthy
+                  cache: healthy
+                  models: healthy
+                  queue: healthy
+
+  /metrics:
+    get:
+      tags:
+        - Monitoring
+      summary: Prometheus metrics
+      description: Get Prometheus-format metrics for monitoring
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Metrics in Prometheus format
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: |
+                # HELP musicgen_http_requests_total Total HTTP requests
+                # TYPE musicgen_http_requests_total counter
+                musicgen_http_requests_total{method="GET",endpoint="/health",status_code="200"} 1
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Authenticate user
+      description: |
+        Authenticate user credentials and receive JWT access token.
+        
+        **Rate Limit**: 5 requests per minute per IP
+        
+        **Security**: Passwords are hashed with bcrypt, failed attempts are logged
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              standard_login:
+                summary: Standard email/password login
+                value:
+                  email: user@example.com
+                  password: secure_password123
+              api_key_login:
+                summary: API key authentication
+                value:
+                  api_key: sk_test_1234567890abcdef
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                token_type: bearer
+                expires_in: 3600
+                refresh_token: refresh_1234567890abcdef
+                user:
+                  id: user_1234567890
+                  email: user@example.com
+                  tier: pro
+                  usage:
+                    generations_remaining: 450
+                    reset_date: "2024-01-16T00:00:00Z"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: Exchange refresh token for new access token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+            example:
+              refresh_token: refresh_1234567890abcdef
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /generate:
+    post:
+      tags:
+        - Music Generation
+      summary: Generate music from text
+      description: |
+        Generate music from a text prompt using AI models.
+        
+        **Rate Limits by Tier**:
+        - Free: 10 generations/hour, max 30s duration
+        - Pro: 100 generations/hour, max 5min duration
+        - Enterprise: Unlimited, max 10min duration
+        
+        **Generation Time**: Typically 2-3x the audio duration
+        
+        **Supported Models**:
+        - `musicgen-small`: Fast, good quality (default)
+        - `musicgen-medium`: Balanced speed/quality  
+        - `musicgen-large`: Best quality, slower
+        - `musicgen-melody`: Melody conditioning support
+      operationId: generateMusic
+      security:
+        - ApiKeyAuth: []
+        - JwtAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerationRequest'
+            examples:
+              simple_prompt:
+                summary: Simple text prompt
+                value:
+                  prompt: "Upbeat jazz with saxophone solo"
+                  duration: 30
+                  model: "musicgen-small"
+              advanced_prompt:
+                summary: Advanced configuration
+                value:
+                  prompt: "Ambient electronic music with soft synth pads and gentle arpeggios"
+                  duration: 60
+                  model: "musicgen-medium"
+                  temperature: 0.8
+                  top_k: 250
+                  top_p: 0.9
+                  seed: 42
+                  guidance_scale: 7.5
+                  format: "wav"
+                  sample_rate: 32000
+              melody_conditioning:
+                summary: Melody conditioning
+                value:
+                  prompt: "Classical piano piece in the style of Chopin"
+                  duration: 120
+                  model: "musicgen-melody"
+                  melody_url: "https://example.com/melody.wav"
+                  melody_conditioning_scale: 0.7
+      responses:
+        '202':
+          description: Generation request accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationResponse'
+              example:
+                task_id: task_abc123def456
+                status: queued
+                estimated_completion_time: "2024-01-15T10:32:00Z"
+                queue_position: 3
+                message: "Your music generation request has been queued"
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailableError'
+
+  /generate/{task_id}:
+    get:
+      tags:
+        - Music Generation
+      summary: Get generation status
+      description: |
+        Get the current status of a music generation task.
+        
+        **Status Values**:
+        - `queued`: Task is waiting in queue
+        - `processing`: AI model is generating music
+        - `completed`: Generation finished successfully
+        - `failed`: Generation failed with error
+        - `cancelled`: Task was cancelled by user
+      operationId: getGenerationStatus
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^task_[a-zA-Z0-9]{12}$'
+          example: task_abc123def456
+          description: Unique task identifier
+      responses:
+        '200':
+          description: Task status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskStatus'
+              examples:
+                queued:
+                  summary: Task in queue
+                  value:
+                    task_id: task_abc123def456
+                    status: queued
+                    progress: 0
+                    queue_position: 3
+                    estimated_completion_time: "2024-01-15T10:32:00Z"
+                    created_at: "2024-01-15T10:30:00Z"
+                processing:
+                  summary: Task processing
+                  value:
+                    task_id: task_abc123def456
+                    status: processing
+                    progress: 65
+                    estimated_completion_time: "2024-01-15T10:31:30Z"
+                    created_at: "2024-01-15T10:30:00Z"
+                    started_at: "2024-01-15T10:30:15Z"
+                completed:
+                  summary: Task completed
+                  value:
+                    task_id: task_abc123def456
+                    status: completed
+                    progress: 100
+                    audio_url: "https://cdn.musicgen.ai/audio/task_abc123def456.wav"
+                    duration: 30.5
+                    file_size: 1572864
+                    metadata:
+                      model: musicgen-small
+                      prompt: "Upbeat jazz with saxophone solo"
+                      generation_time: 45.2
+                      seed: 42
+                    created_at: "2024-01-15T10:30:00Z"
+                    started_at: "2024-01-15T10:30:15Z"
+                    completed_at: "2024-01-15T10:31:00Z"
+                failed:
+                  summary: Task failed
+                  value:
+                    task_id: task_abc123def456
+                    status: failed
+                    progress: 30
+                    error:
+                      code: GENERATION_FAILED
+                      message: "Model failed to generate audio"
+                      details: "GPU out of memory error"
+                    created_at: "2024-01-15T10:30:00Z"
+                    started_at: "2024-01-15T10:30:15Z"
+                    failed_at: "2024-01-15T10:30:45Z"
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /generate/{task_id}/cancel:
+    post:
+      tags:
+        - Music Generation
+      summary: Cancel generation task
+      description: Cancel a queued or processing generation task
+      operationId: cancelGeneration
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: task_abc123def456
+      responses:
+        '200':
+          description: Task cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskStatus'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          description: Task cannot be cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: CANNOT_CANCEL
+                  message: "Task is already completed and cannot be cancelled"
+
+  /stream/{task_id}:
+    get:
+      tags:
+        - Music Generation
+      summary: Stream generation progress
+      description: |
+        Server-sent events (SSE) stream for real-time generation progress.
+        
+        **Event Types**:
+        - `status`: Status updates
+        - `progress`: Progress percentage updates
+        - `audio_chunk`: Partial audio data (base64 encoded)
+        - `completed`: Final audio URL
+        - `error`: Error information
+      operationId: streamGeneration
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: task_abc123def456
+      responses:
+        '200':
+          description: SSE stream of generation progress
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |
+                event: status
+                data: {"status": "processing", "progress": 25}
+
+                event: progress
+                data: {"progress": 50, "estimated_remaining": 30}
+
+                event: audio_chunk
+                data: {"chunk_index": 1, "audio_data": "UklGRiQEAABXQVZFZm10..."}
+
+                event: completed
+                data: {"audio_url": "https://cdn.musicgen.ai/audio/task_abc123def456.wav"}
+
+  /models:
+    get:
+      tags:
+        - Models
+      summary: List available models
+      description: Get list of available AI models with their capabilities
+      operationId: listModels
+      responses:
+        '200':
+          description: List of available models
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelsResponse'
+              example:
+                models:
+                  - id: musicgen-small
+                    name: "MusicGen Small"
+                    description: "Fast generation with good quality"
+                    parameters: 300000000
+                    max_duration: 300
+                    average_generation_time: 2.5
+                    capabilities: ["text-to-music"]
+                    status: available
+                  - id: musicgen-medium
+                    name: "MusicGen Medium" 
+                    description: "Balanced speed and quality"
+                    parameters: 1500000000
+                    max_duration: 300
+                    average_generation_time: 4.2
+                    capabilities: ["text-to-music"]
+                    status: available
+                  - id: musicgen-large
+                    name: "MusicGen Large"
+                    description: "Best quality, slower generation"
+                    parameters: 3300000000
+                    max_duration: 300
+                    average_generation_time: 8.1
+                    capabilities: ["text-to-music"]
+                    status: available
+                  - id: musicgen-melody
+                    name: "MusicGen Melody"
+                    description: "Melody conditioning support"
+                    parameters: 1500000000
+                    max_duration: 300
+                    average_generation_time: 4.8
+                    capabilities: ["text-to-music", "melody-conditioning"]
+                    status: available
+
+  /models/{model_id}:
+    get:
+      tags:
+        - Models
+      summary: Get model details
+      description: Get detailed information about a specific model
+      operationId: getModel
+      parameters:
+        - name: model_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: musicgen-small
+      responses:
+        '200':
+          description: Model details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Model'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /user/profile:
+    get:
+      tags:
+        - User
+      summary: Get user profile
+      description: Get current user profile and usage information
+      operationId: getUserProfile
+      security:
+        - JwtAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+              example:
+                id: user_1234567890
+                email: user@example.com
+                tier: pro
+                created_at: "2024-01-01T00:00:00Z"
+                usage:
+                  current_period:
+                    generations_used: 45
+                    generations_limit: 500
+                    reset_date: "2024-02-01T00:00:00Z"
+                  total:
+                    generations: 1250
+                    audio_minutes: 625.5
+                billing:
+                  subscription_id: sub_1234567890
+                  status: active
+                  next_billing_date: "2024-02-01T00:00:00Z"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /user/api-keys:
+    get:
+      tags:
+        - User
+      summary: List API keys
+      description: Get list of user's API keys
+      operationId: listApiKeys
+      security:
+        - JwtAuth: []
+      responses:
+        '200':
+          description: List of API keys
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeysResponse'
+    post:
+      tags:
+        - User
+      summary: Create API key
+      description: Create a new API key
+      operationId: createApiKey
+      security:
+        - JwtAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApiKeyRequest'
+            example:
+              name: "Production API Key"
+              permissions: ["generate", "models:read"]
+              expires_at: "2025-01-15T00:00:00Z"
+      responses:
+        '201':
+          description: API key created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKey'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        API key authentication. Include your API key in the `X-API-Key` header.
+        
+        Example: `X-API-Key: sk_live_1234567890abcdef`
+        
+        Get your API key from the [dashboard](https://musicgen.ai/dashboard).
+
+    JwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token authentication. Include the token in the `Authorization` header.
+        
+        Example: `Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`
+        
+        Obtain tokens via the `/auth/login` endpoint.
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+          description: Overall health status
+        timestamp:
+          type: string
+          format: date-time
+          description: Health check timestamp
+        version:
+          type: string
+          description: API version
+        uptime_seconds:
+          type: integer
+          description: System uptime in seconds
+        components:
+          type: object
+          properties:
+            database:
+              type: string
+              enum: [healthy, degraded, unhealthy]
+            cache:
+              type: string
+              enum: [healthy, degraded, unhealthy]
+            models:
+              type: string
+              enum: [healthy, degraded, unhealthy]
+            queue:
+              type: string
+              enum: [healthy, degraded, unhealthy]
+      required: [status, timestamp, version]
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email address
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: User password
+          example: secure_password123
+        api_key:
+          type: string
+          pattern: '^sk_[a-z]+_[a-zA-Z0-9]{32}$'
+          description: API key (alternative to email/password)
+          example: sk_test_1234567890abcdef1234567890abcdef
+      oneOf:
+        - required: [email, password]
+        - required: [api_key]
+
+    RefreshRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+          description: Valid refresh token
+          example: refresh_1234567890abcdef
+      required: [refresh_token]
+
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: JWT access token
+        token_type:
+          type: string
+          enum: [bearer]
+          description: Token type
+        expires_in:
+          type: integer
+          description: Token expiration time in seconds
+        refresh_token:
+          type: string
+          description: Refresh token for obtaining new access tokens
+        user:
+          $ref: '#/components/schemas/User'
+      required: [access_token, token_type, expires_in, user]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique user identifier
+          example: user_1234567890
+        email:
+          type: string
+          format: email
+          description: User email address
+        tier:
+          type: string
+          enum: [free, pro, enterprise]
+          description: User subscription tier
+        usage:
+          type: object
+          properties:
+            generations_remaining:
+              type: integer
+              description: Remaining generations in current period
+            reset_date:
+              type: string
+              format: date-time
+              description: When usage resets
+
+    GenerationRequest:
+      type: object
+      properties:
+        prompt:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Text description of the music to generate
+          example: "Upbeat jazz with saxophone solo"
+        duration:
+          type: number
+          minimum: 1
+          maximum: 600
+          description: Duration in seconds (max depends on user tier)
+          example: 30
+        model:
+          type: string
+          enum: [musicgen-small, musicgen-medium, musicgen-large, musicgen-melody]
+          default: musicgen-small
+          description: AI model to use for generation
+        temperature:
+          type: number
+          minimum: 0.1
+          maximum: 2.0
+          default: 1.0
+          description: Sampling temperature (higher = more creative)
+        top_k:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 250
+          description: Top-k sampling parameter
+        top_p:
+          type: number
+          minimum: 0.1
+          maximum: 1.0
+          default: 0.9
+          description: Top-p sampling parameter
+        seed:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+          description: Random seed for reproducible generation
+        guidance_scale:
+          type: number
+          minimum: 1.0
+          maximum: 20.0
+          default: 7.5
+          description: How closely to follow the prompt
+        format:
+          type: string
+          enum: [wav, mp3, flac]
+          default: wav
+          description: Output audio format
+        sample_rate:
+          type: integer
+          enum: [16000, 22050, 24000, 32000, 44100, 48000]
+          default: 32000
+          description: Output sample rate in Hz
+        melody_url:
+          type: string
+          format: uri
+          description: URL to melody file for conditioning (musicgen-melody only)
+        melody_conditioning_scale:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          default: 0.5
+          description: Strength of melody conditioning
+      required: [prompt]
+
+    GenerationResponse:
+      type: object
+      properties:
+        task_id:
+          type: string
+          description: Unique task identifier
+          pattern: '^task_[a-zA-Z0-9]{12}$'
+          example: task_abc123def456
+        status:
+          type: string
+          enum: [queued]
+          description: Initial task status
+        estimated_completion_time:
+          type: string
+          format: date-time
+          description: Estimated completion time
+        queue_position:
+          type: integer
+          description: Position in generation queue
+        message:
+          type: string
+          description: Human-readable status message
+      required: [task_id, status]
+
+    TaskStatus:
+      type: object
+      properties:
+        task_id:
+          type: string
+          description: Unique task identifier
+        status:
+          type: string
+          enum: [queued, processing, completed, failed, cancelled]
+          description: Current task status
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Completion percentage
+        queue_position:
+          type: integer
+          description: Position in queue (only for queued tasks)
+        estimated_completion_time:
+          type: string
+          format: date-time
+          description: Estimated completion time
+        audio_url:
+          type: string
+          format: uri
+          description: URL to generated audio file (only for completed tasks)
+        duration:
+          type: number
+          description: Audio duration in seconds
+        file_size:
+          type: integer
+          description: File size in bytes
+        metadata:
+          type: object
+          description: Generation metadata
+          properties:
+            model:
+              type: string
+              description: Model used for generation
+            prompt:
+              type: string
+              description: Original text prompt
+            generation_time:
+              type: number
+              description: Time taken to generate in seconds
+            seed:
+              type: integer
+              description: Random seed used
+        error:
+          $ref: '#/components/schemas/Error'
+        created_at:
+          type: string
+          format: date-time
+          description: Task creation time
+        started_at:
+          type: string
+          format: date-time
+          description: Task start time
+        completed_at:
+          type: string
+          format: date-time
+          description: Task completion time
+        failed_at:
+          type: string
+          format: date-time
+          description: Task failure time
+      required: [task_id, status, progress, created_at]
+
+    Model:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Model identifier
+        name:
+          type: string
+          description: Human-readable model name
+        description:
+          type: string
+          description: Model description
+        parameters:
+          type: integer
+          description: Number of model parameters
+        max_duration:
+          type: integer
+          description: Maximum generation duration in seconds
+        average_generation_time:
+          type: number
+          description: Average generation time multiplier
+        capabilities:
+          type: array
+          items:
+            type: string
+          description: Model capabilities
+        status:
+          type: string
+          enum: [available, maintenance, unavailable]
+          description: Model availability status
+      required: [id, name, description, status]
+
+    ModelsResponse:
+      type: object
+      properties:
+        models:
+          type: array
+          items:
+            $ref: '#/components/schemas/Model'
+      required: [models]
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          description: User ID
+        email:
+          type: string
+          format: email
+          description: User email
+        tier:
+          type: string
+          enum: [free, pro, enterprise]
+          description: Subscription tier
+        created_at:
+          type: string
+          format: date-time
+          description: Account creation date
+        usage:
+          type: object
+          properties:
+            current_period:
+              type: object
+              properties:
+                generations_used:
+                  type: integer
+                generations_limit:
+                  type: integer
+                reset_date:
+                  type: string
+                  format: date-time
+            total:
+              type: object
+              properties:
+                generations:
+                  type: integer
+                audio_minutes:
+                  type: number
+        billing:
+          type: object
+          properties:
+            subscription_id:
+              type: string
+            status:
+              type: string
+              enum: [active, cancelled, past_due]
+            next_billing_date:
+              type: string
+              format: date-time
+      required: [id, email, tier, created_at]
+
+    ApiKey:
+      type: object
+      properties:
+        id:
+          type: string
+          description: API key ID
+        name:
+          type: string
+          description: Human-readable name
+        key:
+          type: string
+          description: API key value (only shown once)
+        permissions:
+          type: array
+          items:
+            type: string
+          description: API key permissions
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        last_used:
+          type: string
+          format: date-time
+      required: [id, name, permissions, created_at]
+
+    ApiKeysResponse:
+      type: object
+      properties:
+        api_keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiKey'
+      required: [api_keys]
+
+    CreateApiKeyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Human-readable name for the API key
+        permissions:
+          type: array
+          items:
+            type: string
+            enum: [generate, models:read, user:read, user:write]
+          description: Permissions to grant to this API key
+        expires_at:
+          type: string
+          format: date-time
+          description: Optional expiration date
+      required: [name, permissions]
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Error code
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          description: Human-readable error message
+          example: "The prompt field is required"
+        details:
+          type: string
+          description: Additional error details
+        request_id:
+          type: string
+          description: Unique request identifier for debugging
+          example: req_1234567890abcdef
+      required: [code, message]
+
+  responses:
+    BadRequestError:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            validation_error:
+              summary: Validation error
+              value:
+                code: VALIDATION_ERROR
+                message: "The prompt field is required"
+                request_id: req_1234567890abcdef
+            invalid_duration:
+              summary: Invalid duration
+              value:
+                code: INVALID_DURATION
+                message: "Duration must be between 1 and 300 seconds for your tier"
+                details: "Free tier is limited to 30 seconds maximum"
+                request_id: req_1234567890abcdef
+
+    UnauthorizedError:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            missing_auth:
+              summary: Missing authentication
+              value:
+                code: AUTHENTICATION_REQUIRED
+                message: "Authentication is required to access this resource"
+                request_id: req_1234567890abcdef
+            invalid_token:
+              summary: Invalid token
+              value:
+                code: INVALID_TOKEN
+                message: "The provided authentication token is invalid or expired"
+                request_id: req_1234567890abcdef
+            expired_token:
+              summary: Expired token
+              value:
+                code: TOKEN_EXPIRED
+                message: "Authentication token has expired. Please refresh your token."
+                request_id: req_1234567890abcdef
+
+    ForbiddenError:
+      description: Access forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            insufficient_permissions:
+              summary: Insufficient permissions
+              value:
+                code: INSUFFICIENT_PERMISSIONS
+                message: "Your account does not have permission to access this resource"
+                request_id: req_1234567890abcdef
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            task_not_found:
+              summary: Task not found
+              value:
+                code: TASK_NOT_FOUND
+                message: "The specified task could not be found"
+                request_id: req_1234567890abcdef
+            model_not_found:
+              summary: Model not found
+              value:
+                code: MODEL_NOT_FOUND
+                message: "The specified model is not available"
+                request_id: req_1234567890abcdef
+
+    RateLimitError:
+      description: Rate limit exceeded
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+          description: Request limit per time window
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Remaining requests in current window
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Unix timestamp when the rate limit resets
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds to wait before retrying
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            rate_limit_exceeded:
+              summary: Rate limit exceeded
+              value:
+                code: RATE_LIMIT_EXCEEDED
+                message: "Rate limit exceeded. Please wait before making another request."
+                details: "You have exceeded the rate limit of 10 requests per minute"
+                request_id: req_1234567890abcdef
+
+    ServiceUnavailableError:
+      description: Service temporarily unavailable
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds to wait before retrying
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            maintenance:
+              summary: Maintenance mode
+              value:
+                code: MAINTENANCE_MODE
+                message: "Service is temporarily unavailable due to maintenance"
+                details: "Maintenance window: 2024-01-15 02:00-04:00 UTC"
+                request_id: req_1234567890abcdef
+            overloaded:
+              summary: Service overloaded
+              value:
+                code: SERVICE_OVERLOADED
+                message: "Service is temporarily overloaded. Please try again later."
+                request_id: req_1234567890abcdef
+
+tags:
+  - name: Health
+    description: Health check and system status endpoints
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Music Generation
+    description: AI music generation endpoints
+  - name: Models
+    description: Available AI model information
+  - name: User
+    description: User profile and account management
+  - name: Monitoring
+    description: Metrics and monitoring endpoints

@@ -1,0 +1,58 @@
+# Elasticsearch configuration for Music Gen AI log aggregation
+# Based on 2024 best practices for structured logging and observability
+
+cluster.name: musicgen-logs
+node.name: musicgen-log-node-1
+
+# Network settings
+network.host: 0.0.0.0
+http.port: 9200
+transport.port: 9300
+
+# Discovery settings for single node development
+discovery.type: single-node
+
+# Path settings
+path.data: /var/lib/elasticsearch
+path.logs: /var/log/elasticsearch
+
+# Memory settings (adjust based on available RAM)
+bootstrap.memory_lock: true
+
+# Index settings for log data
+action.auto_create_index: "+musicgen-*,+logs-*,+audit-*,+performance-*,-*"
+
+# Index lifecycle management
+xpack.ilm.enabled: true
+
+# Security settings (enable in production)
+xpack.security.enabled: false
+xpack.monitoring.enabled: true
+
+# Index templates for different log types
+index.number_of_shards: 1
+index.number_of_replicas: 0
+index.refresh_interval: 5s
+
+# Logging
+logger.level: INFO
+logger.org.elasticsearch.discovery: WARN
+logger.org.elasticsearch.cluster.service: WARN
+
+# Custom index mappings for musicgen logs
+# These will be applied automatically via index templates
+cluster.routing.allocation.enable: all
+cluster.routing.rebalance.enable: all
+
+# Performance optimization
+indices.memory.index_buffer_size: 10%
+indices.memory.min_index_buffer_size: 48mb
+
+# Thread pool settings
+thread_pool.write.queue_size: 1000
+thread_pool.search.queue_size: 1000
+
+# Circuit breaker settings
+indices.breaker.total.limit: 70%
+indices.breaker.request.limit: 60%
+indices.breaker.fielddata.limit: 60%

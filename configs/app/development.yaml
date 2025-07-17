@@ -1,0 +1,132 @@
+# Development Environment Configuration
+# Optimized for local development with debugging and fast iteration
+
+defaults:
+  - base
+  - override /model: musicgen_small
+  - override /infrastructure: local
+
+# @package _global_
+app:
+  environment: "development"
+  debug: true
+
+# Development API Settings
+api:
+  host: "127.0.0.1"
+  port: 8000
+  workers: 1
+  reload: true  # Auto-reload on code changes
+  debug: true
+  cors:
+    enabled: true
+    origins: 
+      - "http://localhost:3000"  # React dev server
+      - "http://localhost:8080"  # Vue dev server
+      - "http://127.0.0.1:3000"
+      - "http://127.0.0.1:8080"
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
+    headers: ["*"]
+    credentials: true
+
+# Relaxed Security for Development
+auth:
+  enabled: false
+  jwt_secret: "dev_secret_key_not_for_production"
+  api_key_required: false
+
+# Development Model Settings
+model:
+  default_model: "facebook/musicgen-small"  # Fast model for dev
+  cache_size: 2  # Smaller cache to save memory
+  device: "cpu"  # Avoid GPU conflicts during development
+  mixed_precision: false  # Disable for easier debugging
+  compile_model: false  # Disable compilation for faster startup
+  download_timeout_seconds: 600  # Longer timeout for slow connections
+
+# Fast Generation Settings for Development
+generation:
+  default_duration: 5.0  # Shorter for faster testing
+  max_duration: 30.0
+  default_temperature: 0.8
+  timeout_seconds: 60  # Shorter timeout for dev
+  quality_mode: "fast"
+
+# Development Audio Settings
+audio:
+  sample_rate: 24000
+  format: "wav"
+  output_dir: "./dev_outputs/audio"
+  temp_dir: "./tmp/dev_audio"
+  cleanup_temp_files: false  # Keep files for debugging
+
+# Relaxed Resource Limits for Development
+resources:
+  max_memory_usage_percent: 90.0  # Higher limit for dev
+  max_cpu_usage_percent: 95.0
+  cleanup_threshold_percent: 85.0
+  monitoring_interval_seconds: 10.0  # More frequent monitoring
+  auto_cleanup_enabled: false  # Manual cleanup for debugging
+
+# Development Data Settings
+data:
+  datasets_dir: "./dev_data/datasets"
+  cache_dir: "./dev_cache/data"
+  preprocessing:
+    num_workers: 2  # Fewer workers to avoid overwhelming dev machine
+    batch_size: 8   # Smaller batches
+
+# Enhanced Monitoring for Development
+monitoring:
+  enabled: true
+  metrics:
+    enabled: true
+    port: 9090
+  health_check:
+    enabled: true
+    detailed_endpoint: "/health/detailed"
+  logging:
+    level: "DEBUG"  # Verbose logging for development
+    format: "colored"  # Pretty logging for console
+    file_rotation: false
+    console_output: true
+
+# Development Features
+features:
+  streaming_generation: true   # Enable for testing
+  multi_instrument: true      # Enable for testing
+  batch_processing: true
+  conditioning: true
+  model_switching: true
+  audio_effects: true         # Enable for testing
+  midi_export: true          # Enable for testing
+
+# Development Tools
+dev_tools:
+  profiling_enabled: true
+  debug_sql: true
+  mock_slow_operations: false  # Use real operations for accurate testing
+  test_mode: false
+  hot_reload: true
+  auto_open_browser: false
+  development_server: true
+
+# Relaxed Validation for Development
+validation:
+  strict_mode: false
+  validate_audio_output: false  # Skip time-consuming validation
+  validate_model_outputs: false
+  max_prompt_length: 2000  # Allow longer prompts for testing
+  min_duration: 0.5
+  max_file_size_mb: 200
+
+# Development Database (if needed)
+external_services:
+  wandb:
+    enabled: false  # Disable by default to avoid cluttering wandb
+  
+  redis:
+    enabled: false  # Use in-memory alternatives
+  
+  postgresql:
+    enabled: false  # Use SQLite for development

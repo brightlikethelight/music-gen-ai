@@ -1,0 +1,358 @@
+version: '3.8'
+
+services:
+  # Redis for Celery broker and task storage
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 4gb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+
+  # Celery Beat scheduler
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A music_gen.workers.celery_app beat --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # Flower for Celery monitoring (optional)
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A music_gen.workers.celery_app flower --port=5555
+    ports:
+      - "5555:5555"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - FLOWER_BASIC_AUTH=admin:${FLOWER_PASSWORD:-changeme}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # Critical priority worker
+  worker-critical:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      celery -A music_gen.workers.celery_app worker
+      --hostname=critical@%h
+      --queues=critical
+      --concurrency=2
+      --pool=prefork
+      --max-tasks-per-child=10
+      --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - USE_ADVANCED_REDIS=true
+      - MODEL_CACHE_DIR=/app/models
+    volumes:
+      - model_cache:/app/models
+      - audio_temp:/tmp/musicgen
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+        reservations:
+          memory: 2G
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # High priority generation workers
+  worker-generation-high:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      celery -A music_gen.workers.celery_app worker
+      --hostname=generation-high@%h
+      --queues=generation-high,generation
+      --concurrency=2
+      --pool=prefork
+      --max-tasks-per-child=10
+      --autoscale=4,2
+      --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - USE_ADVANCED_REDIS=true
+      - MODEL_CACHE_DIR=/app/models
+    volumes:
+      - model_cache:/app/models
+      - audio_temp:/tmp/musicgen
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+        reservations:
+          memory: 2G
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Normal generation workers
+  worker-generation:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      celery -A music_gen.workers.celery_app worker
+      --hostname=generation@%h
+      --queues=generation
+      --concurrency=2
+      --pool=prefork
+      --max-tasks-per-child=10
+      --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - USE_ADVANCED_REDIS=true
+      - MODEL_CACHE_DIR=/app/models
+    volumes:
+      - model_cache:/app/models
+      - audio_temp:/tmp/musicgen
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+        reservations:
+          memory: 2G
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Audio processing workers
+  worker-processing:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      celery -A music_gen.workers.celery_app worker
+      --hostname=processing@%h
+      --queues=processing
+      --concurrency=4
+      --pool=prefork
+      --max-tasks-per-child=50
+      --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - USE_ADVANCED_REDIS=true
+    volumes:
+      - audio_temp:/tmp/musicgen
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2'
+        reservations:
+          memory: 1G
+
+  # Batch processing worker
+  worker-batch:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      celery -A music_gen.workers.celery_app worker
+      --hostname=batch@%h
+      --queues=batch
+      --concurrency=1
+      --pool=prefork
+      --max-tasks-per-child=5
+      --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - USE_ADVANCED_REDIS=true
+      - MODEL_CACHE_DIR=/app/models
+    volumes:
+      - model_cache:/app/models
+      - audio_temp:/tmp/musicgen
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+        reservations:
+          memory: 2G
+
+  # Monitoring worker
+  worker-monitoring:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      celery -A music_gen.workers.celery_app worker
+      --hostname=monitoring@%h
+      --queues=monitoring,dead-letter
+      --concurrency=1
+      --pool=eventlet
+      --max-tasks-per-child=1000
+      --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - USE_ADVANCED_REDIS=true
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1'
+        reservations:
+          memory: 512M
+
+  # Music Gen API (integrated with Celery)
+  musicgen-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - USE_ADVANCED_REDIS=true
+      - USE_CELERY_WORKERS=true
+      - MODEL_CACHE_DIR=/app/models
+    volumes:
+      - model_cache:/app/models
+      - audio_temp:/tmp/musicgen
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2'
+        reservations:
+          memory: 1G
+
+  # Worker manager for autoscaling
+  worker-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m music_gen.workers.worker_manager --monitor
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+volumes:
+  redis_data:
+    driver: local
+  model_cache:
+    driver: local
+  audio_temp:
+    driver: local
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

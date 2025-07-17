@@ -1,0 +1,171 @@
+# Staging Environment Configuration
+# Production-like environment for testing and validation
+
+defaults:
+  - base
+  - override /model: musicgen_medium
+  - override /infrastructure: docker
+
+# @package _global_
+app:
+  environment: "staging"
+  debug: false
+
+# Staging API Settings
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 2  # Multiple workers for load testing
+  reload: false
+  debug: false
+  cors:
+    enabled: true
+    origins: 
+      - "https://staging.musicgen-ai.com"
+      - "https://staging-api.musicgen-ai.com"
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    headers: ["Authorization", "Content-Type", "Accept"]
+    credentials: true
+
+# Enhanced Security for Staging
+auth:
+  enabled: true
+  jwt_secret: "${JWT_SECRET}"  # Must be set in environment
+  jwt_algorithm: "HS256"
+  jwt_expiration_hours: 12  # Shorter expiration for staging
+  api_key_required: true
+  allowed_api_keys: ["${STAGING_API_KEY}"]
+
+# Production-Like Model Settings
+model:
+  default_model: "facebook/musicgen-medium"
+  cache_size: 4
+  device: "auto"  # Use GPU if available
+  mixed_precision: true
+  compile_model: true  # Enable optimizations
+  download_timeout_seconds: 300
+
+# Staging Generation Settings
+generation:
+  default_duration: 10.0
+  max_duration: 45.0  # Slightly lower than production
+  default_temperature: 0.8
+  timeout_seconds: 100
+  quality_mode: "standard"
+
+# Staging Audio Settings
+audio:
+  sample_rate: 24000
+  format: "wav"
+  output_dir: "/app/outputs/audio"
+  temp_dir: "/tmp/audio"
+  cleanup_temp_files: true
+
+# Production-Like Resource Management
+resources:
+  max_memory_usage_percent: 80.0
+  max_cpu_usage_percent: 85.0
+  cleanup_threshold_percent: 75.0
+  monitoring_interval_seconds: 30.0
+  auto_cleanup_enabled: true
+  gpu_memory_fraction: 0.7
+
+# Staging Data Settings
+data:
+  datasets_dir: "/app/data/datasets"
+  cache_dir: "/app/cache/data"
+  preprocessing:
+    num_workers: 4
+    batch_size: 16
+
+# Comprehensive Monitoring for Staging
+monitoring:
+  enabled: true
+  metrics:
+    enabled: true
+    port: 9090
+    endpoint: "/metrics"
+  health_check:
+    enabled: true
+    endpoint: "/health"
+    detailed_endpoint: "/health/detailed"
+  logging:
+    level: "INFO"
+    format: "json"
+    file_rotation: true
+    max_file_size_mb: 50
+    backup_count: 10
+    console_output: false
+
+# Enable Most Features for Testing
+features:
+  streaming_generation: true
+  multi_instrument: true
+  batch_processing: true
+  conditioning: true
+  model_switching: true
+  audio_effects: true
+  midi_export: true
+
+# Staging Tools
+dev_tools:
+  profiling_enabled: true  # Keep profiling for performance testing
+  debug_sql: false
+  mock_slow_operations: false
+  test_mode: false
+  hot_reload: false
+
+# Strict Validation for Staging
+validation:
+  strict_mode: true
+  validate_audio_output: true
+  validate_model_outputs: true
+  max_prompt_length: 1000
+  min_duration: 0.1
+  max_file_size_mb: 100
+
+# External Services Configuration
+external_services:
+  wandb:
+    enabled: true
+    project: "musicgen-ai-staging"
+    entity: "${WANDB_ENTITY}"
+    api_key: "${WANDB_API_KEY}"
+  
+  redis:
+    enabled: true
+    host: "${REDIS_HOST:redis-staging}"
+    port: "${REDIS_PORT:6379}"
+    db: 0
+    password: "${REDIS_PASSWORD}"
+    ssl: false
+    connection_pool_size: 10
+  
+  postgresql:
+    enabled: true
+    host: "${POSTGRES_HOST:postgres-staging}"
+    port: "${POSTGRES_PORT:5432}"
+    database: "${POSTGRES_DB:musicgen_staging}"
+    username: "${POSTGRES_USER:musicgen}"
+    password: "${POSTGRES_PASSWORD}"
+    ssl_mode: "prefer"
+    pool_size: 10
+    max_overflow: 20
+
+# Staging-Specific Settings
+staging:
+  load_testing:
+    enabled: true
+    max_concurrent_users: 10
+    test_data_generation: true
+  
+  data_collection:
+    enabled: true
+    anonymize_requests: true
+    store_generated_audio: true
+    retention_days: 30
+  
+  feature_toggles:
+    new_model_testing: true
+    experimental_features: true
+    beta_endpoints: true

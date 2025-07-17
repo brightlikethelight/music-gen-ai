@@ -1,0 +1,79 @@
+# Systemd service for Music Gen AI log management
+# Handles log cleanup, archival, and monitoring
+
+[Unit]
+Description=Music Gen AI Log Management Service
+Documentation=https://docs.musicgen.ai/logging
+After=network.target musicgen-api.service
+Wants=musicgen-api.service
+
+[Service]
+Type=oneshot
+User=musicgen
+Group=musicgen
+WorkingDirectory=/var/log/musicgen
+
+# Environment variables
+Environment=LOG_DIR=/var/log/musicgen
+Environment=ARCHIVE_DIR=/var/archive/musicgen-logs
+Environment=MAX_LOG_AGE_DAYS=90
+Environment=MAX_ARCHIVE_AGE_DAYS=2555
+Environment=DISK_USAGE_THRESHOLD=85
+Environment=CLEANUP_INTERVAL=3600
+
+# Main log management script
+ExecStart=/usr/local/bin/musicgen-log-manager
+
+# Pre-execution checks
+ExecStartPre=/bin/mkdir -p /var/log/musicgen
+ExecStartPre=/bin/mkdir -p /var/archive/musicgen-logs
+ExecStartPre=/bin/chown -R musicgen:musicgen /var/log/musicgen
+ExecStartPre=/bin/chmod 755 /var/log/musicgen
+
+# Post-execution cleanup
+ExecStartPost=/bin/systemctl --no-block restart musicgen-log-monitor.service
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/musicgen /var/archive/musicgen-logs /tmp
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RemoveIPC=true
+RestrictNamespaces=true
+
+# Resource limits
+MemoryMax=256M
+CPUQuota=50%
+TasksMax=50
+IOWeight=10
+
+# Restart policy
+Restart=on-failure
+RestartSec=300
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=musicgen-log-manager
+
+[Install]
+WantedBy=multi-user.target
+
+# Timer service for regular execution
+[Unit]
+Description=Music Gen AI Log Management Timer
+Requires=musicgen-log-management.service
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
