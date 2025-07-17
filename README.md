@@ -3,13 +3,14 @@
 <div align="center">
   
 [![PyPI version](https://badge.fury.io/py/musicgen-unified.svg)](https://badge.fury.io/py/musicgen-unified)
+[![PyPI](https://img.shields.io/pypi/v/musicgen-unified.svg)](https://pypi.org/project/musicgen-unified/)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Harvard CS 109B](https://img.shields.io/badge/Harvard-CS%20109B-crimson.svg)](docs/cs109b/)
 
 **State-of-the-art AI music generation system developed as part of Harvard CS 109B Advanced Data Science**
 
-[📊 View CS 109B Presentation](docs/cs109b/CS_109B_Final_Presentation.pdf) | [📓 Explore Notebook](docs/cs109b/CS_109B_Final_Notebook.ipynb) | [🚀 Quick Start](#quick-start) | [📖 Documentation](docs/)
+📦 **[Available on PyPI](https://pypi.org/project/musicgen-unified/)** | 📊 **[View CS 109B Presentation](docs/cs109b/CS_109B_Final_Presentation.pdf)** | 📓 **[Explore Notebook](docs/cs109b/CS_109B_Final_Notebook.ipynb)** | 🚀 **[Quick Start](#quick-start)** | 📖 **[Documentation](docs/)**
 
 </div>
 
@@ -51,11 +52,15 @@ This project was developed as the final project for **Harvard's CS 109B: Advance
 
 ## 🚀 Quick Start
 
-### Installation
+### Installation from PyPI
+
+Install the latest version directly from PyPI:
 
 ```bash
 pip install musicgen-unified
 ```
+
+**PyPI Package**: https://pypi.org/project/musicgen-unified/
 
 ### Basic Usage
 
@@ -68,6 +73,17 @@ musicgen serve
 
 # Process batch jobs
 musicgen batch playlist.csv
+
+# View system information
+musicgen info
+```
+
+### Verify Installation
+
+```bash
+# Check version and system info
+musicgen --version
+musicgen info
 ```
 
 ## 🏗️ Architecture
@@ -125,14 +141,20 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Facebook Research for the original MusicGen model
 - The open-source community for invaluable tools and libraries
 
-## 📬 Contact
+## 📬 Contact & Links
 
 - **Author**: Bright Liu (brightliu@college.harvard.edu)
 - **Course**: CS 109B - Advanced Data Science, Harvard University
 - **GitHub**: [brightlikethelight/music-gen-ai](https://github.com/brightlikethelight/music-gen-ai)
+- **PyPI Package**: [musicgen-unified](https://pypi.org/project/musicgen-unified/)
 
 ---
 
 <div align="center">
+  <p>
+    <strong>📦 <a href="https://pypi.org/project/musicgen-unified/">Install from PyPI</a></strong> | 
+    <strong>📊 <a href="docs/cs109b/CS_109B_Final_Presentation.pdf">CS 109B Presentation</a></strong> | 
+    <strong>📓 <a href="docs/cs109b/CS_109B_Final_Notebook.ipynb">Implementation Notebook</a></strong>
+  </p>
   <i>Developed with ❤️ at Harvard University</i>
 </div>
