@@ -1,0 +1,41 @@
+{
+  "timestamp": "2025-07-18T16:16:45.388566",
+  "environment": {
+    "python_version": "3.12.9",
+    "gpu": "Not available",
+    "docker": "Docker version 24.0.6, build ed223bc"
+  },
+  "dependencies": {
+    "torch": "2.7.1",
+    "transformers": "4.48.3",
+    "fastapi": "0.110.3",
+    "numpy": "1.26.4",
+    "scipy": "1.14.1",
+    "audiocraft": "not installed"
+  },
+  "api_tests": {
+    "health": "Connection refused",
+    "models": "Connection refused",
+    "docs": "Connection refused"
+  },
+  "deployment_options": {
+    "docker_custom": "No custom image built",
+    "docker_prebuilt": "Pre-built image not pulled",
+    "local_python": "Python 3.12.9 is NOT compatible with ML ecosystem",
+    "cloud_replicate": "Ready - requires API key",
+    "cloud_huggingface": "Ready - requires account",
+    "cloud_runpod": "Ready"
+  },
+  "recommendations": [
+    {
+      "priority": "CRITICAL",
+      "issue": "Python 3.12 is incompatible with ML dependencies",
+      "solution": "Use Python 3.10 or 3.11 via pyenv or Docker"
+    },
+    {
+      "priority": "HIGH",
+      "issue": "No GPU available",
+      "solution": "Use cloud GPU services or expect slow CPU generation"
+    }
+  ]
+}

@@ -128,7 +128,12 @@ async def generate_music_task(job_id: str, request: GenerationRequest):
         _jobs[job_id].message = "Saving audio..."
         
         # Save audio file
-        output_path = f"/app/outputs/{job_id}.wav"
+        output_dir = config.OUTPUT_DIR
+        if not output_dir.startswith('/app/'):
+            # Local environment
+            output_dir = os.path.join(os.getcwd(), "outputs")
+        
+        output_path = os.path.join(output_dir, f"{job_id}.wav")
         
         # Import here to avoid startup issues
         import torchaudio
@@ -162,8 +167,17 @@ async def lifespan(app: FastAPI):
     """Application lifespan management."""
     logger.info("Starting MusicGen API")
     
-    # Create output directory
-    os.makedirs("/app/outputs", exist_ok=True)
+    # Create output directory using config
+    output_dir = config.OUTPUT_DIR
+    if output_dir.startswith('/app/'):
+        # Docker environment
+        output_dir = output_dir
+    else:
+        # Local environment
+        output_dir = os.path.join(os.getcwd(), "outputs")
+    
+    os.makedirs(output_dir, exist_ok=True)
+    logger.info(f"Output directory: {output_dir}")
     
     # Pre-load default model if configured
     if config.MODEL_NAME:
@@ -255,7 +269,12 @@ async def get_job_status(job_id: str):
 @app.get("/audio/{filename}")
 async def get_audio(filename: str):
     """Serve generated audio files."""
-    file_path = f"/app/outputs/{filename}"
+    output_dir = config.OUTPUT_DIR
+    if not output_dir.startswith('/app/'):
+        # Local environment
+        output_dir = os.path.join(os.getcwd(), "outputs")
+    
+    file_path = os.path.join(output_dir, filename)
     
     if not os.path.exists(file_path):
         raise HTTPException(
