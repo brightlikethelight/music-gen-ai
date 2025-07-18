@@ -22,22 +22,23 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="MusicGen Web UI",
         description="Simple web interface for music generation",
-        version="2.0.0"
+        version="2.0.0",
     )
-    
+
     # Mount static files
     if STATIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-    
+
     # Also mount the API app
-    from .api import app as api_app
+    from ..api.rest.api import app as api_app
+
     app.mount("/api", api_app)
-    
+
     @app.get("/", response_class=HTMLResponse)
     async def root():
         """Serve main page."""
         index_path = STATIC_DIR / "index.html"
-        
+
         if index_path.exists():
             return FileResponse(index_path)
         else:
@@ -74,14 +75,14 @@ def create_app() -> FastAPI:
             </body>
             </html>
             """
-    
+
     return app
 
 
 def run_server(host: str = "0.0.0.0", port: int = 8080):
     """Run the web server."""
     import uvicorn
-    
+
     app = create_app()
     uvicorn.run(app, host=host, port=port)
 

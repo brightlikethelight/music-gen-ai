@@ -1,0 +1,53 @@
+# Development environment configuration
+environment: development
+
+# Logging configuration
+logging:
+  level: DEBUG
+  format: detailed
+  file: logs/musicgen-dev.log
+
+# API configuration
+api:
+  host: localhost
+  port: 8000
+  workers: 1
+  reload: true
+  cors:
+    enabled: true
+    origins: ["http://localhost:3000", "http://127.0.0.1:3000"]
+
+# Model configuration
+models:
+  default: facebook/musicgen-small
+  cache_dir: ~/.cache/musicgen
+  device: auto
+  optimize: false
+
+# Generation settings
+generation:
+  max_duration: 30.0
+  default_duration: 10.0
+  sample_rate: 32000
+  batch_size: 1
+
+# Storage configuration
+storage:
+  output_dir: ./outputs
+  temp_dir: /tmp/musicgen
+  
+# Monitoring
+monitoring:
+  metrics:
+    enabled: true
+    port: 9090
+  health_check:
+    enabled: true
+    interval: 30
+
+# Security
+security:
+  api_key_required: false
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 60

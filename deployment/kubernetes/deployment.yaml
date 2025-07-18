@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: musicgen-api
+  namespace: musicgen
+  labels:
+    app: musicgen-api
+    version: "2.0.1"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: musicgen-api
+  template:
+    metadata:
+      labels:
+        app: musicgen-api
+        version: "2.0.1"
+    spec:
+      containers:
+      - name: musicgen-api
+        image: musicgen:2.0.1
+        ports:
+        - containerPort: 8000
+        env:
+        - name: MUSICGEN_ENV
+          value: "production"
+        - name: REDIS_URL
+          value: "redis://redis-service:6379/0"
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: config
+          mountPath: /app/configs
+          readOnly: true
+        - name: models
+          mountPath: /app/models
+      volumes:
+      - name: config
+        configMap:
+          name: musicgen-config
+      - name: models
+        persistentVolumeClaim:
+          claimName: musicgen-models-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: musicgen-worker
+  namespace: musicgen
+  labels:
+    app: musicgen-worker
+    version: "2.0.1"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: musicgen-worker
+  template:
+    metadata:
+      labels:
+        app: musicgen-worker
+        version: "2.0.1"
+    spec:
+      containers:
+      - name: musicgen-worker
+        image: musicgen-worker:2.0.1
+        env:
+        - name: MUSICGEN_ENV
+          value: "production"
+        - name: REDIS_URL
+          value: "redis://redis-service:6379/0"
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "2000m"
+          limits:
+            memory: "8Gi"
+            cpu: "4000m"
+        volumeMounts:
+        - name: config
+          mountPath: /app/configs
+          readOnly: true
+        - name: models
+          mountPath: /app/models
+      volumes:
+      - name: config
+        configMap:
+          name: musicgen-config
+      - name: models
+        persistentVolumeClaim:
+          claimName: musicgen-models-pvc

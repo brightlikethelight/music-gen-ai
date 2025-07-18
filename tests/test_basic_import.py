@@ -10,15 +10,17 @@ def test_can_import_musicgen():
 
 def test_can_import_exceptions():
     """Test that exceptions can be imported."""
-    from musicgen.exceptions import MusicGenError
+    from musicgen.utils.exceptions import MusicGenError
 
     assert MusicGenError is not None
 
 
 def test_can_import_core_modules():
     """Test that core modules can be imported."""
-    from musicgen import generator, cli, batch, prompt
-    
+    from musicgen.core import generator, prompt
+    from musicgen.cli import main as cli
+    from musicgen.services import batch
+
     # Should be able to import without errors
     assert generator is not None
     assert cli is not None

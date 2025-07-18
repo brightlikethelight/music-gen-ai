@@ -1,0 +1,26 @@
+# Dockerfile for MusicGen background workers
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements and install Python dependencies
+COPY pyproject.toml .
+COPY src/ src/
+RUN pip install --no-cache-dir -e .[deployment]
+
+# Create non-root user
+RUN groupadd -r worker && useradd -r -g worker worker
+RUN chown -R worker:worker /app
+
+# Switch to non-root user
+USER worker
+
+# Run worker process
+CMD ["python", "-m", "musicgen.services.worker"]

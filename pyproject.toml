@@ -64,7 +64,7 @@ deployment = [
 ]
 
 [project.scripts]
-musicgen = "musicgen.cli:app"
+musicgen = "musicgen.cli.main:app"
 
 [project.urls]
 Homepage = "https://github.com/brightlikethelight/music-gen-ai"

@@ -7,42 +7,50 @@ Provides clear, actionable error messages.
 
 class MusicGenError(Exception):
     """Base exception for all MusicGen errors."""
+
     pass
 
 
 class ModelError(MusicGenError):
     """Errors related to model loading or inference."""
+
     pass
 
 
 class GenerationError(MusicGenError):
     """Errors during music generation."""
+
     pass
 
 
 class PromptError(MusicGenError):
     """Errors related to prompt validation or processing."""
+
     pass
 
 
 class AudioError(MusicGenError):
     """Errors related to audio processing or saving."""
+
     pass
 
 
 class ConfigError(MusicGenError):
     """Configuration-related errors."""
+
     pass
 
 
 class ResourceError(MusicGenError):
     """Resource-related errors (memory, disk, etc)."""
+
     pass
 
 
 # Specific error cases with helpful messages
 class PromptTooLongError(PromptError):
     """Prompt exceeds maximum length."""
+
     def __init__(self, length: int, max_length: int):
         super().__init__(
             f"Prompt length ({length} chars) exceeds maximum ({max_length} chars). "
@@ -52,6 +60,7 @@ class PromptTooLongError(PromptError):
 
 class DurationError(GenerationError):
     """Invalid duration specified."""
+
     def __init__(self, duration: float, max_duration: float):
         super().__init__(
             f"Duration {duration}s exceeds maximum {max_duration}s. "
@@ -61,6 +70,7 @@ class DurationError(GenerationError):
 
 class OutOfMemoryError(ResourceError):
     """Not enough memory for generation."""
+
     def __init__(self, required_gb: float, available_gb: float):
         super().__init__(
             f"Insufficient memory: {required_gb:.1f}GB required, {available_gb:.1f}GB available. "
@@ -70,6 +80,7 @@ class OutOfMemoryError(ResourceError):
 
 class ModelNotFoundError(ModelError):
     """Model files not found."""
+
     def __init__(self, model_name: str):
         super().__init__(
             f"Model '{model_name}' not found. "
@@ -80,6 +91,7 @@ class ModelNotFoundError(ModelError):
 
 class MP3ConversionError(AudioError):
     """MP3 conversion failed."""
+
     def __init__(self, reason: str):
         super().__init__(
             f"MP3 conversion failed: {reason}. "
@@ -90,6 +102,7 @@ class MP3ConversionError(AudioError):
 
 class VocalRequestError(PromptError):
     """User requested vocals which aren't supported."""
+
     def __init__(self):
         super().__init__(
             "MusicGen doesn't support vocals or singing - it generates instrumental music only. "
@@ -100,20 +113,21 @@ class VocalRequestError(PromptError):
 def handle_gpu_error(e: Exception) -> None:
     """Convert GPU errors to helpful messages."""
     error_str = str(e).lower()
-    
+
     if "out of memory" in error_str or "oom" in error_str:
         import torch
+
         if torch.cuda.is_available():
             free_gb = torch.cuda.mem_get_info()[0] / 1e9
             raise OutOfMemoryError(4.0, free_gb) from e
         else:
             raise ResourceError("GPU out of memory. Try using CPU mode.") from e
-    
+
     elif "cuda" in error_str and "not available" in error_str:
         raise ModelError(
             "CUDA not available. Using CPU mode (will be slower). "
             "For GPU: 1) Install CUDA toolkit, 2) Install PyTorch with CUDA support."
         ) from e
-    
+
     else:
         raise ModelError(f"GPU error: {e}") from e
