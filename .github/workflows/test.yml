@@ -25,7 +25,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', '**/setup.py') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
         restore-keys: |
           ${{ runner.os }}-pip-
           
@@ -38,18 +38,18 @@ jobs:
       run: |
         pip install flake8
         # Stop the build if there are Python syntax errors or undefined names
-        flake8 music_gen tests --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 src tests --count --select=E9,F63,F7,F82 --show-source --statistics
         # Exit-zero treats all errors as warnings
-        flake8 music_gen tests --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        flake8 src tests --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
         
     - name: Type check with mypy
       run: |
         pip install mypy
-        mypy music_gen --ignore-missing-imports || true
+        mypy src --ignore-missing-imports || true
         
     - name: Test with pytest
       run: |
-        pytest tests/ -v --cov=music_gen --cov-report=xml --cov-report=html
+        pytest tests/ -v --cov=src/musicgen --cov-report=xml --cov-report=html
         
     - name: Upload coverage reports
       uses: codecov/codecov-action@v4
@@ -77,8 +77,8 @@ jobs:
         
     - name: Test API endpoints
       run: |
-        # Start the API server in background
-        uvicorn music_gen.api.app:app --host 0.0.0.0 --port 8000 &
+        # Start the API server in background  
+        uvicorn musicgen.api:app --host 0.0.0.0 --port 8000 &
         API_PID=$!
         
         # Wait for server to start
@@ -95,8 +95,8 @@ jobs:
         
     - name: Test demo script
       run: |
-        python demo.py --help
-        # Don't run setup as it references removed microservices
+        # No demo.py in cleaned repository
+        echo "Demo script removed during cleanup"
 
   test-cli:
     runs-on: ubuntu-latest
@@ -117,13 +117,12 @@ jobs:
         
     - name: Test CLI commands
       run: |
-        # Test monolith CLI
-        music-gen --help
-        music-gen generate --help
+        # Test musicgen CLI
+        musicgen --help
+        musicgen generate --help
         
-        # Test demo CLI
-        python demo.py --help
-        python demo.py setup --help
+        # Test that package is importable
+        python -c "import musicgen; print('Package import successful')"
 
   test-notebooks:
     runs-on: ubuntu-latest
@@ -144,14 +143,14 @@ jobs:
         
     - name: Test Jupyter notebooks
       run: |
-        # Test the CS 109B notebook if it exists
-        if [ -f "CS_109B_Music_Project.ipynb" ]; then
-          echo "Testing CS_109B_Music_Project.ipynb..."
-          jupyter nbconvert --to python "CS_109B_Music_Project.ipynb" || true
+        # Test the CS 109B notebook 
+        if [ -f "docs/cs109b/CS_109B_Final_Notebook.ipynb" ]; then
+          echo "Testing CS_109B_Final_Notebook.ipynb..."
+          jupyter nbconvert --to python "docs/cs109b/CS_109B_Final_Notebook.ipynb" || true
         fi
         
         # Test any notebooks in examples directory
-        for notebook in examples/notebooks/*.ipynb; do
+        for notebook in examples/*.ipynb; do
           if [ -f "$notebook" ]; then
             echo "Testing $notebook..."
             jupyter nbconvert --to python "$notebook" || true
