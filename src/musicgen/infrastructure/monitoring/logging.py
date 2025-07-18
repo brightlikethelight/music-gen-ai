@@ -18,6 +18,22 @@ except ImportError:
     STRUCTLOG_AVAILABLE = False
 
 
+def setup_logging() -> None:
+    """
+    Setup structured logging for the application.
+    
+    Uses configuration from config module.
+    """
+    # Import here to avoid circular imports
+    from musicgen.infrastructure.config.config import config
+    
+    configure_logging(
+        level=config.LOG_LEVEL,
+        format_type="json" if STRUCTLOG_AVAILABLE else "detailed",
+        log_file=None  # Use stdout for Docker containers
+    )
+
+
 def configure_logging(
     level: str = "INFO", format_type: str = "detailed", log_file: str = None
 ) -> None:

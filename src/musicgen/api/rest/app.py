@@ -1,311 +1,320 @@
 """
-Simple REST API for music generation.
-No complexity, just endpoints that work.
+FastAPI application for MusicGen API.
+
+Production-ready async endpoints with background tasks.
 """
 
+import asyncio
+import logging
 import os
 import uuid
-import asyncio
+from contextlib import asynccontextmanager
 from typing import Optional
-from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import BackgroundTasks, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
-from ...core.generator import MusicGenerator
-from ...services.batch import BatchProcessor
-from ...core.prompt import PromptEngineer
+from musicgen.infrastructure.config.config import config
+from musicgen.infrastructure.monitoring.logging import setup_logging
+from musicgen.infrastructure.monitoring.metrics import metrics
+from musicgen.utils.exceptions import MusicGenError
 
-# Create app
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
+
+# Global model storage
+_model_cache = {}
+
+
+class GenerationRequest(BaseModel):
+    """Request model for music generation."""
+    
+    prompt: str = Field(..., description="Text description of the music to generate")
+    duration: float = Field(default=30.0, ge=1.0, le=600.0, description="Duration in seconds")
+    model: str = Field(default="facebook/musicgen-small", description="Model to use")
+    temperature: float = Field(default=1.0, ge=0.1, le=2.0, description="Sampling temperature")
+    top_k: int = Field(default=250, ge=1, le=1000, description="Top-k sampling")
+    top_p: float = Field(default=0.0, ge=0.0, le=1.0, description="Top-p sampling")
+    cfg_coef: float = Field(default=3.0, ge=0.0, le=10.0, description="Classifier-free guidance coefficient")
+
+
+class GenerationResponse(BaseModel):
+    """Response model for music generation."""
+    
+    job_id: str
+    status: str
+    message: str
+    audio_url: Optional[str] = None
+    duration: Optional[float] = None
+    model_used: Optional[str] = None
+
+
+class JobStatus(BaseModel):
+    """Job status response."""
+    
+    job_id: str
+    status: str  # "queued", "processing", "completed", "failed"
+    progress: float = 0.0
+    message: str = ""
+    audio_url: Optional[str] = None
+    error: Optional[str] = None
+
+
+# Background task storage
+_jobs: dict[str, JobStatus] = {}
+
+
+async def load_model(model_name: str):
+    """Load MusicGen model with caching."""
+    if model_name not in _model_cache:
+        try:
+            logger.info(f"Loading model: {model_name}")
+            # Import here to avoid startup issues
+            from audiocraft.models import MusicGen
+            
+            model = MusicGen.get_pretrained(model_name)
+            model.set_generation_params(
+                use_sampling=True,
+                top_k=250,
+                duration=30
+            )
+            _model_cache[model_name] = model
+            logger.info(f"Model loaded successfully: {model_name}")
+        except Exception as e:
+            logger.error(f"Failed to load model {model_name}: {e}")
+            raise MusicGenError(f"Failed to load model: {e}")
+    
+    return _model_cache[model_name]
+
+
+async def generate_music_task(job_id: str, request: GenerationRequest):
+    """Background task for music generation."""
+    try:
+        # Update job status
+        _jobs[job_id].status = "processing"
+        _jobs[job_id].progress = 0.1
+        _jobs[job_id].message = "Loading model..."
+        
+        # Load model
+        model = await load_model(request.model)
+        
+        _jobs[job_id].progress = 0.3
+        _jobs[job_id].message = "Generating music..."
+        
+        # Set generation parameters
+        model.set_generation_params(
+            use_sampling=True,
+            top_k=request.top_k,
+            top_p=request.top_p,
+            temperature=request.temperature,
+            cfg_coef=request.cfg_coef,
+            duration=request.duration
+        )
+        
+        # Generate music
+        logger.info(f"Generating music for job {job_id} with prompt: {request.prompt}")
+        
+        # Run in executor to avoid blocking
+        loop = asyncio.get_event_loop()
+        wav = await loop.run_in_executor(
+            None,
+            lambda: model.generate([request.prompt])
+        )
+        
+        _jobs[job_id].progress = 0.8
+        _jobs[job_id].message = "Saving audio..."
+        
+        # Save audio file
+        output_path = f"/app/outputs/{job_id}.wav"
+        
+        # Import here to avoid startup issues
+        import torchaudio
+        
+        # Save the audio
+        torchaudio.save(output_path, wav[0].cpu(), model.sample_rate)
+        
+        # Update job status
+        _jobs[job_id].status = "completed"
+        _jobs[job_id].progress = 1.0
+        _jobs[job_id].message = "Generation completed successfully"
+        _jobs[job_id].audio_url = f"/audio/{job_id}.wav"
+        
+        logger.info(f"Music generation completed for job {job_id}")
+        
+        # Update metrics
+        metrics.generation_completed.inc()
+        
+    except Exception as e:
+        logger.error(f"Music generation failed for job {job_id}: {e}")
+        _jobs[job_id].status = "failed"
+        _jobs[job_id].error = str(e)
+        _jobs[job_id].message = f"Generation failed: {e}"
+        
+        # Update metrics
+        metrics.generation_failed.inc()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan management."""
+    logger.info("Starting MusicGen API")
+    
+    # Create output directory
+    os.makedirs("/app/outputs", exist_ok=True)
+    
+    # Pre-load default model if configured
+    if config.MODEL_NAME:
+        try:
+            await load_model(config.MODEL_NAME)
+        except Exception as e:
+            logger.warning(f"Failed to pre-load model {config.MODEL_NAME}: {e}")
+    
+    yield
+    
+    logger.info("Shutting down MusicGen API")
+
+
+# Create FastAPI app
 app = FastAPI(
     title="MusicGen API",
-    description="Simple API for instrumental music generation",
-    version="2.0.0",
+    description="Production-ready AI music generation API",
+    version="2.0.1",
+    lifespan=lifespan
 )
 
-# Add CORS
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=config.CORS_ORIGINS,
+    allow_credentials=config.CORS_CREDENTIALS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Global generator instance (lazy loaded)
-_generator = None
-_executor = ThreadPoolExecutor(max_workers=2)
+
+@app.get("/health", status_code=status.HTTP_200_OK)
+async def health_check():
+    """Health check endpoint."""
+    return {"status": "healthy", "service": "musicgen-api", "version": "2.0.1"}
 
 
-def get_generator() -> MusicGenerator:
-    """Get or create generator instance."""
-    global _generator
-    if _generator is None:
-        _generator = MusicGenerator()
-    return _generator
-
-
-# Request/Response models
-class GenerateRequest(BaseModel):
-    prompt: str = Field(..., description="Music description")
-    duration: float = Field(30.0, ge=0.1, le=300, description="Duration in seconds")
-    temperature: float = Field(1.0, ge=0.1, le=2.0, description="Sampling temperature")
-    guidance_scale: float = Field(3.0, ge=1.0, le=10.0, description="Guidance scale")
-    format: str = Field("mp3", description="Output format (wav/mp3)")
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "prompt": "smooth jazz piano with soft drums",
-                "duration": 30,
-                "temperature": 1.0,
-                "guidance_scale": 3.0,
-                "format": "mp3",
-            }
-        }
-
-
-class GenerateResponse(BaseModel):
-    job_id: str
-    status: str
-    message: str
-
-
-class JobStatus(BaseModel):
-    job_id: str
-    status: str
-    progress: Optional[float] = None
-    result_url: Optional[str] = None
-    error: Optional[str] = None
-
-
-class PromptRequest(BaseModel):
-    prompt: str
-
-    class Config:
-        json_schema_extra = {"example": {"prompt": "jazz piano"}}
-
-
-class PromptResponse(BaseModel):
-    original: str
-    improved: str
-    is_valid: bool
-    issues: list[str] = []
-    variations: list[str] = []
-
-
-# In-memory job tracking (use Redis in production)
-jobs = {}
-
-
-async def generate_music_task(job_id: str, request: GenerateRequest):
-    """Background task for music generation."""
+@app.post("/generate", response_model=GenerationResponse)
+async def generate_music(
+    request: GenerationRequest,
+    background_tasks: BackgroundTasks
+):
+    """Generate music from text prompt."""
     try:
-        jobs[job_id] = {"status": "processing", "progress": 0}
-
-        # Get generator
-        generator = get_generator()
-
-        # Progress callback
-        def progress_callback(percent, message):
-            jobs[job_id]["progress"] = percent
-
-        # Generate music
-        audio, sample_rate = await asyncio.get_event_loop().run_in_executor(
-            _executor,
-            lambda: generator.generate(
-                request.prompt,
-                request.duration,
-                request.temperature,
-                request.guidance_scale,
-                progress_callback,
-            ),
+        # Create job ID
+        job_id = str(uuid.uuid4())
+        
+        # Initialize job status
+        _jobs[job_id] = JobStatus(
+            job_id=job_id,
+            status="queued",
+            message="Job queued for processing"
         )
-
-        # Save audio
-        output_dir = "api_outputs"
-        os.makedirs(output_dir, exist_ok=True)
-
-        filename = f"{output_dir}/{job_id}.{request.format}"
-        await asyncio.get_event_loop().run_in_executor(
-            _executor, lambda: generator.save_audio(audio, sample_rate, filename, request.format)
+        
+        # Add background task
+        background_tasks.add_task(generate_music_task, job_id, request)
+        
+        logger.info(f"Music generation job {job_id} queued")
+        
+        # Update metrics
+        metrics.generation_requests.inc()
+        
+        return GenerationResponse(
+            job_id=job_id,
+            status="queued",
+            message="Music generation job queued successfully"
         )
-
-        # Update job status
-        jobs[job_id] = {
-            "status": "completed",
-            "progress": 100,
-            "result_url": f"/download/{job_id}.{request.format}",
-        }
-
+        
     except Exception as e:
-        jobs[job_id] = {"status": "failed", "error": str(e)}
-
-
-@app.get("/")
-async def root():
-    """API root endpoint."""
-    return {
-        "name": "MusicGen API",
-        "version": "2.0.0",
-        "endpoints": {
-            "generate": "/generate",
-            "status": "/status/{job_id}",
-            "download": "/download/{filename}",
-            "improve-prompt": "/improve-prompt",
-            "batch": "/batch",
-        },
-    }
-
-
-@app.post("/generate", response_model=GenerateResponse)
-async def generate(request: GenerateRequest, background_tasks: BackgroundTasks):
-    """
-    Generate music from text prompt.
-
-    Returns a job ID for tracking progress.
-    """
-    # Create job ID
-    job_id = str(uuid.uuid4())
-
-    # Start background task
-    background_tasks.add_task(generate_music_task, job_id, request)
-
-    return GenerateResponse(job_id=job_id, status="accepted", message="Generation started")
+        logger.error(f"Failed to queue music generation: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to queue generation: {e}"
+        )
 
 
 @app.get("/status/{job_id}", response_model=JobStatus)
-async def get_status(job_id: str):
-    """Get generation job status."""
-    if job_id not in jobs:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    job = jobs[job_id]
-    return JobStatus(
-        job_id=job_id,
-        status=job["status"],
-        progress=job.get("progress"),
-        result_url=job.get("result_url"),
-        error=job.get("error"),
-    )
+async def get_job_status(job_id: str):
+    """Get job status."""
+    if job_id not in _jobs:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found"
+        )
+    
+    return _jobs[job_id]
 
 
-@app.get("/download/{filename}")
-async def download(filename: str):
-    """Download generated audio file."""
-    file_path = f"api_outputs/{filename}"
-
+@app.get("/audio/{filename}")
+async def get_audio(filename: str):
+    """Serve generated audio files."""
+    file_path = f"/app/outputs/{filename}"
+    
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found")
-
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Audio file not found"
+        )
+    
     return FileResponse(
         file_path,
-        media_type="audio/mpeg" if filename.endswith(".mp3") else "audio/wav",
-        filename=filename,
+        media_type="audio/wav",
+        filename=filename
     )
 
 
-@app.post("/improve-prompt", response_model=PromptResponse)
-async def improve_prompt(request: PromptRequest):
-    """Improve and validate a prompt."""
-    engineer = PromptEngineer()
-
-    # Validate
-    is_valid, issues = engineer.validate_prompt(request.prompt)
-
-    # Improve
-    improved = engineer.improve_prompt(request.prompt)
-
-    # Get variations
-    variations = engineer.suggest_variations(improved, count=3)
-
-    return PromptResponse(
-        original=request.prompt,
-        improved=improved,
-        is_valid=is_valid,
-        issues=issues,
-        variations=variations,
-    )
-
-
-@app.post("/batch")
-async def batch_process(file: UploadFile = File(...)):
-    """
-    Process batch generation from CSV file.
-
-    CSV should have columns: prompt, duration, output_file
-    """
-    # Save uploaded file
-    temp_path = f"temp_{uuid.uuid4()}.csv"
-
-    try:
-        contents = await file.read()
-        with open(temp_path, "wb") as f:
-            f.write(contents)
-
-        # Process batch
-        processor = BatchProcessor()
-        jobs = processor.load_csv(temp_path)
-
-        if not jobs:
-            raise HTTPException(status_code=400, detail="No valid jobs in CSV")
-
-        # Start processing (in production, use Celery or similar)
-        job_id = str(uuid.uuid4())
-
-        # For now, return job info
-        return {
-            "batch_id": job_id,
-            "total_jobs": len(jobs),
-            "status": "accepted",
-            "message": "Batch processing started",
-        }
-
-    finally:
-        # Clean up
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+@app.get("/models")
+async def list_models():
+    """List available models."""
+    return {
+        "models": [
+            {
+                "name": "facebook/musicgen-small",
+                "description": "Small model (300M parameters) - Fast generation",
+                "memory_usage": "2GB",
+                "quality": "Good"
+            },
+            {
+                "name": "facebook/musicgen-medium",
+                "description": "Medium model (1.5B parameters) - Balanced performance",
+                "memory_usage": "6GB",
+                "quality": "Very Good"
+            },
+            {
+                "name": "facebook/musicgen-large",
+                "description": "Large model (3.3B parameters) - Best quality",
+                "memory_usage": "12GB",
+                "quality": "Excellent"
+            }
+        ]
+    }
 
 
-@app.get("/health")
-async def health():
-    """Health check endpoint."""
-    try:
-        # Check if model can be loaded
-        generator = get_generator()
-        info = generator.get_info()
-
-        return {"status": "healthy", "model": info["model"], "device": info["device"]}
-    except Exception as e:
-        return JSONResponse(status_code=503, content={"status": "unhealthy", "error": str(e)})
-
-
-# Startup event
-@app.on_event("startup")
-async def startup():
-    """Preload model on startup."""
-    try:
-        generator = get_generator()
-        print(f"✓ Model loaded: {generator.model_name}")
-    except Exception as e:
-        print(f"Warning: Failed to preload model: {e}")
-
-
-# Shutdown event
-@app.on_event("shutdown")
-async def shutdown():
-    """Cleanup on shutdown."""
-    _executor.shutdown(wait=True)
-
-
-def main():
-    """Main entry point for API server."""
-    import uvicorn
-
-    uvicorn.run("musicgen.api:app", host="0.0.0.0", port=8000, reload=False)
+@app.get("/metrics")
+async def get_metrics():
+    """Get API metrics."""
+    return {
+        "generation_requests": metrics.generation_requests._value._value,
+        "generation_completed": metrics.generation_completed._value._value,
+        "generation_failed": metrics.generation_failed._value._value,
+        "active_jobs": len([j for j in _jobs.values() if j.status == "processing"]),
+        "total_jobs": len(_jobs)
+    }
 
 
 if __name__ == "__main__":
-    main()
+    import uvicorn
+    
+    uvicorn.run(
+        app,
+        host=config.API_HOST,
+        port=config.API_PORT,
+        log_level=config.LOG_LEVEL.lower()
+    )

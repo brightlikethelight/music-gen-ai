@@ -1,0 +1,40 @@
+# Production requirements for MusicGen with Python 3.10
+
+# Core ML framework - PyTorch ecosystem
+torch==2.1.0
+torchaudio>=2.0.0,<2.1.2
+transformers>=4.31.0
+
+# AudioCraft - Facebook's MusicGen library
+audiocraft>=1.1.0
+
+# Web framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Audio processing
+librosa>=0.10.0
+soundfile>=0.12.0
+pydub>=0.25.0
+
+# Core dependencies
+numpy>=1.24.0,<2.0.0
+scipy>=1.10.0,<1.12.0
+scikit-learn>=1.3.0
+
+# API utilities
+python-multipart>=0.0.6
+typer[all]>=0.9.0
+rich>=13.0.0
+
+# Production monitoring
+prometheus-client>=0.17.0
+structlog>=23.0.0
+
+# Configuration management
+pydantic>=2.4.0
+python-dotenv>=1.0.0
+
+# Testing (included for Docker health checks)
+pytest>=7.4.0
+httpx>=0.25.0

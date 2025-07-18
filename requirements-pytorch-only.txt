@@ -1,0 +1,29 @@
+# PyTorch-only requirements for MusicGen
+# This file ensures transformers is installed with PyTorch dependencies only
+
+# Core ML framework - PyTorch only
+torch>=2.2.0
+torchaudio>=2.2.0
+
+# Transformers with PyTorch extras (no TensorFlow)
+transformers[torch]>=4.31.0
+
+# Audio processing libraries
+audiocraft
+scipy>=1.14.0
+soundfile>=0.12.0
+librosa>=0.10.0
+pydub>=0.25.0
+
+# Core dependencies
+numpy>=1.26.0,<2.0
+scikit-learn>=1.3.0
+pandas>=2.0.0
+
+# Utility libraries
+typer[all]>=0.9.0
+rich>=13.0.0
+
+# Note: This excludes TensorFlow completely
+# If you have TensorFlow installed, remove it first:
+# pip uninstall tensorflow tensorflow-datasets tensorflow_estimator tensorflow-metadata tensorboard
