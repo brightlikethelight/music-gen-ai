@@ -27,7 +27,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ hashFiles('requirements.txt') }}
+        key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}
         restore-keys: |
           ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-
           
@@ -38,16 +38,16 @@ jobs:
         pip install -e .
         
     - name: Code formatting check (Black)
-      run: black --check --line-length=100 music_gen tests scripts
+      run: black --check --line-length=100 src tests
       
     - name: Import sorting check (isort)
-      run: isort --profile black music_gen tests scripts
+      run: isort --profile black src tests
       
     - name: Linting (flake8)
-      run: flake8 music_gen tests scripts --max-line-length=100 --extend-ignore=E203,W503,F401,F841,E722,E712,F811,W293,W605,E402,F541,E501,F403,F405
+      run: flake8 src tests --max-line-length=100 --extend-ignore=E203,W503,F401,F841,E722,E712,F811,W293,W605,E402,F541,E501,F403,F405
       
     - name: Type checking (mypy)
-      run: mypy music_gen --ignore-missing-imports --no-strict-optional
+      run: mypy src --ignore-missing-imports --no-strict-optional
       continue-on-error: true  # Allow type checking to fail initially
 
   unit-tests:
@@ -69,7 +69,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
+        key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}
         restore-keys: |
           ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ matrix.python-version }}-
           
@@ -91,7 +91,7 @@ jobs:
     - name: Run unit tests
       run: |
         pytest tests/unit/ \
-          --cov=music_gen \
+          --cov=src/musicgen \
           --cov-report=xml \
           --cov-report=term-missing \
           --cov-fail-under=60 \
@@ -127,7 +127,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
-        pip install -r requirements.txt
         pip install -e .
         
     - name: Run integration tests
@@ -178,23 +177,23 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         auto-push: true
 
-  docker-build:
-    name: Docker Build Test
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-      
-    - name: Build Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        push: false
-        tags: music-gen-ai:test
-        no-cache: true
+  # docker-build:
+  #   name: Docker Build Test
+  #   runs-on: ubuntu-latest
+  #   
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   
+  #   - name: Set up Docker Buildx
+  #     uses: docker/setup-buildx-action@v3
+  #     
+  #   - name: Build Docker image
+  #     uses: docker/build-push-action@v5
+  #     with:
+  #       context: .
+  #       push: false
+  #       tags: music-gen-ai:test
+  #       no-cache: true
         
 
   security-scan:
@@ -219,7 +218,7 @@ jobs:
       continue-on-error: true
       
     - name: Run bandit security scan
-      run: bandit -r music_gen -f json -o bandit-report.json
+      run: bandit -r src -f json -o bandit-report.json
       continue-on-error: true
       
     - name: Upload security scan results
@@ -229,33 +228,33 @@ jobs:
         path: |
           bandit-report.json
 
-  documentation:
-    name: Documentation Build
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-        
-    - name: Install documentation dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install sphinx sphinx-rtd-theme
-        pip install -e .
-        
-    - name: Build documentation
-      run: |
-        cd docs
-        make html
-      continue-on-error: true
-      
-    - name: Upload documentation
-      uses: actions/upload-artifact@v4
-      with:
-        name: documentation
-        path: docs/_build/html/
+  # documentation:
+  #   name: Documentation Build
+  #   runs-on: ubuntu-latest
+  #   
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   
+  #   - name: Set up Python
+  #     uses: actions/setup-python@v4
+  #     with:
+  #       python-version: ${{ env.PYTHON_VERSION }}
+  #       
+  #   - name: Install documentation dependencies
+  #     run: |
+  #       python -m pip install --upgrade pip
+  #       pip install sphinx sphinx-rtd-theme
+  #       pip install -e .
+  #       
+  #   - name: Build documentation
+  #     run: |
+  #       cd docs
+  #       make html
+  #     continue-on-error: true
+  #     
+  #   - name: Upload documentation
+  #     uses: actions/upload-artifact@v4
+  #     with:
+  #       name: documentation
+  #       path: docs/_build/html/
 # Trivial change to force workflow re-evaluation

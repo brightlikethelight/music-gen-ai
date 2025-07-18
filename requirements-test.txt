@@ -1,0 +1,19 @@
+# Test requirements for CI/CD
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-timeout>=2.1.0
+pytest-benchmark>=4.0.0
+
+# Development tools
+black>=23.0.0
+isort>=5.0.0
+flake8>=6.0.0
+mypy>=1.0.0
+
+# Security scanning
+safety>=2.0.0
+bandit>=1.7.0
+
+# Basic runtime for testing
+numpy>=1.26.0,<2.0
+torch>=2.2.0
