@@ -4,7 +4,7 @@ Tests for api/streaming_api.py
 
 import pytest
 
-from music_gen.api.endpoints.streaming import router, StreamingRequest, StreamingResponse
+from musicgen.api.endpoints.streaming import router, StreamingRequest, StreamingResponse
 
 
 class TestStreamingApi:

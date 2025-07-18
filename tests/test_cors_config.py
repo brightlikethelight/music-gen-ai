@@ -6,7 +6,7 @@ import pytest
 import os
 from unittest.mock import patch
 
-from music_gen.api.cors_config import CORSConfig, cors_config
+from musicgen.api.cors_config import CORSConfig, cors_config
 
 
 class TestCORSConfig:
@@ -311,7 +311,7 @@ async def test_cors_with_fastapi():
     """Test CORS configuration with FastAPI application."""
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
-    from music_gen.api.app import create_app
+    from musicgen.api.app import create_app
 
     with patch.dict(
         os.environ,

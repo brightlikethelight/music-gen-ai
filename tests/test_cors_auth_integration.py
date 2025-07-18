@@ -13,9 +13,9 @@ from fastapi.testclient import TestClient
 from fastapi.middleware.cors import CORSMiddleware
 from jose import jwt
 
-from music_gen.api.app import create_app
-from music_gen.api.cors_config import get_cors_config, cors_config
-from music_gen.api.middleware.auth import (
+from musicgen.api.app import create_app
+from musicgen.api.cors_config import get_cors_config, cors_config
+from musicgen.api.middleware.auth import (
     AuthenticationMiddleware,
     UserRole,
     get_current_user,
@@ -25,7 +25,7 @@ from music_gen.api.middleware.auth import (
     JWT_SECRET_KEY,
     JWT_ALGORITHM,
 )
-from music_gen.api.deps import get_current_active_user
+from musicgen.api.deps import get_current_active_user
 
 
 @pytest.fixture
@@ -145,7 +145,7 @@ class TestCORSWithAuthentication:
         """Test authenticated endpoint with allowed origin."""
         client = TestClient(test_app_with_auth)
 
-        with patch("music_gen.api.middleware.auth.auth_middleware", auth_middleware):
+        with patch("musicgen.api.middleware.auth.auth_middleware", auth_middleware):
             response = client.get(
                 "/authenticated",
                 headers={
@@ -165,7 +165,7 @@ class TestCORSWithAuthentication:
         """Test authenticated endpoint with blocked origin still requires auth."""
         client = TestClient(test_app_with_auth)
 
-        with patch("music_gen.api.middleware.auth.auth_middleware", auth_middleware):
+        with patch("musicgen.api.middleware.auth.auth_middleware", auth_middleware):
             # With valid token but blocked origin
             response = client.get(
                 "/authenticated",
@@ -194,7 +194,7 @@ class TestCORSWithAuthentication:
         """Test admin endpoint with CORS."""
         client = TestClient(test_app_with_auth)
 
-        with patch("music_gen.api.middleware.auth.auth_middleware", auth_middleware):
+        with patch("musicgen.api.middleware.auth.auth_middleware", auth_middleware):
             # Admin with allowed origin
             response = client.get(
                 "/admin",
@@ -285,7 +285,7 @@ class TestCORSCredentialsWithAuth:
         """Test both cookies and auth header work with CORS."""
         client = TestClient(test_app_with_auth)
 
-        with patch("music_gen.api.middleware.auth.auth_middleware", auth_middleware):
+        with patch("musicgen.api.middleware.auth.auth_middleware", auth_middleware):
             # Simulate request with both cookie and auth header
             response = client.get(
                 "/authenticated",
@@ -330,7 +330,7 @@ class TestCORSWithDifferentEnvironments:
             app = create_app()
             client = TestClient(app)
 
-            with patch("music_gen.api.middleware.auth.auth_middleware", auth_middleware):
+            with patch("musicgen.api.middleware.auth.auth_middleware", auth_middleware):
                 # Allowed production origin
                 response = client.get(
                     "/health",
@@ -367,7 +367,7 @@ class TestCORSWithDifferentEnvironments:
             app = create_app()
             client = TestClient(app)
 
-            with patch("music_gen.api.middleware.auth.auth_middleware", auth_middleware):
+            with patch("musicgen.api.middleware.auth.auth_middleware", auth_middleware):
                 # Staging origin
                 response = client.get(
                     "/health",
@@ -415,7 +415,7 @@ class TestOptionalAuth:
         """Test optional auth endpoint with token."""
         client = TestClient(test_app_with_auth)
 
-        with patch("music_gen.api.middleware.auth.auth_middleware", auth_middleware):
+        with patch("musicgen.api.middleware.auth.auth_middleware", auth_middleware):
             response = client.get(
                 "/optional-auth",
                 headers={
@@ -433,7 +433,7 @@ class TestOptionalAuth:
         """Test optional auth endpoint with invalid token."""
         client = TestClient(test_app_with_auth)
 
-        with patch("music_gen.api.middleware.auth.auth_middleware", auth_middleware):
+        with patch("musicgen.api.middleware.auth.auth_middleware", auth_middleware):
             response = client.get(
                 "/optional-auth",
                 headers={
@@ -455,7 +455,7 @@ class TestRealAPIEndpoints:
             app = create_app()
             client = TestClient(app)
 
-            with patch("music_gen.api.middleware.auth.auth_middleware", auth_middleware):
+            with patch("musicgen.api.middleware.auth.auth_middleware", auth_middleware):
                 # Preflight
                 response = client.options(
                     "/api/v1/generate",
@@ -495,7 +495,7 @@ class TestSecurityScenarios:
         """Test CSRF protection works with CORS."""
         client = TestClient(test_app_with_auth)
 
-        with patch("music_gen.api.middleware.auth.auth_middleware", auth_middleware):
+        with patch("musicgen.api.middleware.auth.auth_middleware", auth_middleware):
             # Same-origin request (no Origin header) should work
             response = client.post("/api/data", headers={"Authorization": f"Bearer {valid_token}"})
 
@@ -527,7 +527,7 @@ class TestSecurityScenarios:
         """Test that sensitive headers are properly exposed/hidden."""
         client = TestClient(test_app_with_auth)
 
-        with patch("music_gen.api.middleware.auth.auth_middleware", auth_middleware):
+        with patch("musicgen.api.middleware.auth.auth_middleware", auth_middleware):
             response = client.get(
                 "/authenticated",
                 headers={

@@ -6,11 +6,11 @@ import numpy as np
 import pytest
 import torch
 
-from music_gen.evaluation.metrics import AudioQualityMetrics
-from music_gen.models.encoders import ConditioningEncoder, T5TextEncoder
-from music_gen.models.musicgen import create_musicgen_model
-from music_gen.models.transformer.config import MusicGenConfig
-from music_gen.utils.audio import apply_fade, normalize_audio
+from musicgen.evaluation.metrics import AudioQualityMetrics
+from musicgen.models.encoders import ConditioningEncoder, T5TextEncoder
+from musicgen.models.musicgen import create_musicgen_model
+from musicgen.models.transformer.config import MusicGenConfig
+from musicgen.utils.audio import apply_fade, normalize_audio
 
 
 class TestBasicFunctionality:
@@ -199,12 +199,12 @@ def test_audio_properties(sample_audio):
 
 def test_import_structure():
     """Test that all modules can be imported."""
-    from music_gen.evaluation import AudioQualityMetrics
+    from musicgen.evaluation import AudioQualityMetrics
 
     # Test main exports
-    from music_gen.models.musicgen import MusicGenModel, create_musicgen_model
-    from music_gen.models.transformer import MusicGenConfig
-    from music_gen.training import MusicGenLightningModule
+    from musicgen.models.musicgen import MusicGenModel, create_musicgen_model
+    from musicgen.models.transformer import MusicGenConfig
+    from musicgen.training import MusicGenLightningModule
 
     assert MusicGenModel is not None
     assert create_musicgen_model is not None

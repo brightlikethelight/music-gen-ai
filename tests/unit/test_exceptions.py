@@ -1,10 +1,10 @@
 """
-Tests for music_gen.utils.exceptions module
+Tests for musicgen.utils.exceptions module
 """
 
 import pytest
 
-from music_gen.utils.exceptions import (
+from musicgen.utils.exceptions import (
     MusicGenError,
     ModelError,
     AudioProcessingError,

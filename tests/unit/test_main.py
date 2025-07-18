@@ -4,8 +4,8 @@ Tests for api/main.py
 
 import pytest
 
-from music_gen.api.app import app
-from music_gen.api.endpoints import generation, health, streaming
+from musicgen.api.app import app
+from musicgen.api.endpoints import generation, health, streaming
 
 
 class TestApp:

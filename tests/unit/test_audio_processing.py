@@ -13,14 +13,14 @@ from pathlib import Path
 import tempfile
 import warnings
 
-from music_gen.utils.audio import (
+from musicgen.utils.audio import (
     AudioProcessor,
     AudioNormalizer,
     AudioEffects,
     AudioValidator,
     FormatConverter,
 )
-from music_gen.core.exceptions import (
+from musicgen.core.exceptions import (
     AudioProcessingError,
     ValidationError,
 )

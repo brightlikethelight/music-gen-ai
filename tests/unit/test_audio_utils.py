@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 import torch
 
-from music_gen.utils.audio import (
+from musicgen.utils.audio import (
     apply_fade,
     compute_audio_duration,
     concatenate_audio,
@@ -201,7 +201,7 @@ class TestAudioProcessing:
 class TestAudioUtilities:
     """Test utility functions."""
 
-    @patch("music_gen.utils.audio.torchaudio.info")
+    @patch("musicgen.utils.audio.torchaudio.info")
     def test_compute_audio_duration_mock(self, mock_info):
         """Test audio duration computation with mock."""
         # Mock audio info
@@ -216,7 +216,7 @@ class TestAudioUtilities:
         assert duration == expected_duration
         mock_info.assert_called_once_with("/fake/path.wav")
 
-    @patch("music_gen.utils.audio.torchaudio.info")
+    @patch("musicgen.utils.audio.torchaudio.info")
     def test_compute_audio_duration_error(self, mock_info):
         """Test audio duration computation with error."""
         mock_info.side_effect = Exception("File not found")
@@ -255,7 +255,7 @@ class TestAudioUtilities:
 class TestAudioIO:
     """Test audio I/O functions (mocked)."""
 
-    @patch("music_gen.utils.audio.torchaudio.load")
+    @patch("musicgen.utils.audio.torchaudio.load")
     def test_load_audio_file_mock(self, mock_load):
         """Test audio file loading with mock."""
         # Mock successful load
@@ -266,9 +266,9 @@ class TestAudioIO:
         mock_load.return_value = (audio_data, sample_rate)
 
         # Import the function to test
-        from music_gen.utils.audio import load_audio_file
+        from musicgen.utils.audio import load_audio_file
 
-        with patch("music_gen.utils.audio.torchaudio.transforms.Resample") as mock_resample:
+        with patch("musicgen.utils.audio.torchaudio.transforms.Resample") as mock_resample:
             mock_resampler = Mock()
             mock_resampled = torch.randn(1, 24000)  # Mono, resampled
             mock_resampler.return_value = mock_resampled
@@ -283,11 +283,11 @@ class TestAudioIO:
             # Function calls load twice - once for info, once for actual loading
             assert mock_load.call_count == 2
 
-    @patch("music_gen.utils.audio.torchaudio.save")
-    @patch("music_gen.utils.audio.Path")
+    @patch("musicgen.utils.audio.torchaudio.save")
+    @patch("musicgen.utils.audio.Path")
     def test_save_audio_file_mock(self, mock_path, mock_save):
         """Test audio file saving with mock."""
-        from music_gen.utils.audio import save_audio_file
+        from musicgen.utils.audio import save_audio_file
 
         # Mock path operations
         mock_path_obj = Mock()
@@ -305,12 +305,12 @@ class TestAudioIO:
         assert args[0] == "/fake/output.wav"
         assert args[2] == sample_rate
 
-    @patch("music_gen.utils.audio.torchaudio.load")
-    @patch("music_gen.utils.audio.torchaudio.save")
-    @patch("music_gen.utils.audio.save_audio_file")
+    @patch("musicgen.utils.audio.torchaudio.load")
+    @patch("musicgen.utils.audio.torchaudio.save")
+    @patch("musicgen.utils.audio.save_audio_file")
     def test_convert_audio_format_mock(self, mock_save_audio, mock_save, mock_load, tmp_path):
         """Test audio format conversion with mock."""
-        from music_gen.utils.audio import convert_audio_format
+        from musicgen.utils.audio import convert_audio_format
 
         # Mock load
         original_audio = torch.randn(1, 44100)

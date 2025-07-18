@@ -1,5 +1,5 @@
 """
-Tests for music_gen.utils.logging module
+Tests for musicgen.utils.logging module
 """
 
 import json
@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import torch
 
-from music_gen.utils.logging import (
+from musicgen.utils.logging import (
     get_logger,
     setup_logging,
     LoggerMixin,
@@ -224,7 +224,7 @@ class TestFileHandler:
         setup_logging(log_file=str(log_file))
 
         # Log a message
-        test_logger = get_logger("music_gen.test")
+        test_logger = get_logger("musicgen.test")
         test_logger.info("Test message")
 
         # Check file was created and contains message
@@ -251,8 +251,8 @@ class TestFileHandler:
         parent_logger = get_logger("music_gen")
 
         # Create child loggers
-        api_logger = get_logger("music_gen.api")
-        model_logger = get_logger("music_gen.models")
+        api_logger = get_logger("musicgen.api")
+        model_logger = get_logger("musicgen.models")
 
         # Capture all logs
         import io

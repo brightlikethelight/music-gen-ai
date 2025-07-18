@@ -12,7 +12,7 @@ import torch
 
 # Make AudioQualityMetrics import optional to avoid librosa dependency in tests
 try:
-    from music_gen.evaluation.metrics import AudioQualityMetrics
+    from musicgen.evaluation.metrics import AudioQualityMetrics
 
     AUDIO_METRICS_AVAILABLE = True
 except ImportError:
@@ -20,7 +20,7 @@ except ImportError:
     AUDIO_METRICS_AVAILABLE = False
 # Make optional imports for testing without heavy dependencies
 try:
-    from music_gen.models.encoders import ConditioningEncoder
+    from musicgen.models.encoders import ConditioningEncoder
 
     CONDITIONING_AVAILABLE = True
 except ImportError:
@@ -28,7 +28,7 @@ except ImportError:
     CONDITIONING_AVAILABLE = False
 
 try:
-    from music_gen.models.musicgen import create_musicgen_model
+    from musicgen.models.musicgen import create_musicgen_model
 
     MUSICGEN_AVAILABLE = True
 except ImportError:
@@ -36,7 +36,7 @@ except ImportError:
     MUSICGEN_AVAILABLE = False
 
 try:
-    from music_gen.models.transformer.config import MusicGenConfig, TransformerConfig
+    from musicgen.models.transformer.config import MusicGenConfig, TransformerConfig
 
     CONFIG_AVAILABLE = True
 except ImportError:

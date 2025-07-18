@@ -11,8 +11,8 @@ from fastapi.testclient import TestClient
 
 # Import API modules - handle missing dependencies gracefully
 try:
-    from music_gen.api.app import app
-    from music_gen.api.endpoints import generation, multi_instrument, streaming, health
+    from musicgen.api.app import app
+    from musicgen.api.endpoints import generation, multi_instrument, streaming, health
 
     API_AVAILABLE = True
 except ImportError:
@@ -79,8 +79,8 @@ class TestGenerationEndpoint:
         response = client.post("/api/v1/generate", json={"prompt": "Test music"})
         assert response.status_code in [200, 503]
 
-    @patch("music_gen.core.model_manager.ModelManager.get_model")
-    @patch("music_gen.utils.audio.save_audio")
+    @patch("musicgen.core.model_manager.ModelManager.get_model")
+    @patch("musicgen.utils.audio.save_audio")
     def test_generate_endpoint_mocked(self, mock_save, mock_get_model, client):
         """Test generation endpoint with mocked model."""
         # Mock model
@@ -188,12 +188,12 @@ class TestAPIHelpers:
     def test_request_models(self):
         """Test that request/response models are properly defined."""
         if API_AVAILABLE:
-            from music_gen.api.endpoints.generation import GenerationRequest, GenerationResponse
-            from music_gen.api.endpoints.multi_instrument import (
+            from musicgen.api.endpoints.generation import GenerationRequest, GenerationResponse
+            from musicgen.api.endpoints.multi_instrument import (
                 MultiInstrumentRequest,
                 InstrumentTrack,
             )
-            from music_gen.api.endpoints.streaming import StreamingRequest, StreamingResponse
+            from musicgen.api.endpoints.streaming import StreamingRequest, StreamingResponse
 
             # Test model instantiation
             gen_req = GenerationRequest(prompt="Test")

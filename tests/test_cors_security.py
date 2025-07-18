@@ -10,8 +10,8 @@ from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from fastapi.responses import JSONResponse
 
-from music_gen.api.app import create_app
-from music_gen.api.cors_config import CORSConfig, cors_config
+from musicgen.api.app import create_app
+from musicgen.api.cors_config import CORSConfig, cors_config
 
 
 # Test fixtures
@@ -54,7 +54,7 @@ def mock_env_production():
 @pytest.fixture
 def test_app():
     """Create a test FastAPI app with CORS and test endpoints."""
-    from music_gen.api.cors_config import get_cors_config, cors_config
+    from musicgen.api.cors_config import get_cors_config, cors_config
     from fastapi.middleware.cors import CORSMiddleware
 
     app = FastAPI()

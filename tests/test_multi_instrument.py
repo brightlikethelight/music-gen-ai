@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from music_gen.models.multi_instrument import (
+from musicgen.models.multi_instrument import (
     InstrumentConditioner,
     MultiInstrumentConfig,
     MultiInstrumentMusicGen,
@@ -239,7 +239,7 @@ class TestAudioMixing:
 
     def test_mix_tracks(self):
         """Test mixing multiple tracks."""
-        from music_gen.audio.mixing import MixingConfig, MixingEngine, TrackConfig
+        from musicgen.audio.mixing import MixingConfig, MixingEngine, TrackConfig
 
         config = MixingConfig(sample_rate=44100)
         mixer = MixingEngine(config)
@@ -264,7 +264,7 @@ class TestAudioMixing:
 
     def test_effects_processing(self):
         """Test audio effects."""
-        from music_gen.audio.mixing.effects import EQ, Compressor, Reverb
+        from musicgen.audio.mixing.effects import EQ, Compressor, Reverb
 
         sample_rate = 44100
         audio = torch.randn(2, 44100)
@@ -292,7 +292,7 @@ class TestMIDIExport:
 
     def test_midi_converter(self):
         """Test MIDI conversion."""
-        from music_gen.export.midi import MIDIConverter, MIDIExportConfig
+        from musicgen.export.midi import MIDIConverter, MIDIExportConfig
 
         config = MIDIExportConfig(tempo=120)
         converter = MIDIConverter(config)
@@ -307,8 +307,8 @@ class TestMIDIExport:
 
     def test_note_quantization(self):
         """Test MIDI note quantization."""
-        from music_gen.export.midi.quantizer import MIDIQuantizer
-        from music_gen.export.midi.transcriber import Note
+        from musicgen.export.midi.quantizer import MIDIQuantizer
+        from musicgen.export.midi.transcriber import Note
 
         quantizer = MIDIQuantizer(tempo=120, strength=0.8)
 
@@ -333,7 +333,7 @@ class TestTrackSeparation:
 
     def test_separation_interface(self):
         """Test separation module interface."""
-        from music_gen.audio.separation import DemucsSeparator
+        from musicgen.audio.separation import DemucsSeparator
 
         separator = DemucsSeparator()
         separator.load_model()  # Will use mock if demucs not installed
@@ -349,7 +349,7 @@ class TestTrackSeparation:
 
     def test_hybrid_separator(self):
         """Test hybrid separation approach."""
-        from music_gen.audio.separation import HybridSeparator
+        from musicgen.audio.separation import HybridSeparator
 
         separator = HybridSeparator(
             primary_method="demucs", secondary_method="spleeter", blend_mode="weighted"
@@ -369,7 +369,7 @@ class TestMultiInstrumentAPI:
         """Create test client."""
         from fastapi.testclient import TestClient
 
-        from music_gen.api.main import app
+        from musicgen.api.main import app
 
         return TestClient(app)
 

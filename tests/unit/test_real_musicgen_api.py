@@ -4,7 +4,7 @@ Tests for generation API endpoints.
 
 import pytest
 
-from music_gen.api.endpoints.generation import router, GenerationRequest, GenerationResponse
+from musicgen.api.endpoints.generation import router, GenerationRequest, GenerationResponse
 
 
 class TestGenerationApi:
