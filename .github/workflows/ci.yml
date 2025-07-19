@@ -55,8 +55,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11"]
-        # Note: Python 3.12 excluded due to ML ecosystem incompatibility
+        python-version: ["3.10", "3.11"]
+        # Note: Python 3.9 removed (project requires >=3.10), 3.12 excluded (ML ecosystem incompatibility)
         
     steps:
     - uses: actions/checkout@v4
@@ -82,12 +82,12 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        # Install test requirements
-        pip install pytest pytest-cov pytest-asyncio httpx
-        # Install minimal ML dependencies for testing
+        # Install test dependencies
+        pip install -r requirements-test.txt
+        # Install minimal ML dependencies for testing (CPU only for CI)
         pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
-        # Install from requirements
-        pip install -r requirements.txt || pip install -e .
+        # Install project in development mode
+        pip install -e .
         
     - name: Run unit tests
       run: |

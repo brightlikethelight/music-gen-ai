@@ -11,8 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11']
-        # Note: Python 3.12 excluded due to ML ecosystem incompatibility
+        python-version: ['3.10', '3.11']
+        # Note: Python 3.9 removed (project requires >=3.10), 3.12 excluded (ML ecosystem incompatibility)
     
     steps:
     - uses: actions/checkout@v4
