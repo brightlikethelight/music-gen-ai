@@ -22,11 +22,15 @@ try:
     from musicgen.infrastructure.monitoring.logging import setup_logging
     from musicgen.infrastructure.monitoring.metrics import metrics
     from musicgen.utils.exceptions import MusicGenError
+    from musicgen.api.rest.middleware.rate_limiting import RateLimitMiddleware
+    rate_limiting_available = True
 except ImportError:
     # Fallback configuration for standalone operation
     class MockConfig:
         OUTPUT_DIR = "./outputs"
         LOG_LEVEL = "INFO"
+        CORS_ORIGINS = ["*"]
+        CORS_CREDENTIALS = True
     config = MockConfig()
     
     def setup_logging():
@@ -44,6 +48,9 @@ except ImportError:
     
     class MusicGenError(Exception):
         pass
+    
+    RateLimitMiddleware = None
+    rate_limiting_available = False
 
 # Setup logging
 setup_logging()
@@ -114,11 +121,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Add security middleware (if available)
+if rate_limiting_available and RateLimitMiddleware:
+    app.add_middleware(RateLimitMiddleware)
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=config.CORS_ORIGINS if hasattr(config, 'CORS_ORIGINS') else ["*"],
+    allow_credentials=config.CORS_CREDENTIALS if hasattr(config, 'CORS_CREDENTIALS') else True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

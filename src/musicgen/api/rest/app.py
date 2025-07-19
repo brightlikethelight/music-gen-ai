@@ -20,6 +20,7 @@ from musicgen.infrastructure.config.config import config
 from musicgen.infrastructure.monitoring.logging import setup_logging
 from musicgen.infrastructure.monitoring.metrics import metrics
 from musicgen.utils.exceptions import MusicGenError
+from musicgen.api.rest.middleware.rate_limiting import RateLimitMiddleware
 
 # Setup logging
 setup_logging()
@@ -236,6 +237,9 @@ app = FastAPI(
     version="2.0.1",
     lifespan=lifespan
 )
+
+# Add security middleware
+app.add_middleware(RateLimitMiddleware)
 
 # Add CORS middleware
 app.add_middleware(
