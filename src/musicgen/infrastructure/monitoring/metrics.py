@@ -33,13 +33,13 @@ class MetricsCollector:
             "Total number of generation requests",
             registry=self.registry,
         )
-        
+
         self.generation_completed = Counter(
             "musicgen_generation_completed_total",
             "Total number of completed generations",
             registry=self.registry,
         )
-        
+
         self.generation_failed = Counter(
             "musicgen_generation_failed_total",
             "Total number of failed generations",

@@ -20,11 +20,11 @@ def test_can_import_exceptions():
 def test_can_import_core_modules():
     """Test that core modules can be imported."""
     import sys
-    
+
     # Skip ML-dependent imports in Python 3.12 due to numpy/scipy recursion issues
     if sys.version_info >= (3, 12):
         pytest.skip("Python 3.12 incompatible with ML ecosystem (numpy/scipy recursion)")
-    
+
     from musicgen.core import generator, prompt
     from musicgen.cli import main as cli
     from musicgen.services import batch
