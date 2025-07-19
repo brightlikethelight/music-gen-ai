@@ -68,26 +68,68 @@ _jobs: dict[str, JobStatus] = {}
 
 
 async def load_model(model_name: str):
-    """Load MusicGen model with caching."""
+    """Load MusicGen model with caching using transformers library."""
     if model_name not in _model_cache:
         try:
             logger.info(f"Loading model: {model_name}")
             # Import here to avoid startup issues
-            from audiocraft.models import MusicGen
+            from transformers import AutoProcessor, MusicgenForConditionalGeneration
+            import torch
             
-            model = MusicGen.get_pretrained(model_name)
-            model.set_generation_params(
-                use_sampling=True,
-                top_k=250,
-                duration=30
+            # Determine device
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            
+            # Load processor and model
+            processor = AutoProcessor.from_pretrained(model_name)
+            model = MusicgenForConditionalGeneration.from_pretrained(
+                model_name,
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32
             )
-            _model_cache[model_name] = model
-            logger.info(f"Model loaded successfully: {model_name}")
+            model.to(device)
+            
+            # Cache both processor and model
+            _model_cache[model_name] = {
+                'model': model,
+                'processor': processor,
+                'device': device
+            }
+            logger.info(f"Model loaded successfully: {model_name} on {device}")
         except Exception as e:
             logger.error(f"Failed to load model {model_name}: {e}")
             raise MusicGenError(f"Failed to load model: {e}")
     
     return _model_cache[model_name]
+
+
+def _generate_music_sync(processor, model, device, request: GenerationRequest):
+    """Synchronous music generation function for executor."""
+    import torch
+    
+    # Process prompt
+    inputs = processor(
+        text=[request.prompt],
+        padding=True,
+        return_tensors="pt"
+    ).to(device)
+    
+    # Calculate tokens for duration (256 tokens ≈ 5 seconds)
+    max_new_tokens = int(256 * request.duration / 5)
+    
+    # Generate audio with transformers
+    with torch.no_grad():
+        audio_values = model.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            do_sample=True,
+            temperature=request.temperature,
+            top_k=request.top_k,
+            top_p=request.top_p if request.top_p > 0 else None,
+            guidance_scale=request.cfg_coef
+        )
+    
+    # Extract audio as numpy array
+    audio = audio_values[0, 0].cpu().numpy()
+    return audio
 
 
 async def generate_music_task(job_id: str, request: GenerationRequest):
@@ -98,30 +140,23 @@ async def generate_music_task(job_id: str, request: GenerationRequest):
         _jobs[job_id].progress = 0.1
         _jobs[job_id].message = "Loading model..."
         
-        # Load model
-        model = await load_model(request.model)
+        # Load model components
+        model_cache = await load_model(request.model)
+        model = model_cache['model']
+        processor = model_cache['processor']
+        device = model_cache['device']
         
         _jobs[job_id].progress = 0.3
         _jobs[job_id].message = "Generating music..."
         
-        # Set generation parameters
-        model.set_generation_params(
-            use_sampling=True,
-            top_k=request.top_k,
-            top_p=request.top_p,
-            temperature=request.temperature,
-            cfg_coef=request.cfg_coef,
-            duration=request.duration
-        )
-        
-        # Generate music
+        # Generate music using transformers approach
         logger.info(f"Generating music for job {job_id} with prompt: {request.prompt}")
         
         # Run in executor to avoid blocking
         loop = asyncio.get_event_loop()
-        wav = await loop.run_in_executor(
+        audio_data = await loop.run_in_executor(
             None,
-            lambda: model.generate([request.prompt])
+            lambda: _generate_music_sync(processor, model, device, request)
         )
         
         _jobs[job_id].progress = 0.8
@@ -137,9 +172,12 @@ async def generate_music_task(job_id: str, request: GenerationRequest):
         
         # Import here to avoid startup issues
         import torchaudio
+        import torch
         
-        # Save the audio
-        torchaudio.save(output_path, wav[0].cpu(), model.sample_rate)
+        # Save the audio (audio_data is already numpy array)
+        audio_tensor = torch.from_numpy(audio_data).unsqueeze(0)  # Add batch dimension
+        sample_rate = model.config.audio_encoder.sampling_rate
+        torchaudio.save(output_path, audio_tensor, sample_rate)
         
         # Update job status
         _jobs[job_id].status = "completed"

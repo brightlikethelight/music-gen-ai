@@ -264,3 +264,14 @@ Thumbs.db
 # Archive directories
 archive_*/
 .archive/
+
+# Project-specific
+src/musicgen_unified.egg-info/
+src/musicgen.egg-info/
+validation_report_*.json
+test_audio.wav
+
+# Production artifacts
+workspace/
+models/
+configs/local/

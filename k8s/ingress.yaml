@@ -1,0 +1,87 @@
+# Ingress for MusicGen API
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: musicgen-ingress
+  namespace: musicgen
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/rate-limit: "10"
+    nginx.ingress.kubernetes.io/limit-rps: "10"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type, Authorization"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/websocket-services: "musicgen-api-service"
+spec:
+  tls:
+  - hosts:
+    - api.musicgen.example.com
+    secretName: musicgen-tls
+  rules:
+  - host: api.musicgen.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-service
+            port:
+              number: 80
+
+---
+# Ingress for Monitoring
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: monitoring-ingress
+  namespace: musicgen
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: monitoring-auth
+    nginx.ingress.kubernetes.io/auth-realm: 'Authentication Required'
+spec:
+  tls:
+  - hosts:
+    - monitoring.musicgen.example.com
+    secretName: monitoring-tls
+  rules:
+  - host: monitoring.musicgen.example.com
+    http:
+      paths:
+      - path: /prometheus
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus-service
+            port:
+              number: 9090
+      - path: /grafana
+        pathType: Prefix
+        backend:
+          service:
+            name: grafana-service
+            port:
+              number: 3000
+
+---
+# Basic auth secret for monitoring
+apiVersion: v1
+kind: Secret
+metadata:
+  name: monitoring-auth
+  namespace: musicgen
+type: Opaque
+data:
+  auth: |
+    # admin:musicgen2024
+    # Generated with: htpasswd -nb admin musicgen2024
+    YWRtaW46JGFwcjEkWVdOMFFiV2IkQzRWMy9OMTlCN2JpRTJLRTJKNm1RMA==

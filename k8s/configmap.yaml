@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: musicgen-config
+  namespace: musicgen
+data:
+  # API Configuration
+  API_HOST: "0.0.0.0"
+  API_PORT: "8000"
+  LOG_LEVEL: "INFO"
+  
+  # Model Configuration
+  MODEL_NAME: "facebook/musicgen-small"
+  MAX_DURATION: "300"
+  DEFAULT_DURATION: "30"
+  
+  # Rate Limiting
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_PER_MINUTE: "60"
+  RATE_LIMIT_PER_HOUR: "1000"
+  
+  # Storage
+  OUTPUT_DIR: "/app/outputs"
+  MODEL_CACHE_DIR: "/app/models"
+  
+  # Monitoring
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9090"
+  
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: musicgen
+data:
+  nginx.conf: |
+    events {
+        worker_connections 1024;
+    }
+    
+    http {
+        upstream musicgen_api {
+            server musicgen-api-service:8000;
+        }
+        
+        # Rate limiting zones
+        limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+        limit_req_zone $binary_remote_addr zone=generation_limit:10m rate=1r/m;
+        
+        server {
+            listen 80;
+            
+            # Security headers
+            add_header X-Frame-Options "SAMEORIGIN" always;
+            add_header X-Content-Type-Options "nosniff" always;
+            add_header X-XSS-Protection "1; mode=block" always;
+            
+            # API endpoints
+            location /api/ {
+                limit_req zone=api_limit burst=20 nodelay;
+                
+                rewrite ^/api/(.*) /$1 break;
+                proxy_pass http://musicgen_api;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                
+                # Streaming support
+                proxy_buffering off;
+                proxy_set_header X-Accel-Buffering no;
+                
+                # Timeouts for long-running generation
+                proxy_connect_timeout 60s;
+                proxy_send_timeout 300s;
+                proxy_read_timeout 300s;
+            }
+            
+            # Health check
+            location /health {
+                access_log off;
+                proxy_pass http://musicgen_api/health;
+            }
+            
+            # Metrics endpoint
+            location /metrics {
+                access_log off;
+                proxy_pass http://musicgen_api/metrics;
+            }
+        }
+    }

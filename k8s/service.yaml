@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: musicgen-api-service
+  namespace: musicgen
+  labels:
+    app: musicgen-api
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+spec:
+  type: ClusterIP
+  selector:
+    app: musicgen-api
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 8000
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 3600
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: musicgen
+  labels:
+    app: nginx
+spec:
+  type: LoadBalancer
+  selector:
+    app: nginx
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+  sessionAffinity: ClientIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-service
+  namespace: musicgen
+  labels:
+    app: prometheus
+spec:
+  type: ClusterIP
+  selector:
+    app: prometheus
+  ports:
+  - name: http
+    port: 9090
+    targetPort: 9090
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: musicgen-headless
+  namespace: musicgen
+  labels:
+    app: musicgen-api
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: musicgen-api
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 8000

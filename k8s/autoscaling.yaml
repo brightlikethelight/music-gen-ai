@@ -1,0 +1,100 @@
+# Horizontal Pod Autoscaler for MusicGen API
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: musicgen-api-hpa
+  namespace: musicgen
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: musicgen-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  - type: Pods
+    pods:
+      metric:
+        name: musicgen_active_generations
+      target:
+        type: AverageValue
+        averageValue: "5"
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+      - type: Pods
+        value: 1
+        periodSeconds: 120
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+
+---
+# HPA for Nginx
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nginx-hpa
+  namespace: musicgen
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nginx
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# PodDisruptionBudget for MusicGen API
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: musicgen-api-pdb
+  namespace: musicgen
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: musicgen-api
+
+---
+# PodDisruptionBudget for Nginx
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: nginx-pdb
+  namespace: musicgen
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: nginx

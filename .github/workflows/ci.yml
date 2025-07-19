@@ -9,6 +9,7 @@ on:
 env:
   PYTHON_VERSION: "3.11"
   CACHE_VERSION: 1
+  POETRY_VERSION: "1.7.1"
 
 jobs:
   code-quality:
@@ -35,7 +36,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install black isort flake8 mypy pytest python-json-logger
-        pip install -e .
+        pip install -r requirements.txt || pip install -e .
         
     - name: Code formatting check (Black)
       run: black --check --line-length=100 src tests
@@ -47,8 +48,7 @@ jobs:
       run: flake8 src tests --max-line-length=100 --extend-ignore=E203,W503,F401,F841,E722,E712,F811,W293,W605,E402,F541,E501,F403,F405
       
     - name: Type checking (mypy)
-      run: mypy src --ignore-missing-imports --no-strict-optional
-      continue-on-error: true  # Allow type checking to fail initially
+      run: mypy src --ignore-missing-imports --no-strict-optional || true
 
   unit-tests:
     name: Unit Tests
@@ -56,6 +56,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11"]
+        # Note: Python 3.12 excluded due to ML ecosystem incompatibility
         
     steps:
     - uses: actions/checkout@v4
@@ -81,12 +82,12 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        # Install test requirements first
-        pip install -r requirements-test.txt
+        # Install test requirements
+        pip install pytest pytest-cov pytest-asyncio httpx
         # Install minimal ML dependencies for testing
         pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
-        # Try to install the package (may fail due to missing deps)
-        pip install -e . || true
+        # Install from requirements
+        pip install -r requirements.txt || pip install -e .
         
     - name: Run unit tests
       run: |

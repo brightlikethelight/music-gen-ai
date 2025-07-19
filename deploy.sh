@@ -1,23 +1,62 @@
 #!/bin/bash
-# MusicGen Deployment Script - Based on ACTUAL WORKING SOLUTIONS
+# MusicGen Unified Deployment Script
+# Supports multiple deployment strategies with professional-grade infrastructure
 
 set -e
 
-echo "🚀 MusicGen Production Deployment"
-echo "================================="
+# Colors for output
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+echo -e "${BLUE}🚀 MusicGen Production Deployment${NC}"
+echo -e "${BLUE}=================================${NC}"
 echo ""
+
+# Configuration
+DOCKER_IMAGE="ashleykza/tts-webui:latest"
+CONTAINER_NAME="musicgen-production"
+API_CONTAINER="musicgen-api-bridge"
+
+# Ports
+TTS_PORT=3000
+API_PORT=8000
+JUPYTER_PORT=8888
+METRICS_PORT=9090
+GRAFANA_PORT=3001
+
+# Directories
+WORKSPACE_DIR="$(pwd)/workspace"
+OUTPUTS_DIR="$(pwd)/outputs"
+MODELS_DIR="$(pwd)/models"
+CONFIGS_DIR="$(pwd)/configs"
+
+# Utility functions
+check_docker() {
+    echo -e "${YELLOW}Checking Docker...${NC}"
+    if ! docker info > /dev/null 2>&1; then
+        echo -e "${RED}❌ Docker is not running. Please start Docker Desktop.${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Docker is running${NC}"
+}
+
+create_directories() {
+    echo -e "${YELLOW}Creating directories...${NC}"
+    mkdir -p "$WORKSPACE_DIR" "$OUTPUTS_DIR" "$MODELS_DIR" "$CONFIGS_DIR"
+    echo -e "${GREEN}✓ Directories created${NC}"
+}
 
 # Option 1: Use Pre-built Working Docker Image (FASTEST)
 deploy_prebuilt() {
-    echo "📦 Option 1: Using Pre-built Docker Image (ashleykza/tts-webui)"
-    echo "This image includes MusicGen + AudioGen + other TTS tools"
+    echo -e "${BLUE}📦 Option 1: Pre-built Docker Image (ashleykza/tts-webui)${NC}"
+    echo "Includes MusicGen + AudioGen + other TTS tools"
     echo ""
     
-    # Check if Docker is running
-    if ! docker info > /dev/null 2>&1; then
-        echo "❌ Docker is not running. Please start Docker Desktop first."
-        exit 1
-    fi
+    check_docker
+    create_directories
     
     # Pull the working image
     echo "⬇️  Pulling pre-built image..."
