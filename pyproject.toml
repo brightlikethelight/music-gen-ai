@@ -62,6 +62,7 @@ dev = [
     "tensorboard>=2.13.0",
     "pytest-cov>=4.0.0",
     "coverage>=7.0.0",
+    "pytest-asyncio>=0.21.0",
 ]
 deployment = [
     "docker>=6.0.0",

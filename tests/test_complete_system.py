@@ -19,7 +19,7 @@ API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 TEST_USER_PREFIX = f"testuser_{int(time.time())}"
 
 
-class TestClient:
+class APITestClient:
     """Test client for API interactions"""
 
     def __init__(self, base_url: str = API_BASE_URL):
@@ -98,7 +98,7 @@ class TestClient:
 @pytest.fixture
 async def test_client():
     """Fixture providing test client"""
-    async with TestClient() as client:
+    async with APITestClient() as client:
         yield client
 
 
@@ -456,7 +456,7 @@ class TestPerformance:
             username = f"{TEST_USER_PREFIX}_concurrent_{index}"
             email = f"{username}@example.com"
 
-            async with TestClient() as client:
+            async with APITestClient() as client:
                 return await client.register_user(username, email, "testpass123")
 
         # Test 5 concurrent registrations
