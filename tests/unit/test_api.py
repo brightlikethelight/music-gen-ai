@@ -91,9 +91,7 @@ class TestGenerationEndpoint:
         # Mock audio save
         mock_save.return_value = "test_output.wav"
 
-        response = client.post(
-            "/generate", json={"prompt": "Happy jazz music", "duration": 10.0}
-        )
+        response = client.post("/generate", json={"prompt": "Happy jazz music", "duration": 10.0})
 
         # Check response
         assert response.status_code == 200

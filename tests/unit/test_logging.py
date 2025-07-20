@@ -12,13 +12,33 @@ import pytest
 import torch
 
 try:
-    from musicgen.infrastructure.monitoring.logging import setup_logging
+    from musicgen.infrastructure.monitoring.logging import (
+        setup_logging,
+        get_logger,
+        LoggerMixin,
+        log_function_call,
+        log_gpu_memory,
+    )
 
     LOGGING_AVAILABLE = True
 except ImportError:
     LOGGING_AVAILABLE = False
 
     def setup_logging():
+        pass
+
+    def get_logger(name):
+        return logging.getLogger(name)
+
+    class LoggerMixin:
+        @property
+        def logger(self):
+            return logging.getLogger(self.__class__.__name__)
+
+    def log_function_call(func):
+        return func
+
+    def log_gpu_memory(logger, operation):
         pass
 
 
