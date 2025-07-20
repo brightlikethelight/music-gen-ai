@@ -1,13 +1,33 @@
-# Minimal requirements for CI testing
+# Test requirements for CI/CD
 pytest>=7.0.0
 pytest-cov>=4.0.0
 pytest-asyncio>=0.21.0
 pytest-timeout>=2.1.0
+pytest-benchmark>=4.0.0
+httpx>=0.25.0
+
+# Development tools
 black>=23.0.0
-isort>=5.12.0
+isort>=5.0.0
 flake8>=6.0.0
 mypy>=1.0.0
-httpx>=0.24.0
-click>=8.1.0
+
+# Security scanning
+safety>=2.0.0
+bandit>=1.7.0
+
+# Basic runtime for testing (minimal dependencies)
+numpy>=1.26.0,<2.0
+scipy>=1.14.0,<2.0
+
+# Web framework for API testing
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+
+# CLI tools
+typer[all]>=0.9.0
 rich>=13.0.0
-pydantic>=2.0.0
+
+# Basic ML testing (CPU only)
+transformers>=4.43.0
+soundfile>=0.12.0

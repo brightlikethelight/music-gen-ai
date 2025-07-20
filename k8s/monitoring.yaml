@@ -1,0 +1,225 @@
+# Prometheus ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: musicgen
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    
+    scrape_configs:
+    - job_name: 'musicgen-api'
+      kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+          - musicgen
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: kubernetes_pod_name
+    
+    - job_name: 'kubernetes-nodes'
+      kubernetes_sd_configs:
+      - role: node
+      relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+    
+    - job_name: 'kubernetes-services'
+      kubernetes_sd_configs:
+      - role: service
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]
+        action: replace
+        target_label: __scheme__
+        regex: (https?)
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+        action: replace
+        target_label: __address__
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_service_name]
+        action: replace
+        target_label: kubernetes_name
+    
+    alerting:
+      alertmanagers:
+      - static_configs:
+        - targets: []
+    
+    rule_files:
+    - '/etc/prometheus/alerts/*.yml'
+
+---
+# Prometheus Alerts ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-alerts
+  namespace: musicgen
+data:
+  musicgen-alerts.yml: |
+    groups:
+    - name: musicgen
+      interval: 30s
+      rules:
+      - alert: MusicGenAPIDown
+        expr: up{job="musicgen-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MusicGen API is down"
+          description: "MusicGen API instance {{ $labels.instance }} has been down for more than 2 minutes."
+      
+      - alert: HighMemoryUsage
+        expr: container_memory_usage_bytes{pod=~"musicgen-api-.*"} / container_spec_memory_limit_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Pod {{ $labels.pod }} is using more than 90% of its memory limit."
+      
+      - alert: HighGPUUsage
+        expr: nvidia_gpu_duty_cycle{pod=~"musicgen-api-.*"} > 0.95
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High GPU usage detected"
+          description: "GPU in pod {{ $labels.pod }} has been above 95% usage for 10 minutes."
+      
+      - alert: GenerationQueueBacklog
+        expr: musicgen_generation_requests_total - musicgen_generation_completed_total > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Large generation queue backlog"
+          description: "More than 100 generation requests are queued."
+      
+      - alert: HighErrorRate
+        expr: rate(musicgen_generation_failed_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate in music generation"
+          description: "More than 10% of generations are failing."
+
+---
+# ServiceMonitor for Prometheus Operator (if using)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: musicgen-api
+  namespace: musicgen
+  labels:
+    app: musicgen-api
+spec:
+  selector:
+    matchLabels:
+      app: musicgen-api
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+
+---
+# Grafana Dashboard ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: musicgen
+data:
+  musicgen-dashboard.json: |
+    {
+      "dashboard": {
+        "title": "MusicGen Production Dashboard",
+        "panels": [
+          {
+            "title": "Generation Requests",
+            "targets": [
+              {
+                "expr": "rate(musicgen_generation_requests_total[5m])"
+              }
+            ]
+          },
+          {
+            "title": "Generation Latency",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(musicgen_generation_duration_seconds_bucket[5m]))"
+              }
+            ]
+          },
+          {
+            "title": "Active Generations",
+            "targets": [
+              {
+                "expr": "musicgen_active_generations"
+              }
+            ]
+          },
+          {
+            "title": "GPU Usage",
+            "targets": [
+              {
+                "expr": "nvidia_gpu_duty_cycle"
+              }
+            ]
+          },
+          {
+            "title": "Memory Usage",
+            "targets": [
+              {
+                "expr": "container_memory_usage_bytes{pod=~\"musicgen-api-.*\"}"
+              }
+            ]
+          },
+          {
+            "title": "Error Rate",
+            "targets": [
+              {
+                "expr": "rate(musicgen_generation_failed_total[5m])"
+              }
+            ]
+          }
+        ]
+      }
+    }

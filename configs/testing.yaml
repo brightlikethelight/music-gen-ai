@@ -1,0 +1,51 @@
+# Testing environment configuration
+environment: testing
+
+# Logging configuration
+logging:
+  level: WARNING
+  format: minimal
+  file: /tmp/musicgen-test.log
+
+# API configuration
+api:
+  host: localhost
+  port: 8001
+  workers: 1
+  reload: false
+  cors:
+    enabled: true
+    origins: ["*"]
+
+# Model configuration
+models:
+  default: facebook/musicgen-small
+  cache_dir: /tmp/musicgen-test-cache
+  device: cpu
+  optimize: false
+
+# Generation settings
+generation:
+  max_duration: 5.0
+  default_duration: 2.0
+  sample_rate: 16000
+  batch_size: 1
+
+# Storage configuration
+storage:
+  output_dir: /tmp/test-outputs
+  temp_dir: /tmp/musicgen-test
+  
+# Monitoring
+monitoring:
+  metrics:
+    enabled: false
+  health_check:
+    enabled: true
+    interval: 60
+
+# Security
+security:
+  api_key_required: false
+  rate_limiting:
+    enabled: false

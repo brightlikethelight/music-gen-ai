@@ -1,0 +1,66 @@
+# Production environment configuration
+environment: production
+
+# Logging configuration
+logging:
+  level: INFO
+  format: json
+  file: /var/log/musicgen/musicgen.log
+
+# API configuration
+api:
+  host: 0.0.0.0
+  port: 8000
+  workers: 4
+  reload: false
+  cors:
+    enabled: true
+    origins: ["https://musicgen.example.com"]
+
+# Model configuration
+models:
+  default: facebook/musicgen-medium
+  cache_dir: /app/models
+  device: auto
+  optimize: true
+
+# Generation settings
+generation:
+  max_duration: 120.0
+  default_duration: 30.0
+  sample_rate: 32000
+  batch_size: 4
+
+# Storage configuration
+storage:
+  output_dir: /app/outputs
+  temp_dir: /tmp/musicgen
+  
+# Redis configuration
+redis:
+  url: redis://redis:6379/0
+  max_connections: 10
+
+# Monitoring
+monitoring:
+  metrics:
+    enabled: true
+    port: 9090
+  health_check:
+    enabled: true
+    interval: 30
+  prometheus:
+    enabled: true
+    endpoint: /metrics
+
+# Security
+security:
+  api_key_required: true
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 30
+  
+# Performance
+performance:
+  worker_concurrency: 2
+  max_memory_mb: 8192
