@@ -11,9 +11,7 @@ from fastapi.testclient import TestClient
 
 # Import API modules - handle missing dependencies gracefully
 try:
-    from musicgen.api.app import app
-    from musicgen.api.endpoints import generation, multi_instrument, streaming, health
-
+    from musicgen.api.rest.app import app
     API_AVAILABLE = True
 except ImportError:
     API_AVAILABLE = False
