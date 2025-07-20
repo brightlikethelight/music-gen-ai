@@ -9,14 +9,15 @@ from unittest.mock import patch
 # Import CORS modules - handle missing dependencies gracefully
 try:
     from musicgen.api.cors_config import CORSConfig, cors_config
+
     CORS_CONFIG_AVAILABLE = True
 except ImportError:
     CORS_CONFIG_AVAILABLE = False
-    
+
     # Mock CORS classes
     class CORSConfig:
         pass
-    
+
     cors_config = CORSConfig()
 
 

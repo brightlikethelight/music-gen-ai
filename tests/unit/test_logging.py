@@ -13,10 +13,11 @@ import torch
 
 try:
     from musicgen.infrastructure.monitoring.logging import setup_logging
+
     LOGGING_AVAILABLE = True
 except ImportError:
     LOGGING_AVAILABLE = False
-    
+
     def setup_logging():
         pass
 

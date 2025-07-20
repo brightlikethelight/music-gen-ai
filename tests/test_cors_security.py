@@ -13,17 +13,21 @@ from fastapi.responses import JSONResponse
 # Import API modules - handle missing dependencies gracefully
 try:
     from musicgen.api.rest.app import app as musicgen_app
+
     API_AVAILABLE = True
 except ImportError:
     API_AVAILABLE = False
     musicgen_app = None
 
+
 # Mock missing modules
 def create_app():
     return musicgen_app
 
+
 class CORSConfig:
     pass
+
 
 cors_config = CORSConfig()
 

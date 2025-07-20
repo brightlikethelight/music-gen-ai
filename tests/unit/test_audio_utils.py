@@ -18,28 +18,29 @@ try:
         split_audio,
         trim_silence,
     )
+
     AUDIO_UTILS_AVAILABLE = True
 except ImportError:
     AUDIO_UTILS_AVAILABLE = False
-    
+
     # Mock functions for testing
     def apply_fade(audio, sample_rate, fade_in_duration, fade_out_duration):
         return audio
-    
+
     def compute_audio_duration(path):
         return 1.0
-    
+
     def concatenate_audio(audio_list, crossfade_duration=0.0, sample_rate=24000):
         if not audio_list:
             return torch.empty(0)
         return torch.cat(audio_list, dim=1)
-    
+
     def normalize_audio(audio, method="peak"):
         return audio
-    
+
     def split_audio(audio, sample_rate, segment_duration, overlap=0.0):
         return [audio]
-    
+
     def trim_silence(audio, sample_rate, threshold_db=-40.0):
         return audio
 

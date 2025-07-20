@@ -12,23 +12,24 @@ try:
         MultiTrackGenerator,
         TrackGenerationConfig,
     )
+
     MULTI_INSTRUMENT_AVAILABLE = True
 except ImportError:
     MULTI_INSTRUMENT_AVAILABLE = False
-    
+
     # Mock classes for testing
     class InstrumentConditioner:
         pass
-    
+
     class MultiInstrumentConfig:
         pass
-    
+
     class MultiInstrumentMusicGen:
         pass
-    
+
     class MultiTrackGenerator:
         pass
-    
+
     class TrackGenerationConfig:
         pass
 

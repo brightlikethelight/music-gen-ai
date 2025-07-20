@@ -16,44 +16,57 @@ from jose import jwt
 # Import API modules - handle missing dependencies gracefully
 try:
     from musicgen.api.rest.app import app as musicgen_app
+
     API_AVAILABLE = True
 except ImportError:
     API_AVAILABLE = False
     musicgen_app = None
 
+
 # Mock missing modules
 def create_app():
     return musicgen_app
 
+
 def get_cors_config():
     return {}
+
 
 class CorsConfig:
     pass
 
+
 cors_config = CorsConfig()
+
 
 class AuthenticationMiddleware:
     pass
 
+
 class UserRole:
     pass
+
 
 # Mock additional authentication components
 def get_current_user():
     pass
 
+
 def require_auth():
     pass
+
 
 def require_admin():
     pass
 
+
 class UserClaims:
     pass
 
+
 JWT_SECRET_KEY = "test-secret"
 JWT_ALGORITHM = "HS256"
+
 
 # Mock dependencies
 def get_current_active_user():

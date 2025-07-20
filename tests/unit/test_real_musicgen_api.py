@@ -7,6 +7,7 @@ import pytest
 # Import API modules - handle missing dependencies gracefully
 try:
     from musicgen.api.rest.app import app, GenerationRequest, GenerationResponse
+
     API_AVAILABLE = True
 except ImportError:
     API_AVAILABLE = False
@@ -36,9 +37,7 @@ class TestGenerationApi:
         if GenerationResponse is not None:
             # Test response model validation
             response = GenerationResponse(
-                job_id="test-task-123",
-                status="completed",
-                message="Generation completed"
+                job_id="test-task-123", status="completed", message="Generation completed"
             )
             assert response.job_id == "test-task-123"
             assert response.status == "completed"

@@ -41,66 +41,67 @@ try:
         JWT_ACCESS_TOKEN_EXPIRE_MINUTES,
         JWT_REFRESH_TOKEN_EXPIRE_DAYS,
     )
+
     AUTH_AVAILABLE = True
 except ImportError:
     AUTH_AVAILABLE = False
-    
+
     # Mock classes and constants for testing
     class AuthenticationMiddleware:
         pass
-    
+
     class UserRole:
         pass
-    
+
     class TokenType:
         pass
-    
+
     class UserClaims:
         pass
-    
+
     class RoleChecker:
         pass
-    
+
     class TierChecker:
         pass
-    
+
     # Mock functions
     def auth_middleware():
         pass
-    
+
     def get_current_user():
         pass
-    
+
     def require_auth():
         pass
-    
+
     def require_admin():
         pass
-    
+
     def require_user():
         pass
-    
+
     def require_premium():
         pass
-    
+
     def require_moderator():
         pass
-    
+
     def require_developer():
         pass
-    
+
     def require_pro_tier():
         pass
-    
+
     def require_enterprise_tier():
         pass
-    
+
     def logout_user():
         pass
-    
+
     def refresh_token():
         pass
-    
+
     # Mock constants
     JWT_SECRET_KEY = "test-secret"
     JWT_ALGORITHM = "HS256"
@@ -110,9 +111,10 @@ except ImportError:
 try:
     from musicgen.core.exceptions import AuthenticationError, AuthorizationError
 except ImportError:
+
     class AuthenticationError(Exception):
         pass
-    
+
     class AuthorizationError(Exception):
         pass
 
