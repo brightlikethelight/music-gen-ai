@@ -46,6 +46,11 @@ dependencies = [
     "uvicorn[standard]>=0.29.0",
     "pydantic>=2.0.0",
     "httpx>=0.25.0",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "python-multipart>=0.0.6",
+    "redis>=4.5.0",
+    "aiofiles>=23.0.0",
 ]
 
 [project.optional-dependencies]
@@ -136,7 +141,7 @@ addopts = [
     "--strict-config",
     "--verbose",
     "--tb=short",
-    "--cov=music_gen",
+    "--cov=src/musicgen",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
@@ -146,10 +151,12 @@ markers = [
     "integration: Integration tests",
     "slow: Slow tests",
     "gpu: Tests requiring GPU",
+    "asyncio: Asynchronous tests",
 ]
+asyncio_mode = "auto"
 
 [tool.coverage.run]
-source = ["music_gen"]
+source = ["src/musicgen"]
 omit = [
     "*/tests/*",
     "*/test_*",

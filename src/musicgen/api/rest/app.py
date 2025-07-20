@@ -181,7 +181,7 @@ async def generate_music_task(job_id: str, request: GenerationRequest):
         logger.info(f"Music generation completed for job {job_id}")
 
         # Update metrics
-        metrics.generation_completed.inc()
+        metrics.record_generation_request(request.model, "completed")
 
     except Exception as e:
         logger.error(f"Music generation failed for job {job_id}: {e}")
@@ -190,7 +190,7 @@ async def generate_music_task(job_id: str, request: GenerationRequest):
         _jobs[job_id].message = f"Generation failed: {e}"
 
         # Update metrics
-        metrics.generation_failed.inc()
+        metrics.record_generation_request(request.model, "failed")
 
 
 @asynccontextmanager
@@ -267,7 +267,7 @@ async def generate_music(request: GenerationRequest, background_tasks: Backgroun
         logger.info(f"Music generation job {job_id} queued")
 
         # Update metrics
-        metrics.generation_requests.inc()
+        metrics.record_generation_request(request.model, "queued")
 
         return GenerationResponse(
             job_id=job_id, status="queued", message="Music generation job queued successfully"
@@ -336,10 +336,9 @@ async def list_models():
 @app.get("/metrics")
 async def get_metrics():
     """Get API metrics."""
+    metrics_summary = metrics.get_metrics_summary()
     return {
-        "generation_requests": metrics.generation_requests._value._value,
-        "generation_completed": metrics.generation_completed._value._value,
-        "generation_failed": metrics.generation_failed._value._value,
+        **metrics_summary,
         "active_jobs": len([j for j in _jobs.values() if j.status == "processing"]),
         "total_jobs": len(_jobs),
     }

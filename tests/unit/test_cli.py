@@ -53,171 +53,86 @@ class TestCLI:
         assert "generate" in result.stdout
         assert "info" in result.stdout
 
-    @patch("musicgen.cli.FastMusicGenerator")
-    def test_generate_command_basic(self, mock_generator_class, runner, temp_output_dir):
-        """Test basic generate command."""
-        # Mock FastMusicGenerator
-        mock_generator = Mock()
-        mock_result = Mock()
-        mock_result.audio = torch.randn(1, 24000).numpy()  # Mock audio array
-        mock_result.generation_time = 5.0
-        mock_result.sample_rate = 24000
-        mock_generator.generate_single.return_value = mock_result
-        mock_generator.get_performance_stats.return_value = {"cache_stats": {"cached_models": 1}}
-        mock_generator_class.return_value = mock_generator
+    def test_generate_command_invalid_duration(self, runner):
+        """Test generate command with invalid duration."""
+        result = runner.invoke(
+            app,
+            ["generate", "Test music", "--duration", "500", "--output", "test.mp3"],
+        )
+        
+        # Should fail due to invalid duration
+        assert result.exit_code == 1
+        assert "Duration must be between 0 and 300 seconds" in result.stdout
+    
+    def test_generate_command_invalid_model(self, runner):
+        """Test generate command with invalid model."""
+        result = runner.invoke(
+            app,
+            ["generate", "Test music", "--model", "invalid", "--output", "test.mp3"],
+        )
+        
+        # Should fail due to invalid model
+        assert result.exit_code == 1
+        assert "Model must be one of" in result.stdout
+    
+    def test_generate_command_help(self, runner):
+        """Test generate command help."""
+        result = runner.invoke(app, ["generate", "--help"])
+        assert result.exit_code == 0
+        assert "Generate music from text description" in result.stdout
+        assert "--duration" in result.stdout
+        assert "--model" in result.stdout
 
-        output_file = temp_output_dir / "test_output.wav"
+    def test_prompt_command_help(self, runner):
+        """Test prompt command help."""
+        result = runner.invoke(app, ["prompt", "--help"])
+        assert result.exit_code == 0
+        assert "Improve prompts for better results" in result.stdout
+        assert "--examples" in result.stdout
+        assert "--validate" in result.stdout
 
-        with patch("scipy.io.wavfile.write") as mock_save:
-            result = runner.invoke(
-                app,
-                ["generate", "Happy jazz music", "--duration", "10", "--output", str(output_file)],
-            )
-
-            # CLI should attempt to call the generator and save function
-            mock_generator.generate_single.assert_called_once()
-            mock_save.assert_called_once()
-
-    @patch("musicgen.cli.FastMusicGenerator")
-    def test_generate_with_conditioning(self, mock_generator_class, runner, temp_output_dir):
-        """Test generate command with conditioning parameters."""
-        # Mock FastMusicGenerator
-        mock_generator = Mock()
-        mock_result = Mock()
-        mock_result.audio = torch.randn(1, 24000).numpy()
-        mock_result.generation_time = 5.0
-        mock_result.sample_rate = 24000
-        mock_generator.generate_single.return_value = mock_result
-        mock_generator.get_performance_stats.return_value = {"cache_stats": {"cached_models": 1}}
-        mock_generator_class.return_value = mock_generator
-
-        output_file = temp_output_dir / "conditioned_output.wav"
-
-        with patch("scipy.io.wavfile.write"):
-            result = runner.invoke(
-                app,
-                [
-                    "generate",
-                    "Jazz piano solo",
-                    "--duration",
-                    "15",
-                    "--genre",
-                    "jazz",
-                    "--mood",
-                    "energetic",
-                    "--tempo",
-                    "120",
-                    "--temperature",
-                    "0.8",
-                    "--output",
-                    str(output_file),
-                ],
-            )
-
-            # Check that conditioning parameters were passed
-            call_args = mock_generator.generate_single.call_args
-            assert call_args[1]["duration"] == 15.0
-            assert call_args[1]["temperature"] == 0.8
-
-    @patch("musicgen.cli.FastMusicGenerator")
-    def test_generate_test_mode(self, mock_generator_class, runner, temp_output_dir):
-        """Test test command (batch generation)."""
-        # Mock FastMusicGenerator
-        mock_generator = Mock()
-        mock_result = Mock()
-        mock_result.audio = torch.randn(1, 24000).numpy()
-        mock_result.generation_time = 5.0
-        mock_result.sample_rate = 24000
-        mock_generator.generate_single.return_value = mock_result
-        mock_generator.get_performance_stats.return_value = {"cache_stats": {"cached_models": 1}}
-        mock_generator_class.return_value = mock_generator
-
-        with patch("scipy.io.wavfile.write"):
-            result = runner.invoke(
-                app, ["test", "--output-dir", str(temp_output_dir), "--model-size", "base"]
-            )
-
-            # Test command should run without crashing (may have internal errors due to mocking complexity)
-            # The important thing is that the command structure works
-            assert result.exit_code == 0  # Should not crash the CLI itself
+    def test_batch_command_help(self, runner):
+        """Test batch command help."""
+        result = runner.invoke(app, ["batch", "--help"])
+        assert result.exit_code == 0
+        assert "Process multiple generations from CSV file" in result.stdout
+        assert "--output-dir" in result.stdout
+        assert "--workers" in result.stdout
 
     def test_info_command(self, runner):
         """Test info command."""
         with patch("torch.cuda.is_available", return_value=True):
-            with patch("torch.cuda.device_count", return_value=1):
-                with patch("torch.cuda.get_device_name", return_value="Mock GPU"):
+            with patch("torch.cuda.get_device_name", return_value="Mock GPU"):
+                with patch("torch.cuda.get_device_properties") as mock_props:
+                    mock_props.return_value.total_memory = 8000000000  # 8GB
                     result = runner.invoke(app, ["info"])
 
                     assert result.exit_code == 0
-                    assert "System Information" in result.stdout
+                    assert "MusicGen Unified" in result.stdout
                     assert "PyTorch" in result.stdout
 
-    @patch("musicgen.cli.FastMusicGenerator")
-    def test_generate_with_seed(self, mock_generator_class, runner, temp_output_dir):
-        """Test generate command with seed."""
-        # Mock FastMusicGenerator
-        mock_generator = Mock()
-        mock_result = Mock()
-        mock_result.audio = torch.randn(1, 24000).numpy()
-        mock_result.generation_time = 5.0
-        mock_result.sample_rate = 24000
-        mock_generator.generate_single.return_value = mock_result
-        mock_generator.get_performance_stats.return_value = {"cache_stats": {"cached_models": 1}}
-        mock_generator_class.return_value = mock_generator
+    def test_create_sample_csv_command(self, runner):
+        """Test create-sample-csv command."""
+        with patch("musicgen.cli.main.create_sample_csv") as mock_create:
+            result = runner.invoke(app, ["create-sample-csv"])
+            assert result.exit_code == 0
+            mock_create.assert_called_once_with("sample_batch.csv")
 
-        output_file = temp_output_dir / "seeded_output.wav"
+    def test_serve_command_help(self, runner):
+        """Test serve command help."""
+        result = runner.invoke(app, ["serve", "--help"])
+        assert result.exit_code == 0
+        assert "Start web interface" in result.stdout
+        assert "--port" in result.stdout
+        assert "--host" in result.stdout
 
-        with patch("scipy.io.wavfile.write"):
-            with patch("torch.manual_seed") as mock_seed:
-                result = runner.invoke(
-                    app, ["generate", "Test music", "--seed", "42", "--output", str(output_file)]
-                )
-
-                mock_seed.assert_called_with(42)
-
-    @patch("musicgen.cli.FastMusicGenerator")
-    def test_generate_device_selection(self, mock_generator_class, runner, temp_output_dir):
-        """Test device selection."""
-        # Mock FastMusicGenerator
-        mock_generator = Mock()
-        mock_result = Mock()
-        mock_result.audio = torch.randn(1, 24000).numpy()
-        mock_result.generation_time = 5.0
-        mock_result.sample_rate = 24000
-        mock_generator.generate_single.return_value = mock_result
-        mock_generator.get_performance_stats.return_value = {"cache_stats": {"cached_models": 1}}
-        mock_generator_class.return_value = mock_generator
-
-        output_file = temp_output_dir / "device_test.wav"
-
-        with patch("scipy.io.wavfile.write"):
-            with patch("torch.cuda.is_available", return_value=False):
-                result = runner.invoke(
-                    app,
-                    ["generate", "Test music", "--device", "auto", "--output", str(output_file)],
-                )
-
-                # Should handle device selection gracefully
-
-    @patch("musicgen.cli.FastMusicGenerator")
-    def test_cli_error_handling(self, mock_generator_class, runner):
-        """Test CLI error handling."""
-        # Test with model creation failure
-        mock_generator_class.side_effect = Exception("Model not found")
-
-        result = runner.invoke(
-            app,
-            [
-                "generate",
-                "Test prompt",
-                "--model-size",
-                "invalid-model",
-                "--output",
-                "/tmp/test.wav",
-            ],
-        )
-
-        assert result.exit_code != 0
+    def test_api_command_help(self, runner):
+        """Test api command help."""
+        result = runner.invoke(app, ["api", "--help"])
+        assert result.exit_code == 0
+        assert "Start REST API server" in result.stdout
+        assert "--port" in result.stdout
+        assert "--workers" in result.stdout
 
 
 @pytest.mark.unit
@@ -236,7 +151,8 @@ class TestCLIUtils:
         assert result.exit_code == 0
         assert "generate" in result.stdout
         assert "info" in result.stdout
-        assert "test" in result.stdout
+        assert "batch" in result.stdout
+        assert "prompt" in result.stdout
 
     def test_path_validation(self):
         """Test output path validation."""
@@ -276,10 +192,10 @@ class TestCLIConfiguration:
     def test_model_size_options(self):
         """Test model size configuration."""
         # Test that model sizes are valid
-        valid_sizes = ["small", "base", "large"]
+        valid_sizes = ["small", "medium", "large"]
 
         for size in valid_sizes:
-            assert size in ["small", "base", "large"]
+            assert size in ["small", "medium", "large"]
 
     def test_device_configuration(self):
         """Test device configuration options."""

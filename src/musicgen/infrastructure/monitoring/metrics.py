@@ -22,27 +22,39 @@ class MetricsCollector:
     def __init__(self):
         if not PROMETHEUS_AVAILABLE:
             self.enabled = False
+            self._setup_placeholder_metrics()
             return
 
         self.enabled = True
         self.registry = CollectorRegistry()
+        
+        # Track counts for summary
+        self._prometheus_counts = {
+            "generation_requests": 0,
+            "generation_completed": 0,
+            "generation_failed": 0,
+            "active_generations": 0,
+        }
 
         # Generation metrics
         self.generation_requests = Counter(
             "musicgen_generation_requests_total",
             "Total number of generation requests",
+            ["model", "status"],  # Add label names
             registry=self.registry,
         )
 
         self.generation_completed = Counter(
             "musicgen_generation_completed_total",
             "Total number of completed generations",
+            ["model"],  # Add label names
             registry=self.registry,
         )
 
         self.generation_failed = Counter(
             "musicgen_generation_failed_total",
             "Total number of failed generations",
+            ["model"],  # Add label names
             registry=self.registry,
         )
 
@@ -74,10 +86,70 @@ class MetricsCollector:
             registry=self.registry,
         )
 
+    def _setup_placeholder_metrics(self):
+        """Setup placeholder metrics when prometheus is not available."""
+        # Track counts manually when prometheus is not available
+        self._mock_counts = {
+            "generation_requests": 0,
+            "generation_completed": 0,
+            "generation_failed": 0,
+            "active_generations": 0,
+        }
+        
+        # Create mock metrics that support the same interface
+        class MockMetric:
+            def __init__(self, parent, name=None):
+                self.parent = parent
+                self.name = name
+                # Create a mock _value object that mimics prometheus Counter structure
+                self._value = MockValue()
+            
+            def inc(self):
+                if self.name and self.name in self.parent._mock_counts:
+                    self.parent._mock_counts[self.name] += 1
+            
+            def dec(self):
+                if self.name and self.name in self.parent._mock_counts:
+                    self.parent._mock_counts[self.name] = max(0, self.parent._mock_counts[self.name] - 1)
+            
+            def labels(self, **kwargs):
+                return self
+                
+            def observe(self, value):
+                pass
+        
+        class MockValue:
+            def __init__(self):
+                self._value = 0
+
+        # Setup the same attributes that would be created with prometheus
+        self.generation_requests = MockMetric(self, "generation_requests")
+        self.generation_completed = MockMetric(self, "generation_completed")
+        self.generation_failed = MockMetric(self, "generation_failed")
+        self.generation_duration = MockMetric(self)
+        self.audio_duration_generated = MockMetric(self)
+        self.active_generations = MockMetric(self, "active_generations")
+        self.model_load_time = MockMetric(self)
+
     def record_generation_request(self, model: str, status: str):
         """Record a generation request."""
         if self.enabled:
             self.generation_requests.labels(model=model, status=status).inc()
+            # Update summary counts
+            if status == "queued":
+                self._prometheus_counts["generation_requests"] += 1
+            elif status == "completed":
+                self._prometheus_counts["generation_completed"] += 1
+            elif status == "failed":
+                self._prometheus_counts["generation_failed"] += 1
+        else:
+            # Update mock counts based on status
+            if status == "queued":
+                self._mock_counts["generation_requests"] += 1
+            elif status == "completed":
+                self._mock_counts["generation_completed"] += 1
+            elif status == "failed":
+                self._mock_counts["generation_failed"] += 1
 
     def record_generation_duration(self, model: str, duration: float):
         """Record generation timing."""
@@ -93,11 +165,17 @@ class MetricsCollector:
         """Increment active generation counter."""
         if self.enabled:
             self.active_generations.inc()
+            self._prometheus_counts["active_generations"] += 1
+        else:
+            self._mock_counts["active_generations"] += 1
 
     def dec_active_generations(self):
         """Decrement active generation counter."""
         if self.enabled:
             self.active_generations.dec()
+            self._prometheus_counts["active_generations"] = max(0, self._prometheus_counts["active_generations"] - 1)
+        else:
+            self._mock_counts["active_generations"] = max(0, self._mock_counts["active_generations"] - 1)
 
     def record_model_load_time(self, model: str, duration: float):
         """Record model loading time."""
@@ -109,6 +187,24 @@ class MetricsCollector:
         if not self.enabled:
             return ""
         return generate_latest(self.registry).decode("utf-8")
+
+    def get_metrics_summary(self) -> Dict[str, Any]:
+        """Get a summary of metrics as a dictionary."""
+        if not self.enabled:
+            # Return mock counts when prometheus is not available
+            return self._mock_counts.copy()
+        
+        # For prometheus metrics, we need to track counts separately
+        # since prometheus counters with labels don't provide easy totals
+        if not hasattr(self, '_prometheus_counts'):
+            self._prometheus_counts = {
+                "generation_requests": 0,
+                "generation_completed": 0,
+                "generation_failed": 0,
+                "active_generations": 0,
+            }
+            
+        return self._prometheus_counts.copy()
 
 
 # Global metrics instance

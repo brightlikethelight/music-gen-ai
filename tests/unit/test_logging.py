@@ -11,38 +11,15 @@ from unittest.mock import MagicMock, patch
 import pytest
 import torch
 
-try:
-    from musicgen.infrastructure.monitoring.logging import (
-        setup_logging,
-        get_logger,
-        LoggerMixin,
-        log_function_call,
-        log_gpu_memory,
-    )
-
-    LOGGING_AVAILABLE = True
-except ImportError:
-    LOGGING_AVAILABLE = False
-
-    def setup_logging():
-        pass
-
-    def get_logger(name):
-        return logging.getLogger(name)
-
-    class LoggerMixin:
-        @property
-        def logger(self):
-            return logging.getLogger(self.__class__.__name__)
-
-    def log_function_call(func):
-        return func
-
-    def log_gpu_memory(logger, operation):
-        pass
+from musicgen.infrastructure.monitoring.logging import (
+    setup_logging,
+    get_logger,
+    LoggerMixin,
+    log_function_call,
+    log_gpu_memory,
+)
 
 
-@pytest.mark.skipif(not LOGGING_AVAILABLE, reason="Logging infrastructure not available")
 class TestLoggerMixin:
     """Test LoggerMixin class."""
 
@@ -270,8 +247,8 @@ class TestFileHandler:
 
     def test_log_aggregation(self):
         """Test aggregating logs from multiple sources."""
-        # Create parent logger
-        parent_logger = get_logger("music_gen")
+        # Create parent logger - note the difference: musicgen vs music_gen
+        parent_logger = get_logger("musicgen")
 
         # Create child loggers
         api_logger = get_logger("musicgen.api")
@@ -284,6 +261,10 @@ class TestFileHandler:
         handler = logging.StreamHandler(stream)
         parent_logger.addHandler(handler)
         parent_logger.setLevel(logging.DEBUG)
+        
+        # Ensure child loggers propagate to parent
+        api_logger.setLevel(logging.DEBUG)
+        model_logger.setLevel(logging.DEBUG)
 
         # Log from different modules
         api_logger.info("API request received")
