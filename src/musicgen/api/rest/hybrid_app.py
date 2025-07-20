@@ -40,11 +40,9 @@ except ImportError:
 
     class MockMetrics:
         def __init__(self):
-            pass
-
-        generation_requests = self
-        generation_completed = self
-        generation_failed = self
+            self.generation_requests = self
+            self.generation_completed = self
+            self.generation_failed = self
 
         def inc(self):
             pass
