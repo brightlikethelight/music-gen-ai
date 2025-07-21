@@ -11,16 +11,20 @@ import uuid
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException, status
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 
+from musicgen.api.middleware.auth import (
+    UserClaims, UserRole, auth_middleware, get_current_user, require_auth
+)
+from musicgen.api.rest.middleware.rate_limiting import RateLimitMiddleware
 from musicgen.infrastructure.config.config import config
 from musicgen.infrastructure.monitoring.logging import setup_logging
 from musicgen.infrastructure.monitoring.metrics import metrics
-from musicgen.utils.exceptions import MusicGenError
-from musicgen.api.rest.middleware.rate_limiting import RateLimitMiddleware
+from musicgen.utils.exceptions import AuthenticationError, MusicGenError
 
 # Setup logging
 setup_logging()
@@ -66,8 +70,37 @@ class JobStatus(BaseModel):
     error: Optional[str] = None
 
 
+# Auth models
+class UserRegistration(BaseModel):
+    """User registration request."""
+    username: str = Field(..., min_length=3, max_length=50)
+    email: str = Field(..., pattern=r'^[^@]+@[^@]+\.[^@]+$')
+    password: str = Field(..., min_length=6)
+    full_name: Optional[str] = None
+
+
+class UserResponse(BaseModel):
+    """User response model."""
+    user_id: str
+    username: str
+    email: str
+    roles: list[str]
+    tier: str
+    is_verified: bool
+
+
+class TokenResponse(BaseModel):
+    """Token response model."""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
 # Background task storage
 _jobs: dict[str, JobStatus] = {}
+
+# Simple user storage for demo (in production, use a proper database)
+_users: dict[str, dict] = {}
 
 
 async def load_model(model_name: str):
@@ -76,8 +109,8 @@ async def load_model(model_name: str):
         try:
             logger.info(f"Loading model: {model_name}")
             # Import here to avoid startup issues
-            from transformers import AutoProcessor, MusicgenForConditionalGeneration
             import torch
+            from transformers import AutoProcessor, MusicgenForConditionalGeneration
 
             # Determine device
             device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -164,8 +197,8 @@ async def generate_music_task(job_id: str, request: GenerationRequest):
         output_path = os.path.join(output_dir, f"{job_id}.wav")
 
         # Import here to avoid startup issues
-        import torchaudio
         import torch
+        import torchaudio
 
         # Save the audio (audio_data is already numpy array)
         audio_tensor = torch.from_numpy(audio_data).unsqueeze(0)  # Add batch dimension
@@ -341,6 +374,156 @@ async def get_metrics():
         **metrics_summary,
         "active_jobs": len([j for j in _jobs.values() if j.status == "processing"]),
         "total_jobs": len(_jobs),
+    }
+
+
+# Authentication endpoints
+@app.post("/auth/register")
+async def register_user(user_data: UserRegistration):
+    """Register a new user."""
+    try:
+        # Check if user already exists
+        if any(u.get("email") == user_data.email for u in _users.values()):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User with this email already exists"
+            )
+        
+        if any(u.get("username") == user_data.username for u in _users.values()):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already taken"
+            )
+        
+        # Create new user
+        user_id = str(uuid.uuid4())
+        user = {
+            "user_id": user_id,
+            "username": user_data.username,
+            "email": user_data.email,
+            "password": user_data.password,  # In production, hash this
+            "roles": [UserRole.USER.value],
+            "tier": "free",
+            "is_verified": True,
+            "tracks_generated": 0,
+            "playlists_count": 0,
+        }
+        
+        _users[user_id] = user
+        logger.info(f"User registered: {user_data.username} ({user_data.email})")
+        
+        # Create tokens for auto-login
+        access_token = auth_middleware.create_access_token(
+            user_id=user_id,
+            email=user_data.email,
+            username=user_data.username,
+            roles=[UserRole.USER.value],
+            tier="free",
+            is_verified=True,
+        )
+        
+        refresh_token = auth_middleware.create_refresh_token(user_id)
+        
+        # Return registration response with tokens and user info
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "user": {
+                "user_id": user_id,
+                "username": user_data.username,
+                "email": user_data.email,
+                "roles": [UserRole.USER.value],
+                "tier": "free",
+                "is_verified": True,
+                "tracks_generated": 0,
+                "playlists_count": 0
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Registration error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Registration failed"
+        )
+
+
+@app.post("/auth/login")
+async def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Login user and return JWT tokens."""
+    try:
+        # Find user by email (username field contains email)
+        user = None
+        for u in _users.values():
+            if u.get("email") == form_data.username:
+                user = u
+                break
+        
+        if not user or user.get("password") != form_data.password:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Create tokens
+        access_token = auth_middleware.create_access_token(
+            user_id=user["user_id"],
+            email=user["email"],
+            username=user["username"],
+            roles=user["roles"],
+            tier=user["tier"],
+            is_verified=user["is_verified"],
+        )
+        
+        refresh_token = auth_middleware.create_refresh_token(user["user_id"])
+        
+        logger.info(f"User logged in: {user['username']}")
+        
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "user": {
+                "user_id": user["user_id"],
+                "username": user["username"],
+                "email": user["email"],
+                "roles": user["roles"],
+                "tier": user["tier"],
+                "is_verified": user["is_verified"],
+                "tracks_generated": user.get("tracks_generated", 0),
+                "playlists_count": user.get("playlists_count", 0)
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Login failed"
+        )
+
+
+@app.get("/auth/me")
+async def get_current_user_info(current_user: UserClaims = Depends(require_auth)):
+    """Get current user information."""
+    # Get user from storage to include tracks_generated and playlists_count
+    user_data = _users.get(current_user.user_id, {})
+    
+    return {
+        "user_id": current_user.user_id,
+        "username": current_user.username,
+        "email": current_user.email,
+        "roles": [role.value for role in current_user.roles],
+        "tier": current_user.tier,
+        "is_verified": current_user.is_verified,
+        "tracks_generated": user_data.get("tracks_generated", 0),
+        "playlists_count": user_data.get("playlists_count", 0)
     }
 
 
