@@ -5,20 +5,21 @@ Tests audio utilities, effects, normalization, format conversion,
 and audio quality validation.
 """
 
-import pytest
-import torch
-import numpy as np
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
 import tempfile
 import warnings
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
+import numpy as np
+import pytest
+import torch
 
 # Import audio processing modules - handle missing dependencies gracefully
 try:
     from musicgen.utils.audio import (
-        AudioProcessor,
-        AudioNormalizer,
         AudioEffects,
+        AudioNormalizer,
+        AudioProcessor,
         AudioValidator,
         FormatConverter,
     )

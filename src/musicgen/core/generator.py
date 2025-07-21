@@ -6,7 +6,7 @@ Clean implementation focused on what works.
 import logging
 import os
 import time
-from typing import Tuple, Optional, Callable, Union
+from typing import Callable, Optional, Tuple, Union
 
 import numpy as np
 import torch

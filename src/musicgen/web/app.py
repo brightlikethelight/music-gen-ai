@@ -7,8 +7,8 @@ import os
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, FileResponse
 
 # Get static directory
 STATIC_DIR = Path(__file__).parent.parent / "static"

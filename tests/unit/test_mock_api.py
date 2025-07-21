@@ -7,10 +7,10 @@ This tests the entire API flow without requiring working ML dependencies.
 import asyncio
 import os
 import uuid
-import numpy as np
 import wave
 from contextlib import asynccontextmanager
 
+import numpy as np
 from fastapi import BackgroundTasks, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse

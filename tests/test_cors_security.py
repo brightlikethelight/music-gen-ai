@@ -3,12 +3,13 @@ CORS Security Tests for Music Gen AI API.
 Tests various CORS scenarios to ensure proper security implementation.
 """
 
-import pytest
 import os
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
+
+import pytest
 from fastapi import FastAPI, Request
-from fastapi.testclient import TestClient
 from fastapi.responses import JSONResponse
+from fastapi.testclient import TestClient
 
 # Import API modules - handle missing dependencies gracefully
 try:
@@ -72,8 +73,9 @@ def mock_env_production():
 @pytest.fixture
 def test_app():
     """Create a test FastAPI app with CORS and test endpoints."""
-    from musicgen.api.cors_config import get_cors_config, cors_config
     from fastapi.middleware.cors import CORSMiddleware
+
+    from musicgen.api.cors_config import cors_config, get_cors_config
 
     app = FastAPI()
 

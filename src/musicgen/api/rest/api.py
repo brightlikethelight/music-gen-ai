@@ -3,20 +3,20 @@ Simple REST API for music generation.
 No complexity, just endpoints that work.
 """
 
+import asyncio
 import os
 import uuid
-import asyncio
-from typing import Optional
 from concurrent.futures import ThreadPoolExecutor
+from typing import Optional
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 from ...core.generator import MusicGenerator
-from ...services.batch import BatchProcessor
 from ...core.prompt import PromptEngineer
+from ...services.batch import BatchProcessor
 
 # Create app
 app = FastAPI(

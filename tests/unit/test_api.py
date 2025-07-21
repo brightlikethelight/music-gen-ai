@@ -52,12 +52,12 @@ class TestMainAPI:
         # Test that root path (may not be implemented)
         response = client.get("/")
         assert response.status_code in [200, 307, 404]  # Redirect, docs, or not found
-    
+
     def test_metrics_endpoint(self, client):
         """Test metrics endpoint."""
         response = client.get("/metrics")
         assert response.status_code == 200
-        
+
         data = response.json()
         assert "generation_requests" in data
         assert "generation_completed" in data
@@ -65,7 +65,7 @@ class TestMainAPI:
         assert "active_generations" in data
         assert "active_jobs" in data
         assert "total_jobs" in data
-        
+
         # All counts should be zero initially
         assert data["generation_requests"] == 0
         assert data["generation_completed"] == 0
@@ -97,7 +97,7 @@ class TestGenerationEndpoint:
         # Valid minimal request (will fail with 503 if model not loaded)
         response = client.post("/generate", json={"prompt": "Test music"})
         assert response.status_code in [200, 503]
-        
+
         # If successful, verify background task was added
         if response.status_code == 200:
             assert mock_add_task.called

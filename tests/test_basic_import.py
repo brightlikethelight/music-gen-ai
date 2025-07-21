@@ -25,8 +25,8 @@ def test_can_import_core_modules():
     if sys.version_info >= (3, 12):
         pytest.skip("Python 3.12 incompatible with ML ecosystem (numpy/scipy recursion)")
 
-    from musicgen.core import generator, prompt
     from musicgen.cli import main as cli
+    from musicgen.core import generator, prompt
     from musicgen.services import batch
 
     # Should be able to import without errors

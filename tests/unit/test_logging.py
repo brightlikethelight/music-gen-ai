@@ -12,11 +12,11 @@ import pytest
 import torch
 
 from musicgen.infrastructure.monitoring.logging import (
-    setup_logging,
-    get_logger,
     LoggerMixin,
+    get_logger,
     log_function_call,
     log_gpu_memory,
+    setup_logging,
 )
 
 
@@ -261,7 +261,7 @@ class TestFileHandler:
         handler = logging.StreamHandler(stream)
         parent_logger.addHandler(handler)
         parent_logger.setLevel(logging.DEBUG)
-        
+
         # Ensure child loggers propagate to parent
         api_logger.setLevel(logging.DEBUG)
         model_logger.setLevel(logging.DEBUG)

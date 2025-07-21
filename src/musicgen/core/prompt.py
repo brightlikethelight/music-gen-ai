@@ -4,7 +4,7 @@ Simple, practical, no over-engineering.
 """
 
 import random
-from typing import List, Tuple, Dict, Optional
+from typing import Dict, List, Optional, Tuple
 
 
 class PromptEngineer:

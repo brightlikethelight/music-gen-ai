@@ -6,7 +6,7 @@ import pytest
 
 # Import API modules - handle missing dependencies gracefully
 try:
-    from musicgen.api.rest.app import app, GenerationRequest, GenerationResponse
+    from musicgen.api.rest.app import GenerationRequest, GenerationResponse, app
 
     API_AVAILABLE = True
 except ImportError:

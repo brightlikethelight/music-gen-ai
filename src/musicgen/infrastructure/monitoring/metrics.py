@@ -5,11 +5,11 @@ Provides Prometheus metrics for monitoring MusicGen performance and usage.
 """
 
 import time
-from typing import Dict, Any
 from functools import wraps
+from typing import Any, Dict
 
 try:
-    from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry, generate_latest
+    from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, generate_latest
 
     PROMETHEUS_AVAILABLE = True
 except ImportError:
@@ -27,7 +27,7 @@ class MetricsCollector:
 
         self.enabled = True
         self.registry = CollectorRegistry()
-        
+
         # Track counts for summary
         self._prometheus_counts = {
             "generation_requests": 0,
@@ -95,7 +95,7 @@ class MetricsCollector:
             "generation_failed": 0,
             "active_generations": 0,
         }
-        
+
         # Create mock metrics that support the same interface
         class MockMetric:
             def __init__(self, parent, name=None):
@@ -103,21 +103,23 @@ class MetricsCollector:
                 self.name = name
                 # Create a mock _value object that mimics prometheus Counter structure
                 self._value = MockValue()
-            
+
             def inc(self):
                 if self.name and self.name in self.parent._mock_counts:
                     self.parent._mock_counts[self.name] += 1
-            
+
             def dec(self):
                 if self.name and self.name in self.parent._mock_counts:
-                    self.parent._mock_counts[self.name] = max(0, self.parent._mock_counts[self.name] - 1)
-            
+                    self.parent._mock_counts[self.name] = max(
+                        0, self.parent._mock_counts[self.name] - 1
+                    )
+
             def labels(self, **kwargs):
                 return self
-                
+
             def observe(self, value):
                 pass
-        
+
         class MockValue:
             def __init__(self):
                 self._value = 0
@@ -173,9 +175,13 @@ class MetricsCollector:
         """Decrement active generation counter."""
         if self.enabled:
             self.active_generations.dec()
-            self._prometheus_counts["active_generations"] = max(0, self._prometheus_counts["active_generations"] - 1)
+            self._prometheus_counts["active_generations"] = max(
+                0, self._prometheus_counts["active_generations"] - 1
+            )
         else:
-            self._mock_counts["active_generations"] = max(0, self._mock_counts["active_generations"] - 1)
+            self._mock_counts["active_generations"] = max(
+                0, self._mock_counts["active_generations"] - 1
+            )
 
     def record_model_load_time(self, model: str, duration: float):
         """Record model loading time."""
@@ -193,17 +199,17 @@ class MetricsCollector:
         if not self.enabled:
             # Return mock counts when prometheus is not available
             return self._mock_counts.copy()
-        
+
         # For prometheus metrics, we need to track counts separately
         # since prometheus counters with labels don't provide easy totals
-        if not hasattr(self, '_prometheus_counts'):
+        if not hasattr(self, "_prometheus_counts"):
             self._prometheus_counts = {
                 "generation_requests": 0,
                 "generation_completed": 0,
                 "generation_failed": 0,
                 "active_generations": 0,
             }
-            
+
         return self._prometheus_counts.copy()
 
 

@@ -3,22 +3,22 @@ Command-line interface for MusicGen Unified.
 Simple, clean, focused on what matters.
 """
 
+import logging
 import os
 import sys
 import time
-import logging
 from typing import Optional
 
 import typer
 from rich import print as rprint
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
-from rich.table import Table
 from rich.logging import RichHandler
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
+from rich.table import Table
 
 from ..core.generator import MusicGenerator
-from ..services.batch import BatchProcessor, create_sample_csv
 from ..core.prompt import PromptEngineer
+from ..services.batch import BatchProcessor, create_sample_csv
 
 # Setup logging
 logging.basicConfig(

@@ -6,25 +6,25 @@ import pytest
 
 # Import all exceptions and utilities from the actual module
 from musicgen.utils.exceptions import (
-    MusicGenError,
-    ModelError,
-    GenerationError,
+    APIError,
     AudioError,
     AudioProcessingError,
     ConfigError,
     ConfigurationError,
+    DataLoadingError,
+    ErrorRecovery,
+    GenerationError,
+    ModelError,
+    MusicGenError,
     ResourceError,
     ValidationError,
-    DataLoadingError,
-    APIError,
-    handle_exceptions,
-    retry_on_error,
-    validate_input,
-    with_error_context,
-    safe_execute,
-    ErrorRecovery,
     format_error_for_user,
     get_error_summary,
+    handle_exceptions,
+    retry_on_error,
+    safe_execute,
+    validate_input,
+    with_error_context,
 )
 
 

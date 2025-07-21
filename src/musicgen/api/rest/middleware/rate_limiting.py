@@ -3,17 +3,16 @@ Production-ready Rate Limiting Middleware for MusicGen AI API.
 Simplified but secure implementation with in-memory fallback.
 """
 
-import time
 import ipaddress
+import logging
+import time
 from collections import defaultdict, deque
-from typing import Optional, Dict, Tuple
 from datetime import datetime, timedelta
+from typing import Dict, Optional, Tuple
 
 from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-
-import logging
 
 logger = logging.getLogger(__name__)
 

@@ -3,14 +3,14 @@ CORS and Authentication Integration Tests.
 Tests that CORS and JWT authentication work correctly together.
 """
 
-import pytest
 import os
-from unittest.mock import patch, Mock
 from datetime import datetime, timedelta, timezone
+from unittest.mock import Mock, patch
 
-from fastapi import FastAPI, Depends, HTTPException
-from fastapi.testclient import TestClient
+import pytest
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.testclient import TestClient
 from jose import jwt
 
 # Import API modules - handle missing dependencies gracefully

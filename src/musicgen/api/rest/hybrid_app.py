@@ -7,10 +7,10 @@ import asyncio
 import logging
 import os
 import uuid
-import httpx
 from contextlib import asynccontextmanager
 from typing import Optional
 
+import httpx
 from fastapi import BackgroundTasks, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -18,11 +18,11 @@ from pydantic import BaseModel, Field
 
 # Use local imports if available, otherwise graceful fallback
 try:
+    from musicgen.api.rest.middleware.rate_limiting import RateLimitMiddleware
     from musicgen.infrastructure.config.config import config
     from musicgen.infrastructure.monitoring.logging import setup_logging
     from musicgen.infrastructure.monitoring.metrics import metrics
     from musicgen.utils.exceptions import MusicGenError
-    from musicgen.api.rest.middleware.rate_limiting import RateLimitMiddleware
 
     rate_limiting_available = True
 except ImportError:
@@ -216,8 +216,9 @@ async def generate_mock_audio(
     request: GenerationRequest, output_dir: str, method: str = "mock"
 ) -> str:
     """Generate mock audio for testing."""
-    import numpy as np
     import wave
+
+    import numpy as np
 
     job_id = str(uuid.uuid4())
     output_path = os.path.join(output_dir, f"{job_id}.wav")

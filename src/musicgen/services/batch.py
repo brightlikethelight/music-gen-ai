@@ -3,16 +3,17 @@ Batch processing for music generation.
 Simple, efficient, no over-engineering.
 """
 
-import os
 import csv
 import json
-import time
 import logging
-from typing import List, Dict, Any, Optional, Callable
-from pathlib import Path
+import os
+import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional
 
 import pandas as pd
+
 from ..core.generator import MusicGenerator
 
 logger = logging.getLogger(__name__)

@@ -59,22 +59,22 @@ class TestCLI:
             app,
             ["generate", "Test music", "--duration", "500", "--output", "test.mp3"],
         )
-        
+
         # Should fail due to invalid duration
         assert result.exit_code == 1
         assert "Duration must be between 0 and 300 seconds" in result.stdout
-    
+
     def test_generate_command_invalid_model(self, runner):
         """Test generate command with invalid model."""
         result = runner.invoke(
             app,
             ["generate", "Test music", "--model", "invalid", "--output", "test.mp3"],
         )
-        
+
         # Should fail due to invalid model
         assert result.exit_code == 1
         assert "Model must be one of" in result.stdout
-    
+
     def test_generate_command_help(self, runner):
         """Test generate command help."""
         result = runner.invoke(app, ["generate", "--help"])

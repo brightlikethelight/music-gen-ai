@@ -3,43 +3,43 @@ Comprehensive tests for JWT authentication middleware.
 Ensures 100% code coverage for all authentication functionality.
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
-from unittest.mock import Mock, patch, MagicMock
-from typing import Optional, List
+from datetime import datetime, timedelta, timezone
+from typing import List, Optional
+from unittest.mock import MagicMock, Mock, patch
 
-from fastapi import FastAPI, Depends, HTTPException, Request
-from fastapi.testclient import TestClient
-from fastapi.security import HTTPAuthorizationCredentials
-from jose import jwt, JWTError
+import pytest
 import redis
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.security import HTTPAuthorizationCredentials
+from fastapi.testclient import TestClient
+from jose import JWTError, jwt
 from pydantic import ValidationError
 
 # Import authentication modules - handle missing dependencies gracefully
 try:
     from musicgen.api.middleware.auth import (
+        JWT_ACCESS_TOKEN_EXPIRE_MINUTES,
+        JWT_ALGORITHM,
+        JWT_REFRESH_TOKEN_EXPIRE_DAYS,
+        JWT_SECRET_KEY,
         AuthenticationMiddleware,
-        UserRole,
-        TokenType,
-        UserClaims,
         RoleChecker,
         TierChecker,
+        TokenType,
+        UserClaims,
+        UserRole,
         auth_middleware,
         get_current_user,
-        require_auth,
-        require_admin,
-        require_user,
-        require_premium,
-        require_moderator,
-        require_developer,
-        require_pro_tier,
-        require_enterprise_tier,
         logout_user,
         refresh_token,
-        JWT_SECRET_KEY,
-        JWT_ALGORITHM,
-        JWT_ACCESS_TOKEN_EXPIRE_MINUTES,
-        JWT_REFRESH_TOKEN_EXPIRE_DAYS,
+        require_admin,
+        require_auth,
+        require_developer,
+        require_enterprise_tier,
+        require_moderator,
+        require_premium,
+        require_pro_tier,
+        require_user,
     )
 
     AUTH_AVAILABLE = True
@@ -1120,6 +1120,7 @@ class TestRedisIntegration:
 
         # Re-import to trigger Redis connection
         import importlib
+
         import musicgen.api.middleware.auth
 
         importlib.reload(musicgen.api.middleware.auth)

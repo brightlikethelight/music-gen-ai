@@ -2,9 +2,10 @@
 Tests for CORS configuration.
 """
 
-import pytest
 import os
 from unittest.mock import patch
+
+import pytest
 
 # Import CORS modules - handle missing dependencies gracefully
 try:
@@ -324,6 +325,7 @@ async def test_cors_with_fastapi():
     """Test CORS configuration with FastAPI application."""
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+
     from musicgen.api.app import create_app
 
     with patch.dict(
