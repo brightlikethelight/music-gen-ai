@@ -1,3 +1,8 @@
+# ⚠️ EDUCATIONAL USE ONLY
+# This Kubernetes configuration is provided as an example for learning purposes.
+# It has NOT been tested in production and is part of a Harvard CS 109B academic project.
+# Do NOT use for production deployments.
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:

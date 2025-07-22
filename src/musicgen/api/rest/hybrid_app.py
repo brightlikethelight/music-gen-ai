@@ -124,7 +124,7 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 app = FastAPI(
     title="Hybrid MusicGen API",
-    description="Production-ready music generation with local + cloud fallback",
+    description="Educational music generation demo with local + cloud fallback examples",
     version="3.0.0",
     lifespan=lifespan,
 )

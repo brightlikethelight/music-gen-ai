@@ -1,7 +1,7 @@
 """
 Configuration settings for MusicGen Unified.
 
-Environment variables for production deployment.
+Environment variables for educational demonstration.
 """
 
 import os
@@ -53,7 +53,7 @@ class Config:
     )
 
     # Security
-    SECRET_KEY: str = os.environ.get("SECRET_KEY", "change-me-in-production")
+    SECRET_KEY: str = os.environ.get("SECRET_KEY", "educational-demo-not-secure")
     SECURE_HEADERS: bool = os.environ.get("SECURE_HEADERS", "true").lower() == "true"
 
     # AWS (optional)
@@ -71,10 +71,10 @@ class Config:
         if cls.API_KEY and len(cls.API_KEY) < 16:
             errors.append("API_KEY should be at least 16 characters")
 
-        if cls.SECRET_KEY == "change-me-in-production":
+        if cls.SECRET_KEY == "educational-demo-not-secure":
             import logging
 
-            logging.warning("Using default SECRET_KEY - change in production!")
+            logging.warning("Using default SECRET_KEY - for educational purposes only!")
 
         if errors:
             raise ValueError(f"Configuration errors: {'; '.join(errors)}")

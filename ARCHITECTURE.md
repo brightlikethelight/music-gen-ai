@@ -1,8 +1,10 @@
-# MusicGen Unified - Architecture Documentation
+# MusicGen Unified - Educational Architecture Documentation
 
 ## Overview
 
-MusicGen Unified v2.0.1 implements a production-grade directory structure following 2024 industry standards for ML/audio generation projects. The architecture emphasizes separation of concerns, scalability, and maintainability.
+**⚠️ Academic Project**: This architecture documentation describes the design goals and patterns for an educational project developed for Harvard CS 109B. While the structure follows industry standards, the implementation is experimental and not production-ready (test coverage: 6.2%, 50+ failing tests).
+
+The architecture demonstrates educational concepts in ML application design, emphasizing separation of concerns, modularity, and maintainability for learning purposes.
 
 ## Directory Structure
 
@@ -214,4 +216,14 @@ The migration from the flat structure to the hierarchical architecture involved:
 
 ---
 
-This architecture provides a solid foundation for a production-grade ML/audio generation service that can scale with growing demands while maintaining code quality and operational excellence.
+This architecture provides an educational foundation for understanding ML/audio generation service design patterns. As an academic project, it demonstrates concepts rather than providing production-ready implementation.
+
+## Current Limitations
+
+- **Test Coverage**: Only 6.2% (industry standard: 80%+)
+- **Unit Tests**: 50+ tests failing
+- **Monitoring**: Placeholder implementations only
+- **Deployment**: Example configurations, not tested
+- **Scalability**: Theoretical design, not implemented
+
+See [LIMITATIONS.md](LIMITATIONS.md) for complete details.

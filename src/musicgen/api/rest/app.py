@@ -1,7 +1,7 @@
 """
 FastAPI application for MusicGen API.
 
-Production-ready async endpoints with background tasks.
+Educational demonstration of async endpoints with background tasks.
 """
 
 import asyncio
@@ -107,7 +107,7 @@ class TokenResponse(BaseModel):
 # Background task storage
 _jobs: dict[str, JobStatus] = {}
 
-# Simple user storage for demo (in production, use a proper database)
+# Simple user storage for demo (for educational purposes only)
 _users: dict[str, dict] = {}
 _playlists: dict[str, dict] = {}
 
@@ -267,7 +267,7 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 app = FastAPI(
     title="MusicGen API",
-    description="Production-ready AI music generation API",
+    description="Educational AI music generation API (Harvard CS 109B project)",
     version="2.0.1",
     lifespan=lifespan,
 )
@@ -533,7 +533,7 @@ async def register_user(user_data: UserRegistration):
             "user_id": user_id,
             "username": user_data.username,
             "email": user_data.email,
-            "password": user_data.password,  # In production, hash this
+            "password": user_data.password,  # Educational demo only - NOT secure
             "roles": [UserRole.USER.value],
             "tier": "free",
             "is_verified": True,
@@ -686,7 +686,7 @@ async def create_playlist(
         "updated_at": time.time(),
     }
 
-    # Save to in-memory storage (in production, save to database)
+    # Save to in-memory storage (educational demo only)
     _playlists[playlist_id] = playlist
     logger.info(f"Playlist created: {playlist_id} by user {current_user.user_id}")
 
@@ -714,7 +714,7 @@ async def get_playlists(current_user: UserClaims = Depends(require_auth)):
 @app.post("/audio/analyze")
 async def analyze_audio(request: dict, current_user: UserClaims = Depends(require_auth)):
     """Analyze audio file and return metadata."""
-    # In production, would download and analyze the audio
+    # Educational demo - would download and analyze audio in real implementation
     audio_url = request.get("audio_url")
     return {
         "audio_url": audio_url,
@@ -741,7 +741,7 @@ async def generate_waveform(
     current_user: UserClaims = Depends(require_auth),
 ):
     """Generate waveform visualization for audio file."""
-    # In production, would generate actual waveform image
+    # Educational demo - would generate actual waveform in real implementation
     waveform_id = str(uuid.uuid4())
     return {
         "waveform_url": f"/static/waveforms/{waveform_id}.png",
@@ -801,7 +801,7 @@ async def search(
     current_user: UserClaims = Depends(require_auth),
 ):
     """Search for tracks, playlists, or users."""
-    # In production, would search database
+    # Educational demo - would search database in real implementation
     results = {
         "query": query,
         "type": type,

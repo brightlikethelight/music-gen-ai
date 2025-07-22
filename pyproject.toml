@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "musicgen-unified"
 version = "2.0.1"
-description = "Unified MusicGen interface for AI music generation - Harvard CS 109B Final Project"
+description = "Academic research project exploring AI music generation - Harvard CS 109B experimental implementation (NOT production-ready)"
 authors = [
     {name = "Bright Liu", email = "brightliu@college.harvard.edu"}
 ]
@@ -13,22 +13,23 @@ readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Multimedia :: Sound/Audio :: Sound Synthesis",
     "Topic :: Education",
+    "Topic :: Education :: Computer Aided Instruction (CAI)",
 ]
 keywords = [
     "music", "generation", "ai", "machine-learning", "deep-learning",
-    "pytorch", "transformers", "audio", "musicgen", "harvard", "cs109b"
+    "pytorch", "transformers", "audio", "musicgen", "harvard", "cs109b",
+    "academic", "experimental", "educational", "research", "prototype"
 ]
 dependencies = [
     "numpy>=1.26.0,<2.0",
@@ -118,7 +119,7 @@ use_parentheses = true
 ensure_newline_before_comments = true
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

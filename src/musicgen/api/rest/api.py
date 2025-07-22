@@ -96,7 +96,7 @@ class PromptResponse(BaseModel):
     variations: list[str] = []
 
 
-# In-memory job tracking (use Redis in production)
+# In-memory job tracking (educational demo only)
 jobs = {}
 
 
@@ -252,7 +252,7 @@ async def batch_process(file: UploadFile = File(...)):
         if not jobs:
             raise HTTPException(status_code=400, detail="No valid jobs in CSV")
 
-        # Start processing (in production, use Celery or similar)
+        # Start processing (educational demo - simplified implementation)
         job_id = str(uuid.uuid4())
 
         # For now, return job info
