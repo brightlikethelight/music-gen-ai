@@ -304,7 +304,9 @@ def main():
     """Main entry point for API server."""
     import uvicorn
 
-    uvicorn.run("musicgen.api:app", host="0.0.0.0", port=8000, reload=False)
+    # Use localhost by default for security, can be overridden by environment variable
+    host = os.getenv("API_HOST", "127.0.0.1")
+    uvicorn.run("musicgen.api:app", host=host, port=8000, reload=False)
 
 
 if __name__ == "__main__":

@@ -245,7 +245,7 @@ def prompt(
 @app.command()
 def serve(
     port: int = typer.Option(8080, "-p", "--port", help="Port to serve on"),
-    host: str = typer.Option("0.0.0.0", "-h", "--host", help="Host to bind to"),
+    host: str = typer.Option("127.0.0.1", "-h", "--host", help="Host to bind to (use 0.0.0.0 for all interfaces)"),
 ):
     """Start web interface."""
 
@@ -269,7 +269,7 @@ def serve(
 @app.command()
 def api(
     port: int = typer.Option(8000, "-p", "--port", help="Port to serve on"),
-    host: str = typer.Option("0.0.0.0", "-h", "--host", help="Host to bind to"),
+    host: str = typer.Option("127.0.0.1", "-h", "--host", help="Host to bind to (use 0.0.0.0 for all interfaces)"),
     workers: int = typer.Option(1, "-w", "--workers", help="Number of workers"),
 ):
     """Start REST API server."""

@@ -390,4 +390,6 @@ if __name__ == "__main__":
     print("   - Mock generation for testing")
     print("   - Complete job tracking")
 
-    uvicorn.run("hybrid_app:app", host="0.0.0.0", port=8000, reload=False, log_level="info")
+    # Use localhost by default for security, can be overridden by environment variable
+    host = os.getenv("API_HOST", "127.0.0.1")
+    uvicorn.run("hybrid_app:app", host=host, port=8000, reload=False, log_level="info")
