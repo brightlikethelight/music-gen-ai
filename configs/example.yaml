@@ -1,5 +1,9 @@
-# Production environment configuration
-environment: production
+# ⚠️ ACADEMIC PROJECT - EDUCATIONAL EXAMPLE ONLY
+# This configuration is part of Harvard CS 109B coursework
+# NOT tested for production use - FOR LEARNING PURPOSES ONLY
+#
+# Example environment configuration for educational purposes
+environment: development
 
 # Logging configuration
 logging:

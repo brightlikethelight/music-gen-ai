@@ -373,7 +373,7 @@ class TestCORSWithDifferentEnvironments:
         """Test production CORS with authentication."""
         with patch.dict(
             os.environ,
-            {"ENVIRONMENT": "production", "ALLOWED_ORIGINS": "https://app.musicgen.ai"},
+            {"ENVIRONMENT": "production", "ALLOWED_ORIGINS": "https://app.example.edu"},
             clear=True,
         ):
             app = create_app()
@@ -384,21 +384,21 @@ class TestCORSWithDifferentEnvironments:
                 response = client.get(
                     "/health",
                     headers={
-                        "Origin": "https://app.musicgen.ai",
+                        "Origin": "https://app.example.edu",
                         "Authorization": f"Bearer {valid_token}",
                     },
                 )
 
                 assert response.status_code == 200
                 assert (
-                    response.headers.get("access-control-allow-origin") == "https://app.musicgen.ai"
+                    response.headers.get("access-control-allow-origin") == "https://app.example.edu"
                 )
 
                 # HTTP origin should be blocked in production
                 response = client.get(
                     "/health",
                     headers={
-                        "Origin": "http://app.musicgen.ai",
+                        "Origin": "http://app.example.edu",
                         "Authorization": f"Bearer {valid_token}",
                     },
                 )
@@ -421,7 +421,7 @@ class TestCORSWithDifferentEnvironments:
                 response = client.get(
                     "/health",
                     headers={
-                        "Origin": "https://staging.musicgen.ai",
+                        "Origin": "https://staging.example.edu",
                         "Authorization": f"Bearer {valid_token}",
                     },
                 )
@@ -429,7 +429,7 @@ class TestCORSWithDifferentEnvironments:
                 assert response.status_code == 200
                 assert (
                     response.headers.get("access-control-allow-origin")
-                    == "https://staging.musicgen.ai"
+                    == "https://staging.example.edu"
                 )
 
                 # Dev origin allowed in staging

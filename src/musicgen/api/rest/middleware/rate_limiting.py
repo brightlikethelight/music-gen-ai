@@ -1,6 +1,7 @@
 """
-Production-ready Rate Limiting Middleware for MusicGen AI API.
-Simplified but secure implementation with in-memory fallback.
+Educational Rate Limiting Middleware Example for MusicGen Academic Project.
+Simplified implementation for learning purposes - Harvard CS 109B.
+⚠️ NOT TESTED FOR PRODUCTION USE - EDUCATIONAL EXAMPLE ONLY
 """
 
 import ipaddress
@@ -58,7 +59,7 @@ class RateLimiter:
 
     def _get_client_ip(self, request: Request) -> str:
         """Extract client IP with proxy support."""
-        # Check for forwarded IP headers (common in production)
+        # Check for forwarded IP headers (educational example)
         forwarded_ips = [
             request.headers.get("X-Forwarded-For"),
             request.headers.get("X-Real-IP"),

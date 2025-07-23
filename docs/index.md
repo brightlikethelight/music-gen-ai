@@ -1,6 +1,6 @@
 # MusicGen Unified v2.0.1
 
-A production-grade AI music generation library with clean architecture and comprehensive features.
+An academic AI music generation project exploring clean architecture concepts - Harvard CS 109B.
 
 ## Quick Start
 
@@ -23,7 +23,7 @@ musicgen api
 - **Multiple Interfaces**: CLI, Web UI, REST API, and Python library
 - **Batch Processing**: Process multiple requests efficiently
 - **Prompt Engineering**: Enhanced prompts for better results  
-- **Production Ready**: Docker, Kubernetes, monitoring, and logging
+- **Educational Examples**: Docker, Kubernetes configuration examples for learning
 - **Extensible Architecture**: Clean separation of concerns
 
 ## Architecture
@@ -125,8 +125,8 @@ with open("edm_track.wav", "wb") as f:
 The library supports configuration via YAML files and environment variables:
 
 ```yaml
-# configs/production.yaml
-environment: production
+# configs/example.yaml
+environment: development
 
 models:
   default: facebook/musicgen-medium

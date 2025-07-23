@@ -19,13 +19,13 @@ logger = logging.getLogger(__name__)
 
 # FastAPI app
 app = FastAPI(
-    title="MusicGen Production API",
-    description="Production API bridge for MusicGen",
-    version="1.0.0"
+    title="MusicGen Academic API Example",
+    description="Educational API bridge example for MusicGen - Harvard CS 109B Project",
+    version="0.1.0-academic"
 )
 
 # Configuration
-TTS_SERVICE_URL = os.getenv("TTS_SERVICE_URL", "http://musicgen-production:3001")
+TTS_SERVICE_URL = os.getenv("TTS_SERVICE_URL", "http://musicgen-academic:3001")
 OUTPUT_DIR = "/outputs"
 
 # Models
@@ -188,7 +188,7 @@ async def list_models():
 @app.post("/models/{model_id}/load")
 async def load_model(model_id: str):
     """Hot-swap to a different model."""
-    # In production, this would trigger model loading
+    # In a real implementation, this would trigger model loading
     return {
         "status": "loading",
         "model_id": model_id,

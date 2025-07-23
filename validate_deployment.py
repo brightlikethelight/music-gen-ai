@@ -2,7 +2,8 @@
 """
 MusicGen Deployment Validation Script
 
-Comprehensive tests to ensure everything works in production.
+Educational validation script for testing deployment examples.
+⚠️ ACADEMIC PROJECT - FOR LEARNING PURPOSES ONLY
 """
 
 import os

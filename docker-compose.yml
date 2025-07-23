@@ -1,10 +1,14 @@
+# ⚠️ ACADEMIC PROJECT - EDUCATIONAL EXAMPLE ONLY
+# This Docker Compose configuration is part of Harvard CS 109B coursework
+# NOT tested for production use - FOR LEARNING PURPOSES ONLY
+
 version: '3.8'
 
 services:
   musicgen-api:
     build:
       context: .
-      dockerfile: Dockerfile.production
+      dockerfile: Dockerfile.academic
     ports:
       - "8000:8000"
     volumes:

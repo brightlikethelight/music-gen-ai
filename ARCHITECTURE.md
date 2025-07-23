@@ -101,8 +101,8 @@ music_gen/
 
 ### Environment-Based Configuration
 ```yaml
-# configs/production.yaml
-environment: production
+# configs/example.yaml
+environment: development
 api:
   host: 0.0.0.0
   port: 8000

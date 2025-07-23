@@ -1,6 +1,10 @@
 #!/bin/bash
-# MusicGen Unified Deployment Script
-# Supports multiple deployment strategies with professional-grade infrastructure
+# ⚠️ ACADEMIC PROJECT - EDUCATIONAL EXAMPLE ONLY
+# This deployment script is part of Harvard CS 109B coursework
+# NOT tested for production use - FOR LEARNING PURPOSES ONLY
+# 
+# MusicGen Academic Deployment Example Script
+# Educational demonstration of deployment strategies
 
 set -e
 
@@ -11,13 +15,13 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-echo -e "${BLUE}🚀 MusicGen Production Deployment${NC}"
+echo -e "${BLUE}🎓 MusicGen Academic Deployment Example${NC}"
 echo -e "${BLUE}=================================${NC}"
 echo ""
 
 # Configuration
 DOCKER_IMAGE="ashleykza/tts-webui:latest"
-CONTAINER_NAME="musicgen-production"
+CONTAINER_NAME="musicgen-academic"
 API_CONTAINER="musicgen-api-bridge"
 
 # Ports

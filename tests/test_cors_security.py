@@ -63,7 +63,7 @@ def mock_env_production():
         os.environ,
         {
             "ENVIRONMENT": "production",
-            "ALLOWED_ORIGINS": "https://app.musicgen.ai,https://admin.musicgen.ai",
+            "ALLOWED_ORIGINS": "https://app.example.edu,https://admin.example.edu",
         },
         clear=True,
     ):
@@ -161,9 +161,9 @@ class TestCORSAllowedOrigins:
         client = TestClient(test_app)
 
         staging_origins = [
-            "https://staging.musicgen.ai",
-            "https://preview.musicgen.ai",
-            "https://beta.musicgen.ai",
+            "https://staging.example.edu",
+            "https://preview.example.edu",
+            "https://beta.example.edu",
         ]
 
         for origin in staging_origins:
@@ -176,7 +176,7 @@ class TestCORSAllowedOrigins:
         """Test production origins are allowed in production environment."""
         client = TestClient(test_app)
 
-        prod_origins = ["https://app.musicgen.ai", "https://admin.musicgen.ai"]
+        prod_origins = ["https://app.example.edu", "https://admin.example.edu"]
 
         for origin in prod_origins:
             response = client.get("/test", headers={"Origin": origin})
@@ -510,7 +510,7 @@ class TestCORSIntegration:
     async def test_api_endpoints_cors(self, mock_env_production):
         """Test CORS on actual API endpoints."""
         with patch.dict(
-            os.environ, {"ENVIRONMENT": "production", "ALLOWED_ORIGINS": "https://app.musicgen.ai"}
+            os.environ, {"ENVIRONMENT": "production", "ALLOWED_ORIGINS": "https://app.example.edu"}
         ):
             app = create_app()
             client = TestClient(app)
@@ -519,14 +519,14 @@ class TestCORSIntegration:
             response = client.options(
                 "/api/v1/generate",
                 headers={
-                    "Origin": "https://app.musicgen.ai",
+                    "Origin": "https://app.example.edu",
                     "Access-Control-Request-Method": "POST",
                     "Access-Control-Request-Headers": "Content-Type, Authorization",
                 },
             )
 
             assert response.status_code == 200
-            assert response.headers.get("access-control-allow-origin") == "https://app.musicgen.ai"
+            assert response.headers.get("access-control-allow-origin") == "https://app.example.edu"
 
             # Test blocked origin
             response = client.options(
@@ -568,15 +568,15 @@ class TestCORSEdgeCases:
 
     def test_subdomain_without_wildcard(self, mock_env_production, test_app):
         """Test subdomains are not automatically allowed."""
-        with patch.dict(os.environ, {"ALLOWED_ORIGINS": "https://musicgen.ai"}):
+        with patch.dict(os.environ, {"ALLOWED_ORIGINS": "https://example.edu"}):
             client = TestClient(test_app)
 
             # Exact domain works
-            response = client.get("/test", headers={"Origin": "https://musicgen.ai"})
-            assert response.headers.get("access-control-allow-origin") == "https://musicgen.ai"
+            response = client.get("/test", headers={"Origin": "https://example.edu"})
+            assert response.headers.get("access-control-allow-origin") == "https://example.edu"
 
             # Subdomain should not work without wildcard
-            response = client.get("/test", headers={"Origin": "https://app.musicgen.ai"})
+            response = client.get("/test", headers={"Origin": "https://app.example.edu"})
             assert "access-control-allow-origin" not in response.headers
 
     def test_empty_origin(self, mock_env_development, test_app):
@@ -608,7 +608,7 @@ class TestCORSWildcardSubdomains:
             os.environ,
             {
                 "ENVIRONMENT": "production",
-                "ALLOWED_ORIGINS": "https://*.musicgen.ai",
+                "ALLOWED_ORIGINS": "https://*.example.edu",
                 "ALLOW_SUBDOMAIN_WILDCARDS": "true",
             },
             clear=True,
@@ -616,14 +616,14 @@ class TestCORSWildcardSubdomains:
             config = CORSConfig()
 
             # Should match subdomains
-            assert config.is_origin_allowed("https://app.musicgen.ai")
-            assert config.is_origin_allowed("https://api.musicgen.ai")
-            assert config.is_origin_allowed("https://staging.musicgen.ai")
-            assert config.is_origin_allowed("https://musicgen.ai")
+            assert config.is_origin_allowed("https://app.example.edu")
+            assert config.is_origin_allowed("https://api.example.edu")
+            assert config.is_origin_allowed("https://staging.example.edu")
+            assert config.is_origin_allowed("https://example.edu")
 
             # Should not match different domains
             assert not config.is_origin_allowed("https://musicgen.com")
-            assert not config.is_origin_allowed("https://fake-musicgen.ai")
+            assert not config.is_origin_allowed("https://fake-example.edu")
 
     def test_wildcard_disabled(self):
         """Test wildcard subdomain matching when disabled."""
@@ -631,7 +631,7 @@ class TestCORSWildcardSubdomains:
             os.environ,
             {
                 "ENVIRONMENT": "production",
-                "ALLOWED_ORIGINS": "https://*.musicgen.ai",
+                "ALLOWED_ORIGINS": "https://*.example.edu",
                 "ALLOW_SUBDOMAIN_WILDCARDS": "false",
             },
             clear=True,
@@ -639,10 +639,10 @@ class TestCORSWildcardSubdomains:
             config = CORSConfig()
 
             # Wildcard should be treated as literal
-            assert "https://*.musicgen.ai" in config.allowed_origins
+            assert "https://*.example.edu" in config.allowed_origins
 
             # Should not match subdomains
-            assert not config.is_origin_allowed("https://app.musicgen.ai")
+            assert not config.is_origin_allowed("https://app.example.edu")
 
 
 # Performance test

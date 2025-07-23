@@ -43,9 +43,9 @@ class TestCORSConfig:
             config = CORSConfig()
 
             # Should include staging origins
-            assert "https://staging.musicgen.ai" in config.allowed_origins
-            assert "https://preview.musicgen.ai" in config.allowed_origins
-            assert "https://beta.musicgen.ai" in config.allowed_origins
+            assert "https://staging.example.edu" in config.allowed_origins
+            assert "https://preview.example.edu" in config.allowed_origins
+            assert "https://beta.example.edu" in config.allowed_origins
 
             # Should not include localhost by default
             assert "http://localhost:3000" not in config.allowed_origins
@@ -56,12 +56,12 @@ class TestCORSConfig:
             config = CORSConfig()
 
             # Should include production origins
-            assert "https://musicgen.ai" in config.allowed_origins
-            assert "https://www.musicgen.ai" in config.allowed_origins
-            assert "https://app.musicgen.ai" in config.allowed_origins
+            assert "https://example.edu" in config.allowed_origins
+            assert "https://www.example.edu" in config.allowed_origins
+            assert "https://app.example.edu" in config.allowed_origins
 
             # Should not include HTTP origins
-            assert "http://musicgen.ai" not in config.allowed_origins
+            assert "http://example.edu" not in config.allowed_origins
             assert "http://localhost:3000" not in config.allowed_origins
 
     def test_custom_allowed_origins(self):
@@ -81,7 +81,7 @@ class TestCORSConfig:
             assert "https://custom2.com" in config.allowed_origins
 
             # Should still include defaults
-            assert "https://musicgen.ai" in config.allowed_origins
+            assert "https://example.edu" in config.allowed_origins
 
     def test_allowed_domains(self):
         """Test domain-based origin generation."""
@@ -278,7 +278,7 @@ class TestCORSConfig:
             assert "http://localhost:3001" in config.allowed_origins
 
             # Should still include staging origins
-            assert "https://staging.musicgen.ai" in config.allowed_origins
+            assert "https://staging.example.edu" in config.allowed_origins
 
     def test_empty_environment_variables(self):
         """Test handling of empty environment variables."""

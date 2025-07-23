@@ -35,7 +35,7 @@ class UserRole(str, Enum):
 
     ADMIN = "admin"
     USER = "user"
-    PREMIUM_USER = "premium_user"
+    RESEARCHER = "researcher"
     MODERATOR = "moderator"
     DEVELOPER = "developer"
 
@@ -398,12 +398,12 @@ def require_admin() -> RoleChecker:
 
 def require_user() -> RoleChecker:
     """Require user role (any authenticated user)."""
-    return RoleChecker([UserRole.USER, UserRole.PREMIUM_USER, UserRole.ADMIN])
+    return RoleChecker([UserRole.USER, UserRole.RESEARCHER, UserRole.ADMIN])
 
 
-def require_premium() -> RoleChecker:
-    """Require premium user role."""
-    return RoleChecker([UserRole.PREMIUM_USER, UserRole.ADMIN])
+def require_researcher() -> RoleChecker:
+    """Require researcher user role."""
+    return RoleChecker([UserRole.RESEARCHER, UserRole.ADMIN])
 
 
 def require_moderator() -> RoleChecker:
@@ -418,9 +418,9 @@ def require_developer() -> RoleChecker:
 
 def require_pro_tier() -> TierChecker:
     """Require pro tier access."""
-    return TierChecker(["pro", "enterprise"])
+    return TierChecker(["pro", "research"])
 
 
-def require_enterprise_tier() -> TierChecker:
-    """Require enterprise tier access."""
-    return TierChecker(["enterprise"])
+def require_research_tier() -> TierChecker:
+    """Require research tier access."""
+    return TierChecker(["research"])

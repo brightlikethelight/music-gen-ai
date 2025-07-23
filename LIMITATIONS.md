@@ -5,8 +5,8 @@ This document provides an honest assessment of the current state of the MusicGen
 ## 🚨 Critical Limitations
 
 ### Test Coverage and Quality
-- **Current Test Coverage**: 6.2% (Industry standard: 80%+)
-- **Failing Unit Tests**: 50+ tests currently fail
+- **Current Test Coverage**: ~13% when running integration tests (Industry standard: 80%+)
+- **Unit Test Issues**: 65+ tests skipped due to missing dependencies, 1-2 failing tests
 - **Code Quality Issues**: 225+ violations identified by linting tools
 - **CI/CD Pipeline**: Completely broken (0% success rate on recent runs)
 
@@ -27,7 +27,7 @@ MyPy Issues: 17 errors in 8 files
 ### Infrastructure Claims vs Reality
 | Feature | Claimed | Reality |
 |---------|---------|---------|
-| "Production-ready API" | ✅ | ❌ (6.2% test coverage) |
+| "Production-ready API" | ✅ | ❌ (13% test coverage, experimental) |
 | "Prometheus monitoring" | ✅ | ❌ (No actual implementation) |
 | "Grafana dashboards" | ✅ | ❌ (No dashboards exist) |
 | "Kubernetes-ready" | ✅ | ❌ (Configs are examples only) |
