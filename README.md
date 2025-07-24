@@ -15,7 +15,7 @@ An academic research project exploring AI music generation using Facebook's Musi
 ## 🚨 Important Disclaimers
 
 - **Experimental Software**: This is a learning project with limited testing and known issues
-- **Not Production-Ready**: Current test coverage is ~13%, many features are incomplete
+- **Not Production-Ready**: Current test coverage is 0%, most features are incomplete
 - **Educational Purpose**: Created for academic exploration, not commercial use
 - **No Warranty**: Provided "as-is" for educational purposes only
 
@@ -57,10 +57,10 @@ This project was designed to demonstrate:
 ## 🎯 What Actually Works
 
 ✅ **Basic Functionality:**
-- Text-to-music generation using MusicGen models
+- Text-to-music generation framework using MusicGen models (requires model download)
 - Command-line interface for simple generation
 - Web API with authentication
-- Integration tests pass (20/20)
+- Test framework structure provided (actual tests not implemented)
 
 ✅ **Educational Components:**
 - Code examples for ML model integration
@@ -69,7 +69,7 @@ This project was designed to demonstrate:
 - Docker configuration examples
 
 ❌ **Known Limitations (See [LIMITATIONS.md](LIMITATIONS.md)):**
-- Test coverage only ~13% (not production standard)
+- Test coverage is 0% (no meaningful tests implemented)
 - Many unit tests skip due to missing dependencies (65+ skipped, 1-2 failing)
 - Monitoring features are placeholder examples
 - No actual PyPI package published
@@ -80,7 +80,8 @@ This project was designed to demonstrate:
 ### Command Line Interface
 
 ```bash
-# Generate music from text description (requires model download)
+# Generate music from text description
+# NOTE: First run downloads models from HuggingFace (several GB, may take 10-30 minutes)
 python -m musicgen.cli.main generate "upbeat jazz piano with drums" --duration 30
 
 # View system information
@@ -92,7 +93,8 @@ python -m musicgen.cli.main info
 ```python
 from musicgen.core.generator import MusicGenerator
 
-# Initialize generator (downloads model on first use)
+# Initialize generator
+# NOTE: First use downloads models from HuggingFace (several GB)
 generator = MusicGenerator()
 
 # Generate music
@@ -109,6 +111,7 @@ generator.save_audio(audio, "output.wav")
 
 ```bash
 # Start development server
+# NOTE: Server will download models on first startup (may take 10-30 minutes)
 python -m musicgen.api.rest.app
 
 # API documentation available at: http://localhost:8000/docs
@@ -149,7 +152,7 @@ music-gen-ai/
 │   └── utils/             # Shared utilities
 ├── tests/                 # Test suite (limited coverage)
 │   ├── unit/             # Unit tests (many failing)
-│   ├── integration/      # Integration tests (working)
+│   ├── integration/      # Integration test structure (empty)
 │   └── test_complete_system.py  # Full system tests
 ├── docs/                  # Documentation
 │   └── cs109b/           # Academic project materials
@@ -161,7 +164,7 @@ music-gen-ai/
 
 This project is in **early development** with the following status:
 
-- **Integration Tests**: ✅ 20/20 passing (basic functionality works)
+- **Integration Tests**: ❌ 0 tests implemented (framework only)
 - **Unit Tests**: ❌ 50+ failing (needs significant work)
 - **Code Coverage**: ❌ 6.2% (far below production standards)
 - **CI/CD Pipeline**: ❌ Currently failing (code quality issues)
@@ -202,7 +205,7 @@ Please see [CONTRIBUTING_ACADEMIC.md](CONTRIBUTING_ACADEMIC.md) for guidelines o
 ## 📚 Educational Resources
 
 ### For Students:
-- Study the integration tests to understand expected behavior
+- Study the test framework structure for testing patterns
 - Examine API design patterns in `src/musicgen/api/`
 - Learn about ML model integration in `src/musicgen/core/`
 - Explore authentication implementation in `src/musicgen/api/middleware/`
