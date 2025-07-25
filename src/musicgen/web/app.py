@@ -79,7 +79,7 @@ def create_app() -> FastAPI:
     return app
 
 
-def run_server(host: str = "0.0.0.0", port: int = 8080):
+def run_server(host: str = "127.0.0.1", port: int = 8080):
     """Run the web server."""
     import uvicorn
 

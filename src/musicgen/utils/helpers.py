@@ -139,7 +139,7 @@ def get_cache_dir() -> Path:
 
 def hash_text(text: str) -> str:
     """Create hash of text for caching."""
-    return hashlib.md5(text.encode()).hexdigest()[:8]
+    return hashlib.md5(text.encode(), usedforsecurity=False).hexdigest()[:8]
 
 
 def estimate_memory_usage(duration: float, model_size: str = "small") -> dict:

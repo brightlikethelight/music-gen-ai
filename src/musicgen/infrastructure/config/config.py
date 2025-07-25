@@ -5,6 +5,7 @@ Environment variables for educational demonstration.
 """
 
 import os
+import tempfile
 from typing import Optional
 
 
@@ -23,7 +24,7 @@ class Config:
     MAX_PROMPT_LENGTH: int = int(os.environ.get("MAX_PROMPT_LENGTH", "256"))
 
     # API settings
-    API_HOST: str = os.environ.get("API_HOST", "0.0.0.0")
+    API_HOST: str = os.environ.get("API_HOST", "127.0.0.1")
     API_PORT: int = int(os.environ.get("API_PORT", "8000"))
     API_WORKERS: int = int(os.environ.get("API_WORKERS", "1"))
     API_KEY: Optional[str] = os.environ.get("API_KEY", None)
@@ -39,7 +40,7 @@ class Config:
 
     # Storage
     OUTPUT_DIR: str = os.environ.get("OUTPUT_DIR", "outputs")
-    TEMP_DIR: str = os.environ.get("TEMP_DIR", "/tmp/musicgen")
+    TEMP_DIR: str = os.environ.get("TEMP_DIR", os.path.join(tempfile.gettempdir(), "musicgen"))
     JOB_RETENTION_HOURS: int = int(os.environ.get("JOB_RETENTION_HOURS", "24"))
 
     # Batch processing

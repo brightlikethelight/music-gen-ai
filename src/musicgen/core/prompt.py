@@ -3,7 +3,7 @@ Prompt engineering for better music generation.
 Simple, practical, no over-engineering.
 """
 
-import random
+import random  # nosec B311 - Not used for cryptographic purposes, only for music variations
 from typing import Dict, List, Optional, Tuple
 
 
@@ -136,11 +136,11 @@ class PromptEngineer:
         if not has_mood:
             # Pick appropriate mood based on genre
             if "jazz" in prompt or "classical" in prompt:
-                mood = random.choice(["smooth", "peaceful", "mellow"])
+                mood = random.choice(["smooth", "peaceful", "mellow"])  # nosec B311
             elif "rock" in prompt or "electronic" in prompt:
-                mood = random.choice(["energetic", "upbeat", "intense"])
+                mood = random.choice(["energetic", "upbeat", "intense"])  # nosec B311
             else:
-                mood = random.choice(["relaxing", "atmospheric", "dreamy"])
+                mood = random.choice(["relaxing", "atmospheric", "dreamy"])  # nosec B311
 
             return f"{mood} {prompt}"
 
@@ -234,7 +234,7 @@ class PromptEngineer:
         for genre_examples in examples.values():
             all_examples.extend(genre_examples)
 
-        return random.sample(all_examples, min(5, len(all_examples)))
+        return random.sample(all_examples, min(5, len(all_examples)))  # nosec B311
 
     def suggest_variations(self, prompt: str, count: int = 3) -> List[str]:
         """
@@ -252,14 +252,14 @@ class PromptEngineer:
         # Variation 1: Change mood
         moods = [m for m in self.moods if m not in prompt.lower()]
         if moods:
-            new_mood = random.choice(moods)
+            new_mood = random.choice(moods)  # nosec B311
             var1 = self._replace_or_add_mood(prompt, new_mood)
             variations.append(var1)
 
         # Variation 2: Add/change tempo
         tempos = [t for t in self.tempos if t not in prompt.lower()]
         if tempos and len(variations) < count:
-            new_tempo = random.choice(tempos)
+            new_tempo = random.choice(tempos)  # nosec B311
             var2 = f"{new_tempo} {prompt}"
             variations.append(var2)
 
@@ -271,7 +271,7 @@ class PromptEngineer:
                         # Add a complementary instrument
                         other_insts = [i for i in instruments if i != inst]
                         if other_insts:
-                            new_inst = random.choice(other_insts)
+                            new_inst = random.choice(other_insts)  # nosec B311
                             var3 = f"{prompt} with {new_inst}"
                             variations.append(var3)
                             break
@@ -281,7 +281,7 @@ class PromptEngineer:
         # Ensure we have enough variations
         while len(variations) < count:
             # Generic variation
-            prefix = random.choice(["experimental", "modern", "traditional", "fusion"])
+            prefix = random.choice(["experimental", "modern", "traditional", "fusion"])  # nosec B311
             variations.append(f"{prefix} {prompt}")
 
         return variations[:count]

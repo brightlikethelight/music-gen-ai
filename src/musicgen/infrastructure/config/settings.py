@@ -8,6 +8,7 @@ Handles loading and validation of configuration from multiple sources:
 """
 
 import os
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
@@ -66,7 +67,7 @@ class StorageConfig:
     """Storage configuration."""
 
     output_dir: str = "./outputs"
-    temp_dir: str = "/tmp/musicgen"
+    temp_dir: str = os.path.join(tempfile.gettempdir(), "musicgen")
 
 
 @dataclass
