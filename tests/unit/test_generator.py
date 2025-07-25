@@ -7,10 +7,14 @@ import os
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, PropertyMock, patch
+import sys
 
 import numpy as np
 import pytest
 import torch
+
+# Mock transformers BEFORE importing MusicGenerator
+sys.modules["transformers"] = MagicMock()
 
 from musicgen.core.generator import MusicGenerator
 

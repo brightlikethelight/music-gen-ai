@@ -4,11 +4,33 @@ Unit tests for CLI functionality.
 
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
+import sys
 
 import pytest
 import torch
 from typer.testing import CliRunner
+
+# Mock the heavy dependencies BEFORE importing CLI
+# This prevents model downloads during testing
+sys.modules["transformers"] = MagicMock()
+sys.modules["musicgen.core.generator"] = MagicMock()
+sys.modules["musicgen.core.prompt"] = MagicMock()
+sys.modules["musicgen.services.batch"] = MagicMock()
+
+# Mock the generator and prompt classes
+mock_generator = MagicMock()
+mock_generator.MusicGenerator = MagicMock
+mock_prompt = MagicMock()
+mock_prompt.PromptEngineer = MagicMock
+mock_batch = MagicMock()
+mock_batch.BatchProcessor = MagicMock
+mock_batch.create_sample_csv = MagicMock()
+
+sys.modules["musicgen.core.generator"].MusicGenerator = mock_generator.MusicGenerator
+sys.modules["musicgen.core.prompt"].PromptEngineer = mock_prompt.PromptEngineer
+sys.modules["musicgen.services.batch"].BatchProcessor = mock_batch.BatchProcessor
+sys.modules["musicgen.services.batch"].create_sample_csv = mock_batch.create_sample_csv
 
 # Import CLI modules - handle missing dependencies gracefully
 try:
