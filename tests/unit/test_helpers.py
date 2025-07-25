@@ -46,13 +46,13 @@ class TestAudioHelpers:
         audio = np.sin(2 * np.pi * 440 * np.linspace(0, duration, samples))
         return audio.astype(np.float32), sample_rate
 
-    @patch("musicgen.utils.helpers.librosa")
-    def test_load_audio(self, mock_librosa, temp_dir):
+    @patch("librosa.load")
+    def test_load_audio(self, mock_librosa_load, temp_dir):
         """Test audio loading."""
         # Mock librosa.load
         expected_audio = np.random.randn(32000).astype(np.float32)
         expected_sr = 32000
-        mock_librosa.load.return_value = (expected_audio, expected_sr)
+        mock_librosa_load.return_value = (expected_audio, expected_sr)
 
         # Test loading
         audio_path = temp_dir / "test.wav"
@@ -60,16 +60,16 @@ class TestAudioHelpers:
 
         assert np.array_equal(audio, expected_audio)
         assert sr == expected_sr
-        mock_librosa.load.assert_called_once_with(audio_path, sr=32000, mono=True)
+        mock_librosa_load.assert_called_once_with(audio_path, sr=32000, mono=True)
 
-    @patch("musicgen.utils.helpers.librosa")
-    def test_load_audio_custom_params(self, mock_librosa):
+    @patch("librosa.load")
+    def test_load_audio_custom_params(self, mock_librosa_load):
         """Test audio loading with custom parameters."""
-        mock_librosa.load.return_value = (np.zeros(44100), 44100)
+        mock_librosa_load.return_value = (np.zeros(44100), 44100)
 
         load_audio("test.wav", target_sr=44100, mono=False)
 
-        mock_librosa.load.assert_called_with("test.wav", sr=44100, mono=False)
+        mock_librosa_load.assert_called_with("test.wav", sr=44100, mono=False)
 
     @patch("musicgen.utils.helpers.sf.write")
     def test_save_audio_numpy(self, mock_write, sample_audio, temp_dir):
@@ -123,7 +123,8 @@ class TestAudioHelpers:
 
     @patch("musicgen.utils.helpers.sf.write")
     @patch("musicgen.utils.helpers.AudioSegment")
-    def test_save_audio_mp3(self, mock_segment, mock_write, sample_audio, temp_dir):
+    @patch("musicgen.utils.helpers.os.remove")
+    def test_save_audio_mp3(self, mock_remove, mock_segment, mock_write, sample_audio, temp_dir):
         """Test saving audio as MP3."""
         audio, sr = sample_audio
         output_path = temp_dir / "output.mp3"
@@ -138,6 +139,7 @@ class TestAudioHelpers:
         mock_write.assert_called_once()
         mock_segment.from_wav.assert_called_once()
         mock_audio_seg.export.assert_called_once()
+        mock_remove.assert_called_once()  # Temporary WAV file should be removed
 
         assert result == str(output_path)
 
@@ -214,9 +216,11 @@ class TestUtilityHelpers:
 
     def test_get_cache_dir(self):
         """Test cache directory creation."""
-        with patch.object(Path, "home", return_value=Path("/home/user")):
-            cache_dir = get_cache_dir()
-            assert str(cache_dir) == str(Path("/home/user/.cache/musicgen-unified"))
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch.object(Path, "home", return_value=Path(tmpdir)):
+                cache_dir = get_cache_dir()
+                assert str(cache_dir) == str(Path(tmpdir) / ".cache" / "musicgen-unified")
+                assert cache_dir.exists()
 
     def test_get_cache_dir_exists(self):
         """Test cache directory when it already exists."""
