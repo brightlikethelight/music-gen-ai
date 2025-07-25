@@ -262,18 +262,18 @@ def auth_headers():
     """Create authentication headers for tests that require auth."""
     if not AUTH_AVAILABLE:
         return {}
-    
+
     # Create auth middleware instance
     auth = AuthenticationMiddleware()
-    
+
     # Create test token
     token = auth.create_access_token(
         user_id="test_user_123",
         email="test@example.com",
         username="testuser",
-        roles=[UserRole.USER]
+        roles=[UserRole.USER],
     )
-    
+
     return {"Authorization": f"Bearer {token}"}
 
 

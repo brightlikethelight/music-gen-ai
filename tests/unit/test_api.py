@@ -28,7 +28,6 @@ class TestMainAPI:
     def client(self):
         """Create test client."""
         return TestClient(app)
-    
 
     def test_app_exists(self):
         """Test that app exists and has correct metadata."""
@@ -83,7 +82,6 @@ class TestGenerationEndpoint:
     def client(self):
         """Create test client."""
         return TestClient(app)
-    
 
     @patch("musicgen.api.rest.app.BackgroundTasks.add_task")
     def test_generation_endpoint_validation(self, mock_add_task, client, auth_headers):
@@ -93,7 +91,9 @@ class TestGenerationEndpoint:
         assert response.status_code == 422
 
         # Invalid duration
-        response = client.post("/generate", json={"prompt": "Test", "duration": -1}, headers=auth_headers)
+        response = client.post(
+            "/generate", json={"prompt": "Test", "duration": -1}, headers=auth_headers
+        )
         assert response.status_code == 422
 
         # Valid minimal request (will fail with 503 if model not loaded)
@@ -117,7 +117,9 @@ class TestGenerationEndpoint:
         # Mock audio save
         mock_save.return_value = "test_output.wav"
 
-        response = client.post("/generate", json={"prompt": "Happy jazz music", "duration": 10.0}, headers=auth_headers)
+        response = client.post(
+            "/generate", json={"prompt": "Happy jazz music", "duration": 10.0}, headers=auth_headers
+        )
 
         # Check response
         assert response.status_code == 200
