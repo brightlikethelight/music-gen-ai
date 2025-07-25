@@ -39,7 +39,9 @@ def generate(
     guidance: float = typer.Option(3.0, "-g", "--guidance", help="Guidance scale"),
     device: Optional[str] = typer.Option(None, "--device", help="Device (cuda/cpu)"),
     no_optimize: bool = typer.Option(False, "--no-optimize", help="Disable GPU optimization"),
-    yes: bool = typer.Option(False, "--yes", "-y", help="Answer yes to all prompts (non-interactive mode)"),
+    yes: bool = typer.Option(
+        False, "--yes", "-y", help="Answer yes to all prompts (non-interactive mode)"
+    ),
 ):
     """Generate music from text description."""
 

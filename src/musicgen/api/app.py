@@ -14,7 +14,7 @@ from .rest.app import app as base_app
 def create_app() -> FastAPI:
     """
     Create and configure a FastAPI application instance.
-    
+
     Returns:
         FastAPI: Configured application instance
     """

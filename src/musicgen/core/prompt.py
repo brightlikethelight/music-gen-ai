@@ -281,7 +281,9 @@ class PromptEngineer:
         # Ensure we have enough variations
         while len(variations) < count:
             # Generic variation
-            prefix = random.choice(["experimental", "modern", "traditional", "fusion"])  # nosec B311
+            prefix = random.choice(
+                ["experimental", "modern", "traditional", "fusion"]
+            )  # nosec B311
             variations.append(f"{prefix} {prompt}")
 
         return variations[:count]

@@ -39,7 +39,7 @@ class TestBatchProcessor:
     def test_init_default_params(self, temp_dir):
         """Test initialization with default parameters."""
         processor = BatchProcessor(output_dir=str(temp_dir))
-        
+
         assert processor.output_dir == temp_dir
         assert processor.max_workers >= 1
         assert processor.model_name == "facebook/musicgen-small"
@@ -53,9 +53,9 @@ class TestBatchProcessor:
             output_dir=str(output_dir),
             max_workers=2,
             model_name="facebook/musicgen-medium",
-            device="cpu"
+            device="cpu",
         )
-        
+
         assert processor.output_dir == output_dir
         assert processor.max_workers == 2
         assert processor.model_name == "facebook/musicgen-medium"
@@ -77,9 +77,9 @@ class TestBatchProcessor:
         """Test loading valid CSV file."""
         processor = BatchProcessor(output_dir=str(temp_dir))
         jobs = processor.load_csv(sample_csv_file)
-        
+
         assert len(jobs) == 3
-        
+
         # Check first job
         job1 = jobs[0]
         assert job1["id"] == 0
@@ -89,14 +89,14 @@ class TestBatchProcessor:
         assert job1["temperature"] == 1.0
         assert job1["guidance_scale"] == 3.0
 
-        # Check job with auto-generated output file  
+        # Check job with auto-generated output file
         job3 = jobs[2]
         assert "output_" in job3["output_file"] and job3["output_file"].endswith(".mp3")
 
     def test_load_csv_missing_file(self, temp_dir):
         """Test loading non-existent CSV file."""
         processor = BatchProcessor(output_dir=str(temp_dir))
-        
+
         with pytest.raises(FileNotFoundError):
             processor.load_csv("nonexistent.csv")
 
@@ -106,9 +106,9 @@ class TestBatchProcessor:
         data = [{"duration": 30, "output_file": "output.mp3"}]
         df = pd.DataFrame(data)
         df.to_csv(csv_path, index=False)
-        
+
         processor = BatchProcessor(output_dir=str(temp_dir))
-        
+
         with pytest.raises(ValueError, match="CSV must have 'prompt' column"):
             processor.load_csv(str(csv_path))
 
@@ -122,21 +122,21 @@ class TestBatchProcessor:
         ]
         df = pd.DataFrame(data)
         df.to_csv(csv_path, index=False)
-        
+
         processor = BatchProcessor(output_dir=str(temp_dir))
         jobs = processor.load_csv(str(csv_path))
-        
+
         # Should get jobs with duration corrections (empty prompt may become "nan")
         assert len(jobs) >= 2
-        
+
         # Find the valid jobs (excluding any that became "nan")
         valid_jobs = [job for job in jobs if job["prompt"] not in ["", "nan"]]
         assert len(valid_jobs) == 2
-        
+
         # Check the valid jobs have corrected durations
         valid_music_job = next(job for job in valid_jobs if "valid music" in job["prompt"])
         another_valid_job = next(job for job in valid_jobs if "another valid" in job["prompt"])
-        
+
         assert valid_music_job["duration"] == 10.0  # Corrected from 200
         assert another_valid_job["duration"] == 10.0  # Corrected from -5
 
@@ -148,7 +148,7 @@ class TestBatchProcessor:
         mock_generator.generate.return_value = ("fake_audio", 32000)
         mock_generator.save_audio.return_value = "/path/to/output.mp3"
         mock_generator_class.return_value = mock_generator
-        
+
         # Mock file size
         with patch("os.path.getsize", return_value=1024000):
             processor = BatchProcessor(output_dir=str(temp_dir))
@@ -160,9 +160,9 @@ class TestBatchProcessor:
                 "temperature": 1.0,
                 "guidance_scale": 3.0,
             }
-            
+
             result = processor.process_single(job)
-            
+
             assert result["success"] is True
             assert result["id"] == 1
             assert result["prompt"] == "test music"
@@ -170,7 +170,7 @@ class TestBatchProcessor:
             assert result["error"] is None
             assert result["generation_time"] > 0
             assert result["file_size"] == 1024000
-            
+
             # Verify generator was called correctly
             mock_generator.generate.assert_called_once_with(
                 prompt="test music",
@@ -186,7 +186,7 @@ class TestBatchProcessor:
         mock_generator = MagicMock()
         mock_generator.generate.side_effect = Exception("Generation failed")
         mock_generator_class.return_value = mock_generator
-        
+
         processor = BatchProcessor(output_dir=str(temp_dir))
         job = {
             "id": 1,
@@ -196,9 +196,9 @@ class TestBatchProcessor:
             "temperature": 1.0,
             "guidance_scale": 3.0,
         }
-        
+
         result = processor.process_single(job)
-        
+
         assert result["success"] is False
         assert result["error"] == "Generation failed"
         assert result["generation_time"] == 0
@@ -215,22 +215,24 @@ class TestBatchProcessor:
         # Mock executor
         mock_executor = MagicMock()
         mock_executor_class.return_value.__enter__.return_value = mock_executor
-        
+
         # Mock futures
         mock_future1 = MagicMock()
         mock_future1.result.return_value = {"id": 1, "success": True}
         mock_future2 = MagicMock()
         mock_future2.result.return_value = {"id": 2, "success": True}
-        
+
         mock_executor.submit.side_effect = [mock_future1, mock_future2]
-        
+
         # Mock as_completed
-        with patch("musicgen.services.batch.as_completed", return_value=[mock_future1, mock_future2]):
+        with patch(
+            "musicgen.services.batch.as_completed", return_value=[mock_future1, mock_future2]
+        ):
             processor = BatchProcessor(output_dir=str(temp_dir), max_workers=2)
             jobs = [{"id": 1}, {"id": 2}]
-            
+
             results = processor.process_batch(jobs)
-            
+
             assert len(results) == 2
             assert results[0]["id"] == 1
             assert results[1]["id"] == 2
@@ -239,23 +241,23 @@ class TestBatchProcessor:
         """Test batch processing with progress callback."""
         processor = BatchProcessor(output_dir=str(temp_dir))
         callback_calls = []
-        
+
         def progress_callback(current, total, message):
             callback_calls.append((current, total, message))
-        
+
         # Mock the ProcessPoolExecutor to avoid actual processing
         with patch("musicgen.services.batch.ProcessPoolExecutor") as mock_executor_class:
             mock_executor = MagicMock()
             mock_executor_class.return_value.__enter__.return_value = mock_executor
-            
+
             mock_future = MagicMock()
             mock_future.result.return_value = {"id": 1, "success": True}
             mock_executor.submit.return_value = mock_future
-            
+
             with patch("musicgen.services.batch.as_completed", return_value=[mock_future]):
                 jobs = [{"id": 1}]
                 processor.process_batch(jobs, progress_callback)
-                
+
                 assert len(callback_calls) == 1
                 assert callback_calls[0] == (1, 1, "Processing 1/1")
 
@@ -267,25 +269,25 @@ class TestBatchProcessor:
             {"id": 2, "success": False, "generation_time": 0},
             {"id": 3, "success": True, "generation_time": 3.0},
         ]
-        
+
         summary = processor.save_results(results, "test_results.json")
-        
+
         # Check summary
         assert summary["total_jobs"] == 3
         assert summary["successful"] == 2
         assert summary["failed"] == 1
-        assert summary["success_rate"] == 2/3
+        assert summary["success_rate"] == 2 / 3
         assert summary["total_generation_time"] == 8.0
         assert "timestamp" in summary
-        
+
         # Check file was created
         results_file = temp_dir / "test_results.json"
         assert results_file.exists()
-        
+
         # Check file contents
         with open(results_file, "r") as f:
             data = json.load(f)
-        
+
         assert "summary" in data
         assert "results" in data
         assert data["summary"]["total_jobs"] == 3
@@ -295,7 +297,7 @@ class TestBatchProcessor:
         """Test saving empty results."""
         processor = BatchProcessor(output_dir=str(temp_dir))
         summary = processor.save_results([])
-        
+
         assert summary["total_jobs"] == 0
         assert summary["success_rate"] == 0
 
@@ -317,30 +319,30 @@ class TestCreateSampleCSV:
             try:
                 os.chdir(temp_dir)
                 filename = create_sample_csv()
-                
+
                 assert filename == "sample_batch.csv"
                 assert (temp_dir / filename).exists()
-                
+
                 # Check contents
                 df = pd.read_csv(temp_dir / filename)
                 assert len(df) == 3
                 assert "prompt" in df.columns
                 assert "duration" in df.columns
                 assert "output_file" in df.columns
-                
+
             finally:
                 os.chdir(original_cwd)
 
     def test_create_sample_csv_custom_filename(self, temp_dir):
         """Test creating sample CSV with custom filename."""
         custom_filename = str(temp_dir / "custom_sample.csv")
-        
+
         with patch("musicgen.services.batch.logger"):
             filename = create_sample_csv(custom_filename)
-            
+
             assert filename == custom_filename
             assert Path(custom_filename).exists()
-            
+
             # Check contents
             df = pd.read_csv(custom_filename)
             assert len(df) == 3
@@ -351,12 +353,12 @@ class TestCreateSampleCSV:
     def test_create_sample_csv_content_validation(self, temp_dir):
         """Test that sample CSV has valid content."""
         csv_file = str(temp_dir / "validation_test.csv")
-        
+
         with patch("musicgen.services.batch.logger"):
             create_sample_csv(csv_file)
-            
+
             df = pd.read_csv(csv_file)
-            
+
             # Validate each row
             for _, row in df.iterrows():
                 assert isinstance(row["prompt"], str)

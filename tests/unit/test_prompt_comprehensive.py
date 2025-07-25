@@ -32,12 +32,12 @@ class TestPromptEngineerComprehensive:
         assert "hip-hop" in prompt_engineer.genres
         assert "folk" in prompt_engineer.genres
         assert "world" in prompt_engineer.genres
-        
+
         # Test specific genre substyles
         assert "bebop" in prompt_engineer.genres["jazz"]
         assert "techno" in prompt_engineer.genres["electronic"]
         assert "baroque" in prompt_engineer.genres["classical"]
-        
+
         # Test instruments dictionary
         assert isinstance(prompt_engineer.instruments, dict)
         assert len(prompt_engineer.instruments) == 5
@@ -46,24 +46,32 @@ class TestPromptEngineerComprehensive:
         assert "winds" in prompt_engineer.instruments
         assert "percussion" in prompt_engineer.instruments
         assert "electronic" in prompt_engineer.instruments
-        
+
         # Test specific instruments
         assert "guitar" in prompt_engineer.instruments["strings"]
         assert "piano" in prompt_engineer.instruments["keys"]
         assert "saxophone" in prompt_engineer.instruments["winds"]
         assert "drums" in prompt_engineer.instruments["percussion"]
         assert "synth bass" in prompt_engineer.instruments["electronic"]
-        
+
         # Test moods list
         assert isinstance(prompt_engineer.moods, list)
         assert len(prompt_engineer.moods) == 10
         expected_moods = [
-            "upbeat", "mellow", "energetic", "relaxing", "dramatic",
-            "peaceful", "intense", "dreamy", "groovy", "atmospheric"
+            "upbeat",
+            "mellow",
+            "energetic",
+            "relaxing",
+            "dramatic",
+            "peaceful",
+            "intense",
+            "dreamy",
+            "groovy",
+            "atmospheric",
         ]
         for mood in expected_moods:
             assert mood in prompt_engineer.moods
-            
+
         # Test tempos list
         assert isinstance(prompt_engineer.tempos, list)
         assert len(prompt_engineer.tempos) == 8
@@ -79,15 +87,15 @@ class TestPromptEngineerComprehensive:
         assert "jazz" in result.lower()
         assert "piano" in result.lower()
         assert "saxophone" in result.lower()
-        
+
         result = prompt_engineer.improve_prompt("rock")
         assert "rock" in result.lower()
         assert "guitar" in result.lower()
-        
+
         result = prompt_engineer.improve_prompt("piano")
         assert "piano" in result.lower()
         assert "melody" in result.lower()
-        
+
         # Two word prompts (still short)
         result = prompt_engineer.improve_prompt("guitar music")
         assert "guitar" in result.lower()
@@ -98,27 +106,27 @@ class TestPromptEngineerComprehensive:
         # Prompt without genre but with genre-specific instrument
         result = prompt_engineer.improve_prompt("saxophone solo with rhythm section")
         assert "jazz" in result.lower()
-        
+
         result = prompt_engineer.improve_prompt("synthesizer arpeggios and pads")
         assert "electronic" in result.lower()
-        
+
         result = prompt_engineer.improve_prompt("violin and cello duet")
         assert "classical" in result.lower()
 
-    @patch('random.choice')
+    @patch("random.choice")
     def test_improve_prompt_mood_addition(self, mock_choice, prompt_engineer):
         """Test mood addition to prompts."""
         # Mock random.choice to return predictable values
         mock_choice.side_effect = ["peaceful", "energetic", "atmospheric"]
-        
+
         # Jazz/classical should get calm moods
         result = prompt_engineer.improve_prompt("jazz piano trio")
         assert "peaceful" in result.lower()
-        
+
         # Rock/electronic should get energetic moods
-        result = prompt_engineer.improve_prompt("rock guitar solo") 
+        result = prompt_engineer.improve_prompt("rock guitar solo")
         assert "energetic" in result.lower()
-        
+
         # Generic should get atmospheric moods
         result = prompt_engineer.improve_prompt("instrumental soundscape")
         assert "atmospheric" in result.lower()
@@ -130,7 +138,7 @@ class TestPromptEngineerComprehensive:
         assert result[0].isupper()  # First letter capitalized
         # Check that articles/prepositions are not capitalized
         assert " with " in result or " and " in result
-        
+
         # Test space cleanup
         result = prompt_engineer.improve_prompt("piano    music    with     drums")
         assert "  " not in result  # No double spaces
@@ -141,11 +149,11 @@ class TestPromptEngineerComprehensive:
         result = prompt_engineer.improve_prompt("")
         # Empty prompt gets expanded to "instrumental  music" then structured
         assert "instrumental" in result.lower() or result == ""
-        
+
         # Whitespace only
         result = prompt_engineer.improve_prompt("   ")
         assert "instrumental" in result.lower() or result == ""
-        
+
         # Newlines and tabs
         result = prompt_engineer.improve_prompt("\n\t  \n")
         assert "instrumental" in result.lower() or result == ""
@@ -156,8 +164,10 @@ class TestPromptEngineerComprehensive:
         valid, issues = prompt_engineer.validate_prompt("smooth jazz piano")
         assert valid is True
         assert len(issues) == 0
-        
-        valid, issues = prompt_engineer.validate_prompt("electronic ambient soundscape with synthesizers")
+
+        valid, issues = prompt_engineer.validate_prompt(
+            "electronic ambient soundscape with synthesizers"
+        )
         assert valid is True
         assert len(issues) == 0
 
@@ -167,7 +177,7 @@ class TestPromptEngineerComprehensive:
         assert valid is False
         assert len(issues) == 1
         assert "Prompt is empty" in issues[0]
-        
+
         valid, issues = prompt_engineer.validate_prompt("   ")
         assert valid is False
         assert "Prompt is empty" in issues[0]
@@ -178,7 +188,7 @@ class TestPromptEngineerComprehensive:
         valid, issues = prompt_engineer.validate_prompt("a")
         assert valid is False
         assert "too short" in issues[0].lower()
-        
+
         # Too long (more than 20 words)
         long_prompt = " ".join(["word"] * 25)
         valid, issues = prompt_engineer.validate_prompt(long_prompt)
@@ -193,28 +203,29 @@ class TestPromptEngineerComprehensive:
             "rock song with singer",
             "rap beat with lyrics",
             "classical voice ensemble",
-            "singing in the rain"
+            "singing in the rain",
         ]
-        
+
         for prompt in vocal_prompts:
             valid, issues = prompt_engineer.validate_prompt(prompt)
             assert valid is False
-            assert any("vocal" in issue.lower() or "instrumental only" in issue.lower() 
-                      for issue in issues)
+            assert any(
+                "vocal" in issue.lower() or "instrumental only" in issue.lower() for issue in issues
+            )
 
     def test_validate_prompt_non_music_check(self, prompt_engineer):
         """Test detection of non-music content."""
         non_music_prompts = [
             "speech about politics",
             "talking heads podcast",
-            "audiobook narration"
+            "audiobook narration",
         ]
-        
+
         for prompt in non_music_prompts:
             valid, issues = prompt_engineer.validate_prompt(prompt)
             assert valid is False
             assert any("should describe music" in issue.lower() for issue in issues)
-        
+
         # "news broadcast" doesn't contain non-music keywords from the implementation
         valid, issues = prompt_engineer.validate_prompt("news broadcast")
         # This might be valid as it doesn't contain speech/talking/podcast/audiobook
@@ -233,7 +244,7 @@ class TestPromptEngineerComprehensive:
         assert isinstance(examples, list)
         assert len(examples) == 5  # Should return 5 examples
         assert all(isinstance(ex, str) for ex in examples)
-        
+
         # Check examples are from different genres
         genres_found = set()
         for example in examples:
@@ -249,25 +260,27 @@ class TestPromptEngineerComprehensive:
         assert len(jazz_examples) == 3
         # Jazz examples should be jazz-related
         jazz_related_found = any(
-            "jazz" in ex.lower() or "bebop" in ex.lower() or "cool" in ex.lower() 
+            "jazz" in ex.lower() or "bebop" in ex.lower() or "cool" in ex.lower()
             for ex in jazz_examples
         )
         assert jazz_related_found
-        
+
         # Electronic examples
         electronic_examples = prompt_engineer.get_examples(genre="electronic")
         assert len(electronic_examples) == 3
         electronic_related_found = any(
-            "electronic" in ex.lower() or "synth" in ex.lower() or "house" in ex.lower() 
+            "electronic" in ex.lower()
+            or "synth" in ex.lower()
+            or "house" in ex.lower()
             or "ambient" in ex.lower()
             for ex in electronic_examples
         )
         assert electronic_related_found
-        
+
         # Classical examples
         classical_examples = prompt_engineer.get_examples(genre="classical")
         assert len(classical_examples) == 3
-        
+
         # Rock examples
         rock_examples = prompt_engineer.get_examples(genre="rock")
         assert len(rock_examples) == 3
@@ -277,19 +290,19 @@ class TestPromptEngineerComprehensive:
         examples = prompt_engineer.get_examples(genre="unknown")
         assert isinstance(examples, list)
         assert len(examples) == 5  # Falls back to general examples
-        
+
         examples = prompt_engineer.get_examples(genre="")
         assert len(examples) == 5
 
-    @patch('random.sample')
+    @patch("random.sample")
     def test_get_examples_randomization(self, mock_sample, prompt_engineer):
         """Test that examples are randomized."""
         # Mock to return first n items
         mock_sample.side_effect = lambda lst, n: lst[:n]
-        
+
         examples = prompt_engineer.get_examples()
         assert len(examples) == 5
-        
+
         # Verify random.sample was called
         assert mock_sample.called
 
@@ -306,16 +319,16 @@ class TestPromptEngineerComprehensive:
         """Test variation suggestion with custom count."""
         variations = prompt_engineer.suggest_variations("rock guitar", count=5)
         assert len(variations) == 5
-        
+
         variations = prompt_engineer.suggest_variations("classical piano", count=1)
         assert len(variations) == 1
 
-    @patch('random.choice')
+    @patch("random.choice")
     def test_suggest_variations_mood_variation(self, mock_choice, prompt_engineer):
         """Test mood-based variations."""
         # Mock to return specific moods
         mock_choice.side_effect = ["dreamy", "slow", "guitar", "modern"]
-        
+
         variations = prompt_engineer.suggest_variations("rock music", count=1)
         assert len(variations) == 1
         assert "dreamy" in variations[0].lower()
@@ -323,7 +336,7 @@ class TestPromptEngineerComprehensive:
     def test_suggest_variations_tempo_variation(self, prompt_engineer):
         """Test tempo-based variations."""
         variations = prompt_engineer.suggest_variations("piano melody", count=3)
-        
+
         # At least one variation should have a tempo
         tempo_found = False
         for var in variations:
@@ -337,12 +350,13 @@ class TestPromptEngineerComprehensive:
         """Test instrument-based variations."""
         # Prompt with guitar should get variations with other string instruments
         variations = prompt_engineer.suggest_variations("rock guitar solo", count=3)
-        
+
         # Check if any variation adds complementary instruments
         instrument_variation_found = False
         for var in variations:
-            if "with" in var and any(inst in var.lower() 
-                                   for inst in ["violin", "cello", "bass", "harp", "ukulele"]):
+            if "with" in var and any(
+                inst in var.lower() for inst in ["violin", "cello", "bass", "harp", "ukulele"]
+            ):
                 instrument_variation_found = True
                 break
 
@@ -351,27 +365,26 @@ class TestPromptEngineerComprehensive:
         # Prompt without clear genre/mood/instruments
         variations = prompt_engineer.suggest_variations("music", count=5)
         assert len(variations) == 5
-        
+
         # Should have prefixes like "experimental", "modern", etc.
         prefixes = ["experimental", "modern", "traditional", "fusion"]
-        prefix_found = any(
-            any(prefix in var.lower() for prefix in prefixes)
-            for var in variations
-        )
+        prefix_found = any(any(prefix in var.lower() for prefix in prefixes) for var in variations)
         assert prefix_found
 
     # Test private methods
     def test_expand_short_prompt(self, prompt_engineer):
         """Test _expand_short_prompt method."""
         # Known expansions
-        assert prompt_engineer._expand_short_prompt("jazz") == "smooth jazz with piano and saxophone"
+        assert (
+            prompt_engineer._expand_short_prompt("jazz") == "smooth jazz with piano and saxophone"
+        )
         assert prompt_engineer._expand_short_prompt("rock") == "energetic rock with electric guitar"
         assert prompt_engineer._expand_short_prompt("classical") == "classical orchestral piece"
         assert prompt_engineer._expand_short_prompt("electronic") == "ambient electronic soundscape"
         assert prompt_engineer._expand_short_prompt("piano") == "peaceful piano melody"
         assert prompt_engineer._expand_short_prompt("guitar") == "acoustic guitar fingerstyle"
         assert prompt_engineer._expand_short_prompt("drums") == "rhythmic drum pattern"
-        
+
         # Unknown prompt
         assert prompt_engineer._expand_short_prompt("unknown") == "instrumental unknown music"
 
@@ -381,37 +394,39 @@ class TestPromptEngineerComprehensive:
         assert prompt_engineer._add_genre_context("piano solo") == "classical piano solo"
         assert prompt_engineer._add_genre_context("violin concerto") == "classical violin concerto"
         assert prompt_engineer._add_genre_context("cello suite") == "classical cello suite"
-        
+
         # Electronic instruments
-        assert prompt_engineer._add_genre_context("synthesizer lead") == "electronic synthesizer lead"
+        assert (
+            prompt_engineer._add_genre_context("synthesizer lead") == "electronic synthesizer lead"
+        )
         # "synth bass" is in electronic instruments, but "bass" alone maps to rock
         result = prompt_engineer._add_genre_context("synth bass line")
         assert "synth bass line" in result
-        
+
         # Rock instruments
         assert prompt_engineer._add_genre_context("guitar riff") == "rock guitar riff"
         assert prompt_engineer._add_genre_context("bass and drums") == "rock bass and drums"
-        
+
         # Jazz instruments
         assert prompt_engineer._add_genre_context("saxophone melody") == "jazz saxophone melody"
         assert prompt_engineer._add_genre_context("trumpet solo") == "jazz trumpet solo"
-        
+
         # No matching instrument
         assert prompt_engineer._add_genre_context("ambient sounds") == "instrumental ambient sounds"
 
-    @patch('random.choice')
+    @patch("random.choice")
     def test_add_mood(self, mock_choice, prompt_engineer):
         """Test _add_mood method."""
         # Jazz/classical get calm moods
         mock_choice.return_value = "peaceful"
         result = prompt_engineer._add_mood("jazz quartet")
         assert result == "peaceful jazz quartet"
-        
+
         # Rock/electronic get energetic moods
         mock_choice.return_value = "intense"
         result = prompt_engineer._add_mood("rock anthem")
         assert result == "intense rock anthem"
-        
+
         # Already has mood
         result = prompt_engineer._add_mood("upbeat jazz fusion")
         assert result == "upbeat jazz fusion"  # No change
@@ -421,18 +436,20 @@ class TestPromptEngineerComprehensive:
         # Basic capitalization
         result = prompt_engineer._structure_prompt("smooth jazz with piano")
         assert result == "Smooth Jazz with Piano"
-        
+
         # Multiple spaces
         result = prompt_engineer._structure_prompt("rock   guitar    solo")
         assert result == "Rock Guitar Solo"
-        
+
         # Articles and prepositions - first word always capitalized
         result = prompt_engineer._structure_prompt("a piano and the guitar with drums")
         assert result == "A Piano and the Guitar with Drums"  # First 'a' is capitalized
-        
+
         # Mixed case input - "with" is not capitalized
         result = prompt_engineer._structure_prompt("JAZZ music WITH saxophone")
-        assert result == "Jazz Music With Saxophone"  # WITH becomes With because it's not lowercase "with"
+        assert (
+            result == "Jazz Music With Saxophone"
+        )  # WITH becomes With because it's not lowercase "with"
 
     def test_replace_or_add_mood(self, prompt_engineer):
         """Test _replace_or_add_mood method."""
@@ -440,17 +457,17 @@ class TestPromptEngineerComprehensive:
         result = prompt_engineer._replace_or_add_mood("upbeat jazz music", "mellow")
         assert "mellow" in result
         assert "upbeat" not in result
-        
+
         # Add new mood
         result = prompt_engineer._replace_or_add_mood("jazz piano trio", "smooth")
         assert result == "smooth jazz piano trio"
-        
+
         # The method checks if mood words are in the lowercase word list
         result = prompt_engineer._replace_or_add_mood("Energetic Rock Song", "peaceful")
         # "energetic" is in the lowercase words, but replace is case-sensitive
         # Since it doesn't find exact match in the original, it won't replace
         assert result == "Energetic Rock Song" or result == "peaceful Rock Song"
-        
+
         # Test with exact lowercase match
         result2 = prompt_engineer._replace_or_add_mood("energetic rock song", "peaceful")
         assert result2 == "peaceful rock song"
@@ -462,20 +479,20 @@ class TestPromptEngineerComprehensive:
         result = prompt_engineer.improve_prompt("p")
         assert isinstance(result, str)
         assert len(result) > 1
-        
+
         # Short with known expansion
         result = prompt_engineer.improve_prompt("drums")
         assert "drum" in result.lower()
         assert "rhythmic" in result.lower() or "pattern" in result.lower()
-        
+
         # Has genre but might get mood added
         result = prompt_engineer.improve_prompt("fast electronic")
         assert "electronic" in result.lower()
-        
+
         # Has mood but might get genre added
         result = prompt_engineer.improve_prompt("peaceful melody")
         assert "peaceful" in result.lower()
-        
+
         # Already good prompt
         result = prompt_engineer.improve_prompt("jazz piano with saxophone and bass")
         assert "jazz" in result.lower()
@@ -486,15 +503,15 @@ class TestPromptEngineerComprehensive:
         # Unicode characters
         result = prompt_engineer.improve_prompt("jazz café music")
         assert isinstance(result, str)
-        
+
         # Numbers in prompt
         result = prompt_engineer.improve_prompt("80s rock music")
         assert "80s" in result.lower()
-        
+
         # Punctuation
         result = prompt_engineer.improve_prompt("jazz, blues & rock fusion!")
         assert isinstance(result, str)
-        
+
         # Very long single word
         long_word = "a" * 100
         result = prompt_engineer.improve_prompt(long_word)
@@ -509,14 +526,14 @@ class TestPromptEngineerComprehensive:
         # Structure might change but content should be similar
         assert len(first) <= len(second) * 1.2  # Allow small variations
 
-    @patch('random.choice')
-    @patch('random.sample')
+    @patch("random.choice")
+    @patch("random.sample")
     def test_deterministic_with_mocked_random(self, mock_sample, mock_choice, prompt_engineer):
         """Test deterministic behavior when random is mocked."""
         # Mock all random operations
         mock_choice.return_value = "peaceful"
         mock_sample.side_effect = lambda lst, n: lst[:n]
-        
+
         # Run same operations multiple times
         results = []
         for _ in range(3):
@@ -525,7 +542,7 @@ class TestPromptEngineerComprehensive:
             variations = pe.suggest_variations("jazz", count=2)
             examples = pe.get_examples()
             results.append((improved, variations, examples))
-        
+
         # All results should be identical
         assert all(r == results[0] for r in results[1:])
 

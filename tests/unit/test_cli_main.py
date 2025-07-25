@@ -32,13 +32,15 @@ class TestCLI:
         """Mock MusicGenerator class."""
         with patch("musicgen.cli.main.MusicGenerator") as mock:
             generator_instance = MagicMock()
-            
+
             # Fix return value - generate() returns (audio_array, sample_rate)
             import numpy as np
+
             generator_instance.generate.return_value = (np.array([0.1, 0.2, 0.3]), 44100)
-            
+
             # Mock save_audio to return a real temporary file path
             import tempfile
+
             temp_file = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
             temp_file.write(b"fake audio data")
             temp_file.close()
@@ -56,9 +58,10 @@ class TestCLI:
             generator_instance.__exit__ = MagicMock(return_value=None)
             mock.return_value = generator_instance
             yield mock, generator_instance
-            
+
             # Cleanup temp file
             import os
+
             try:
                 os.unlink(temp_file.name)
             except:

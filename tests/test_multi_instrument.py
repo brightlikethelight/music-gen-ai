@@ -28,15 +28,22 @@ except ImportError:
             self.instrument_embedding_dim = 256
             self.max_tracks = 8
             self.use_instrument_attention = True
-            self.instruments = ["piano", "guitar", "drums", "bass", "violin", "saxophone"] * 5  # 30 instruments
+            self.instruments = [
+                "piano",
+                "guitar",
+                "drums",
+                "bass",
+                "violin",
+                "saxophone",
+            ] * 5  # 30 instruments
             self.hidden_size = hidden_size
             self.num_layers = num_layers
             self.num_attention_heads = num_attention_heads
             self.vocab_size = vocab_size
-        
+
         def get_instrument_config(self, name):
             return None
-        
+
         def get_instrument_names(self):
             return self.instruments
 
@@ -45,7 +52,7 @@ except ImportError:
             self.transformer = None
             self.instrument_classifier = None
             self.multi_config = config
-        
+
         def classify_instruments(self, audio):
             return {}
 
