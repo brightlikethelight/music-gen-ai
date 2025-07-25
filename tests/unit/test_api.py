@@ -28,6 +28,7 @@ class TestMainAPI:
     def client(self):
         """Create test client."""
         return TestClient(app)
+    
 
     def test_app_exists(self):
         """Test that app exists and has correct metadata."""
@@ -82,20 +83,21 @@ class TestGenerationEndpoint:
     def client(self):
         """Create test client."""
         return TestClient(app)
+    
 
     @patch("musicgen.api.rest.app.BackgroundTasks.add_task")
-    def test_generation_endpoint_validation(self, mock_add_task, client):
+    def test_generation_endpoint_validation(self, mock_add_task, client, auth_headers):
         """Test input validation on generation endpoint."""
         # Missing required fields
-        response = client.post("/generate", json={})
+        response = client.post("/generate", json={}, headers=auth_headers)
         assert response.status_code == 422
 
         # Invalid duration
-        response = client.post("/generate", json={"prompt": "Test", "duration": -1})
+        response = client.post("/generate", json={"prompt": "Test", "duration": -1}, headers=auth_headers)
         assert response.status_code == 422
 
         # Valid minimal request (will fail with 503 if model not loaded)
-        response = client.post("/generate", json={"prompt": "Test music"})
+        response = client.post("/generate", json={"prompt": "Test music"}, headers=auth_headers)
         assert response.status_code in [200, 503]
 
         # If successful, verify background task was added
@@ -104,7 +106,7 @@ class TestGenerationEndpoint:
 
     @patch("musicgen.api.rest.app.load_model")
     @patch("torchaudio.save")
-    def test_generate_endpoint_mocked(self, mock_save, mock_get_model, client):
+    def test_generate_endpoint_mocked(self, mock_save, mock_get_model, client, auth_headers):
         """Test generation endpoint with mocked model."""
         # Mock model
         mock_model = Mock()
@@ -115,14 +117,14 @@ class TestGenerationEndpoint:
         # Mock audio save
         mock_save.return_value = "test_output.wav"
 
-        response = client.post("/generate", json={"prompt": "Happy jazz music", "duration": 10.0})
+        response = client.post("/generate", json={"prompt": "Happy jazz music", "duration": 10.0}, headers=auth_headers)
 
         # Check response
         assert response.status_code == 200
         data = response.json()
-        assert "audio_url" in data
-        assert data["duration"] == 10.0
-        assert data["prompt"] == "Happy jazz music"
+        assert "job_id" in data
+        assert data["status"] == "queued"
+        assert data["message"] == "Music generation job queued successfully"
 
 
 @pytest.mark.unit

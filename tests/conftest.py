@@ -27,6 +27,16 @@ except ImportError:
     ConditioningEncoder = None
     CONDITIONING_AVAILABLE = False
 
+# Import auth modules for test authentication
+try:
+    from musicgen.api.middleware.auth import AuthenticationMiddleware, UserRole
+
+    AUTH_AVAILABLE = True
+except ImportError:
+    AuthenticationMiddleware = None
+    UserRole = None
+    AUTH_AVAILABLE = False
+
 try:
     from musicgen.models.musicgen import create_musicgen_model
 
@@ -245,6 +255,26 @@ def pytest_addoption(parser):
     """Add custom command line options."""
     parser.addoption("--runslow", action="store_true", default=False, help="run slow tests")
     parser.addoption("--rungpu", action="store_true", default=False, help="run GPU tests")
+
+
+@pytest.fixture
+def auth_headers():
+    """Create authentication headers for tests that require auth."""
+    if not AUTH_AVAILABLE:
+        return {}
+    
+    # Create auth middleware instance
+    auth = AuthenticationMiddleware()
+    
+    # Create test token
+    token = auth.create_access_token(
+        user_id="test_user_123",
+        email="test@example.com",
+        username="testuser",
+        roles=[UserRole.USER]
+    )
+    
+    return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture(autouse=True)

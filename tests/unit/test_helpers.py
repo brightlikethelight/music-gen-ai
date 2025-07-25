@@ -257,27 +257,27 @@ class TestMemoryEstimation:
         estimate = estimate_memory_usage(30, "small")
 
         assert estimate["model_memory_gb"] == 0.5
-        assert estimate["generation_memory_gb"] == 0.3  # 30s / 10 * 0.1
-        assert estimate["total_memory_gb"] == 0.8
-        assert estimate["recommended_gpu_memory_gb"] == 1.2  # 0.8 * 1.5
+        assert estimate["generation_memory_gb"] == pytest.approx(0.3)  # 30s / 10 * 0.1
+        assert estimate["total_memory_gb"] == pytest.approx(0.8)
+        assert estimate["recommended_gpu_memory_gb"] == pytest.approx(1.2)  # 0.8 * 1.5
 
     def test_estimate_memory_usage_medium(self):
         """Test memory estimation for medium model."""
         estimate = estimate_memory_usage(60, "medium")
 
         assert estimate["model_memory_gb"] == 1.5
-        assert estimate["generation_memory_gb"] == 0.6
-        assert estimate["total_memory_gb"] == 2.1
-        assert estimate["recommended_gpu_memory_gb"] == 3.15
+        assert estimate["generation_memory_gb"] == pytest.approx(0.6)
+        assert estimate["total_memory_gb"] == pytest.approx(2.1)
+        assert estimate["recommended_gpu_memory_gb"] == pytest.approx(3.15)
 
     def test_estimate_memory_usage_large(self):
         """Test memory estimation for large model."""
         estimate = estimate_memory_usage(120, "large")
 
         assert estimate["model_memory_gb"] == 3.5
-        assert estimate["generation_memory_gb"] == 1.2
-        assert estimate["total_memory_gb"] == 4.7
-        assert estimate["recommended_gpu_memory_gb"] == 7.05
+        assert estimate["generation_memory_gb"] == pytest.approx(1.2)
+        assert estimate["total_memory_gb"] == pytest.approx(4.7)
+        assert estimate["recommended_gpu_memory_gb"] == pytest.approx(7.05)
 
     def test_estimate_memory_usage_unknown_model(self):
         """Test memory estimation with unknown model size."""
