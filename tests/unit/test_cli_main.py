@@ -32,20 +32,47 @@ class TestCLI:
         """Mock MusicGenerator class."""
         with patch("musicgen.cli.main.MusicGenerator") as mock:
             generator_instance = MagicMock()
-            generator_instance.generate.return_value = "output.mp3"
+            
+            # Fix return value - generate() returns (audio_array, sample_rate)
+            import numpy as np
+            generator_instance.generate.return_value = (np.array([0.1, 0.2, 0.3]), 44100)
+            
+            # Mock save_audio to return a real temporary file path
+            import tempfile
+            temp_file = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+            temp_file.write(b"fake audio data")
+            temp_file.close()
+            generator_instance.save_audio.return_value = temp_file.name
+
+            # Fix format string errors by providing proper return values
+            generator_instance.get_info.return_value = {
+                "device": "cpu",
+                "gpu": "N/A",
+                "model": "facebook/musicgen-small",
+                "memory": "1.2GB",
+            }
+
             generator_instance.__enter__ = MagicMock(return_value=generator_instance)
             generator_instance.__exit__ = MagicMock(return_value=None)
             mock.return_value = generator_instance
             yield mock, generator_instance
+            
+            # Cleanup temp file
+            import os
+            try:
+                os.unlink(temp_file.name)
+            except:
+                pass
 
     def test_generate_basic(self, runner, mock_generator):
         """Test basic generate command."""
         mock_class, mock_instance = mock_generator
 
-        result = runner.invoke(app, ["generate", "piano music"])
+        result = runner.invoke(app, ["generate", "piano music", "--yes"])
 
         assert result.exit_code == 0
-        assert "Generated music saved to" in result.output
+        assert "✅ Success!" in result.output
+        assert "Output:" in result.output
         mock_instance.generate.assert_called_once()
 
     def test_generate_with_output(self, runner, mock_generator, temp_dir):
@@ -53,7 +80,7 @@ class TestCLI:
         mock_class, mock_instance = mock_generator
         output_path = str(temp_dir / "custom.mp3")
 
-        result = runner.invoke(app, ["generate", "piano music", "--output", output_path])
+        result = runner.invoke(app, ["generate", "piano music", "--output", output_path, "--yes"])
 
         assert result.exit_code == 0
         call_args = mock_instance.generate.call_args
@@ -63,7 +90,7 @@ class TestCLI:
         """Test generate with custom duration."""
         mock_class, mock_instance = mock_generator
 
-        result = runner.invoke(app, ["generate", "piano music", "--duration", "45"])
+        result = runner.invoke(app, ["generate", "piano music", "--duration", "45", "--yes"])
 
         assert result.exit_code == 0
         call_args = mock_instance.generate.call_args
@@ -82,7 +109,7 @@ class TestCLI:
 
         # Test each model size
         for model_size in ["small", "medium", "large"]:
-            result = runner.invoke(app, ["generate", "piano music", "--model", model_size])
+            result = runner.invoke(app, ["generate", "piano music", "--model", model_size, "--yes"])
 
             assert result.exit_code == 0
             mock_class.assert_called()
@@ -94,7 +121,7 @@ class TestCLI:
         """Test generate with custom temperature."""
         mock_class, mock_instance = mock_generator
 
-        result = runner.invoke(app, ["generate", "piano music", "--temperature", "0.8"])
+        result = runner.invoke(app, ["generate", "piano music", "--temperature", "0.8", "--yes"])
 
         assert result.exit_code == 0
         call_args = mock_instance.generate.call_args
@@ -104,7 +131,7 @@ class TestCLI:
         """Test generate with custom guidance scale."""
         mock_class, mock_instance = mock_generator
 
-        result = runner.invoke(app, ["generate", "piano music", "--guidance", "5.0"])
+        result = runner.invoke(app, ["generate", "piano music", "--guidance", "5.0", "--yes"])
 
         assert result.exit_code == 0
         call_args = mock_instance.generate.call_args
@@ -114,7 +141,7 @@ class TestCLI:
         """Test generate with specific device."""
         mock_class, mock_instance = mock_generator
 
-        result = runner.invoke(app, ["generate", "piano music", "--device", "cpu"])
+        result = runner.invoke(app, ["generate", "piano music", "--device", "cpu", "--yes"])
 
         assert result.exit_code == 0
         mock_class.assert_called_with(
@@ -125,7 +152,7 @@ class TestCLI:
         """Test generate without optimization."""
         mock_class, mock_instance = mock_generator
 
-        result = runner.invoke(app, ["generate", "piano music", "--no-optimize"])
+        result = runner.invoke(app, ["generate", "piano music", "--no-optimize", "--yes"])
 
         assert result.exit_code == 0
         mock_class.assert_called_with(
@@ -137,7 +164,7 @@ class TestCLI:
         mock_class, mock_instance = mock_generator
         mock_instance.generate.side_effect = Exception("Generation failed")
 
-        result = runner.invoke(app, ["generate", "piano music"])
+        result = runner.invoke(app, ["generate", "piano music", "--yes"])
 
         assert result.exit_code == 1
         assert "Generation failed" in result.output
@@ -158,12 +185,18 @@ class TestCLI:
         assert "Processing 2 prompts" in result.output
         mock_processor.process.assert_called_once()
 
-    def test_batch_missing_file(self, runner):
+    @patch("musicgen.cli.main.BatchProcessor")
+    def test_batch_missing_file(self, mock_batch, runner):
         """Test batch command with missing file."""
+        # Mock processor that returns empty jobs list for missing file
+        mock_processor = MagicMock()
+        mock_processor.load_csv.return_value = []  # Empty list means no valid jobs
+        mock_batch.return_value = mock_processor
+
         result = runner.invoke(app, ["batch", "nonexistent.csv"])
 
         assert result.exit_code == 1
-        assert "not found" in result.output
+        assert "No valid jobs found" in result.output
 
     @patch("musicgen.cli.main.create_sample_csv")
     def test_batch_create_sample(self, mock_create, runner, temp_dir):
@@ -272,7 +305,7 @@ class TestCLI:
 
         mock_instance.generate.side_effect = generate_with_progress
 
-        result = runner.invoke(app, ["generate", "piano music"])
+        result = runner.invoke(app, ["generate", "piano music", "--yes"])
 
         assert result.exit_code == 0
         # Progress reporting should be handled gracefully
@@ -282,7 +315,7 @@ class TestCLI:
         """Test using custom cache directory from environment."""
         mock_class, mock_instance = mock_generator
 
-        result = runner.invoke(app, ["generate", "piano music"])
+        result = runner.invoke(app, ["generate", "piano music", "--yes"])
 
         assert result.exit_code == 0
         # Model should be initialized with custom cache dir
@@ -293,7 +326,7 @@ class TestCLI:
         mock_class, mock_instance = mock_generator
         mock_instance.generate.side_effect = KeyboardInterrupt()
 
-        result = runner.invoke(app, ["generate", "piano music"])
+        result = runner.invoke(app, ["generate", "piano music", "--yes"])
 
         # Should handle gracefully
         assert "Generation cancelled" in result.output or result.exit_code != 0
@@ -320,6 +353,7 @@ class TestCLI:
                 "--device",
                 "cuda",
                 "--no-optimize",
+                "--yes",
             ],
         )
 

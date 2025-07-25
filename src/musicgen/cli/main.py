@@ -39,6 +39,7 @@ def generate(
     guidance: float = typer.Option(3.0, "-g", "--guidance", help="Guidance scale"),
     device: Optional[str] = typer.Option(None, "--device", help="Device (cuda/cpu)"),
     no_optimize: bool = typer.Option(False, "--no-optimize", help="Disable GPU optimization"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Answer yes to all prompts (non-interactive mode)"),
 ):
     """Generate music from text description."""
 
@@ -85,7 +86,7 @@ def generate(
         improved = engineer.improve_prompt(prompt)
         if improved != prompt:
             rprint(f"\n[cyan]Improved prompt: {improved}[/cyan]")
-            if typer.confirm("Use improved prompt?", default=True):
+            if yes or typer.confirm("Use improved prompt?", default=True):
                 prompt = improved
 
         # Generate with progress
