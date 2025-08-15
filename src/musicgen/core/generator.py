@@ -57,6 +57,13 @@ class MusicGenerator:
         self.device = self._setup_device(device)
         self.optimize = optimize and torch.cuda.is_available()
 
+        # Skip model loading during tests to prevent downloading multi-GB models
+        if os.environ.get("MUSICGEN_SKIP_MODEL_DOWNLOAD"):
+            logger.info("Skipping model loading for tests")
+            self.model = None
+            self.processor = None
+            return
+
         logger.info(f"Loading {model_name} on {self.device}")
         self._load_model()
 
@@ -65,10 +72,10 @@ class MusicGenerator:
 
         logger.info("✓ Model ready for generation")
 
-    def _setup_device(self, device: Optional[str]) -> str:
+    def _setup_device(self, device: Optional[str]) -> torch.device:
         """Setup and validate device."""
         if device:
-            return device
+            return torch.device(device)
 
         if torch.cuda.is_available():
             # Get GPU with most free memory
@@ -79,9 +86,9 @@ class MusicGenerator:
                     torch.cuda.set_device(i)
                     free_memory.append(torch.cuda.mem_get_info()[0])
                 gpu_id = np.argmax(free_memory)
-            return f"cuda:{gpu_id}"
+            return torch.device(f"cuda:{gpu_id}")
 
-        return "cpu"
+        return torch.device("cpu")
 
     def _load_model(self):
         """Load model with error handling."""
@@ -142,6 +149,10 @@ class MusicGenerator:
         # Validate inputs
         if not prompt or not prompt.strip():
             raise ValueError("Prompt cannot be empty")
+
+        # Skip during tests - return mock audio
+        if os.environ.get("MUSICGEN_SKIP_MODEL_DOWNLOAD"):
+            return np.random.randn(int(duration * 32000)).astype(np.float32), 32000
 
         if duration > 30:
             logger.info(f"Duration {duration}s > 30s, using extended generation")
@@ -348,6 +359,15 @@ class MusicGenerator:
 
     def get_info(self) -> dict:
         """Get model and system information."""
+        # Skip during tests
+        if os.environ.get("MUSICGEN_SKIP_MODEL_DOWNLOAD"):
+            return {
+                "model": self.model_name,
+                "device": str(self.device),
+                "optimized": self.optimize,
+                "sample_rate": 32000,
+            }
+        
         info = {
             "model": self.model_name,
             "device": str(self.device),

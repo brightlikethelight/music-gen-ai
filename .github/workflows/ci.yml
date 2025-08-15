@@ -35,7 +35,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements-test.txt
+        pip install -e .[dev]
         
     - name: Code formatting check (Black)
       run: black --check --line-length=100 src tests
@@ -81,12 +81,10 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        # Install test dependencies
-        pip install -r requirements-test.txt
+        # Install project with dev dependencies
+        pip install -e .[dev]
         # Install minimal ML dependencies for testing (CPU only for CI)
         pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
-        # Install project in development mode
-        pip install -e .
         
     - name: Run unit tests
       run: |
@@ -126,8 +124,8 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
         pip install -e .
+        pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
         
     - name: Run integration tests
       run: |
@@ -157,9 +155,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        pip install -e .[dev]
         pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
-        pip install pytest pytest-benchmark
-        pip install -e .
         
     - name: Run performance benchmarks
       run: |
@@ -211,7 +208,7 @@ jobs:
     - name: Install security scanning tools
       run: |
         python -m pip install --upgrade pip
-        pip install safety bandit
+        pip install -e .[dev]
         
     - name: Run safety check
       run: safety check --json

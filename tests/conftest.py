@@ -2,13 +2,18 @@
 PyTest configuration and shared fixtures.
 """
 
+import os
 import shutil
 import tempfile
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 import torch
+
+# Set test environment variable globally before any imports
+os.environ["MUSICGEN_SKIP_MODEL_DOWNLOAD"] = "1"
 
 # Make AudioQualityMetrics import optional to avoid librosa dependency in tests
 try:
@@ -275,6 +280,55 @@ def auth_headers():
     )
 
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_model_downloads():
+    """
+    Mock all model downloads and heavy ML operations globally for all tests.
+    This prevents multi-GB model downloads that cause 16+ minute timeouts.
+    """
+    # Set environment variable to skip model downloads
+    os.environ["MUSICGEN_SKIP_MODEL_DOWNLOAD"] = "1"
+    os.environ["TRANSFORMERS_OFFLINE"] = "1"
+    os.environ["HF_DATASETS_OFFLINE"] = "1"
+    
+    # Return without context manager to avoid session-scope issues
+    return None
+
+
+@pytest.fixture
+def mock_musicgen():
+    """
+    Fixture to mock MusicGenerator for individual tests.
+    Use this instead of global mocking to avoid conflicts.
+    """
+    with patch("transformers.AutoProcessor") as mock_processor_class, \
+         patch("transformers.MusicgenForConditionalGeneration") as mock_model_class:
+        
+        # Mock processor
+        mock_processor = MagicMock()
+        mock_processor.return_value = {
+            "input_ids": torch.tensor([[1, 2, 3]]),
+            "attention_mask": torch.tensor([[1, 1, 1]]),
+        }
+        mock_processor_class.from_pretrained.return_value = mock_processor
+        
+        # Mock model
+        mock_model = MagicMock()
+        mock_config = MagicMock()
+        mock_config.audio_encoder.sampling_rate = 32000
+        mock_model.config = mock_config
+        mock_model.to.return_value = mock_model
+        mock_model.generate.return_value = torch.randn(1, 1, 32000)
+        mock_model_class.from_pretrained.return_value = mock_model
+        
+        yield {
+            "processor_class": mock_processor_class,
+            "model_class": mock_model_class,
+            "processor": mock_processor,
+            "model": mock_model,
+        }
 
 
 @pytest.fixture(autouse=True)

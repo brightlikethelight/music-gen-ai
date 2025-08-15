@@ -37,7 +37,6 @@ jobs:
         
     - name: Lint with flake8
       run: |
-        pip install flake8
         # Stop the build if there are Python syntax errors or undefined names
         flake8 src tests --count --select=E9,F63,F7,F82 --show-source --statistics
         # Exit-zero treats all errors as warnings
@@ -45,7 +44,6 @@ jobs:
         
     - name: Type check with mypy
       run: |
-        pip install mypy
         mypy src --ignore-missing-imports || true
         
     - name: Test with pytest
@@ -73,7 +71,6 @@ jobs:
     - name: Install test dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest pytest-asyncio pytest-cov httpx fastapi uvicorn
         pip install -e ".[dev]"
         
     - name: Test API endpoints
@@ -114,7 +111,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev]"
-        pip install click httpx rich
         
     - name: Test CLI commands
       run: |
@@ -140,7 +136,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev]"
-        pip install jupyter nbconvert
         
     - name: Test Jupyter notebooks
       run: |
@@ -174,7 +169,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev]"
-        pip install click httpx rich pytest pytest-asyncio
         
     - name: Run integration tests
       run: |

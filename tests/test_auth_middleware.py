@@ -35,15 +35,16 @@ try:
         require_admin,
         require_auth,
         require_developer,
-        require_enterprise_tier,
+        require_research_tier,
         require_moderator,
-        require_premium,
+        require_researcher,
         require_pro_tier,
         require_user,
     )
 
     AUTH_AVAILABLE = True
-except ImportError:
+except ImportError as e:
+    print(f"Auth module import failed: {e}")
     AUTH_AVAILABLE = False
 
     # Mock classes and constants for testing
@@ -81,7 +82,7 @@ except ImportError:
     def require_user():
         pass
 
-    def require_premium():
+    def require_researcher():
         pass
 
     def require_moderator():
@@ -93,7 +94,7 @@ except ImportError:
     def require_pro_tier():
         pass
 
-    def require_enterprise_tier():
+    def require_research_tier():
         pass
 
     def logout_user():
@@ -109,7 +110,7 @@ except ImportError:
     JWT_REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 try:
-    from musicgen.core.exceptions import AuthenticationError, AuthorizationError
+    from musicgen.utils.exceptions import AuthenticationError, AuthorizationError
 except ImportError:
 
     class AuthenticationError(Exception):
@@ -177,9 +178,9 @@ def test_app():
     async def admin_endpoint(user: UserClaims = Depends(require_admin())):
         return {"message": "admin", "user_id": user.user_id}
 
-    @app.get("/premium")
-    async def premium_endpoint(user: UserClaims = Depends(require_premium())):
-        return {"message": "premium", "user_id": user.user_id}
+    @app.get("/researcher")
+    async def researcher_endpoint(user: UserClaims = Depends(require_researcher())):
+        return {"message": "researcher", "user_id": user.user_id}
 
     @app.get("/pro-tier")
     async def pro_tier_endpoint(user: UserClaims = Depends(require_pro_tier())):
@@ -301,7 +302,7 @@ class TestAuthenticationMiddleware:
             user_id="user123",
             email="test@example.com",
             username="testuser",
-            roles=[UserRole.USER, UserRole.PREMIUM_USER],
+            roles=[UserRole.USER, UserRole.RESEARCHER],
             tier="pro",
             is_verified=True,
             expires_delta=30,  # 30 minutes
@@ -312,7 +313,7 @@ class TestAuthenticationMiddleware:
         assert payload["sub"] == "user123"
         assert payload["email"] == "test@example.com"
         assert payload["username"] == "testuser"
-        assert payload["roles"] == ["user", "premium_user"]
+        assert payload["roles"] == ["user", "researcher"]
         assert payload["tier"] == "pro"
         assert payload["is_verified"] is True
         assert payload["token_type"] == "access"
@@ -659,8 +660,8 @@ class TestRoleChecker:
 
     def test_require_all_roles_success(self, valid_user_claims):
         """Test requiring all roles - success case."""
-        valid_user_claims.roles = [UserRole.USER, UserRole.PREMIUM_USER]
-        checker = RoleChecker([UserRole.USER, UserRole.PREMIUM_USER], require_all=True)
+        valid_user_claims.roles = [UserRole.USER, UserRole.RESEARCHER]
+        checker = RoleChecker([UserRole.USER, UserRole.RESEARCHER], require_all=True)
 
         result = checker(valid_user_claims)
         assert result == valid_user_claims
@@ -704,7 +705,7 @@ class TestTierChecker:
     def test_tier_allowed(self, valid_user_claims):
         """Test allowed tier."""
         valid_user_claims.tier = "pro"
-        checker = TierChecker(["pro", "enterprise"])
+        checker = TierChecker(["pro", "research"])
 
         result = checker(valid_user_claims)
         assert result == valid_user_claims
@@ -712,7 +713,7 @@ class TestTierChecker:
     def test_tier_not_allowed(self, valid_user_claims):
         """Test disallowed tier."""
         valid_user_claims.tier = "free"
-        checker = TierChecker(["pro", "enterprise"])
+        checker = TierChecker(["pro", "research"])
 
         with pytest.raises(AuthorizationError, match="Subscription upgrade required"):
             checker(valid_user_claims)
@@ -829,14 +830,14 @@ class TestDependencyFunctions:
         checker = require_user()
         assert isinstance(checker, RoleChecker)
         assert UserRole.USER in checker.required_roles
-        assert UserRole.PREMIUM_USER in checker.required_roles
+        assert UserRole.RESEARCHER in checker.required_roles
         assert UserRole.ADMIN in checker.required_roles
 
-    def test_require_premium(self):
-        """Test require_premium function."""
-        checker = require_premium()
+    def test_require_researcher(self):
+        """Test require_researcher function."""
+        checker = require_researcher()
         assert isinstance(checker, RoleChecker)
-        assert UserRole.PREMIUM_USER in checker.required_roles
+        assert UserRole.RESEARCHER in checker.required_roles
         assert UserRole.ADMIN in checker.required_roles
 
     def test_require_moderator(self):
@@ -858,13 +859,13 @@ class TestDependencyFunctions:
         checker = require_pro_tier()
         assert isinstance(checker, TierChecker)
         assert "pro" in checker.required_tiers
-        assert "enterprise" in checker.required_tiers
+        assert "research" in checker.required_tiers
 
-    def test_require_enterprise_tier(self):
-        """Test require_enterprise_tier function."""
-        checker = require_enterprise_tier()
+    def test_require_research_tier(self):
+        """Test require_research_tier function."""
+        checker = require_research_tier()
         assert isinstance(checker, TierChecker)
-        assert "enterprise" in checker.required_tiers
+        assert "research" in checker.required_tiers
 
     @pytest.mark.asyncio
     async def test_logout_user_success(self, valid_user_claims, auth_middleware_instance):
@@ -1004,35 +1005,35 @@ class TestIntegration:
         assert data["message"] == "admin"
         assert data["user_id"] == "admin123"
 
-    def test_premium_endpoint_as_free_user(self, client, auth_middleware_instance):
-        """Test premium endpoint as free user."""
+    def test_researcher_endpoint_as_free_user(self, client, auth_middleware_instance):
+        """Test researcher endpoint as free user."""
         token = auth_middleware_instance.create_access_token(
             user_id="user123",
             email="test@example.com",
             username="testuser",
-            roles=[UserRole.USER],  # Not premium
+            roles=[UserRole.USER],  # Not researcher
         )
 
         with patch("musicgen.api.middleware.auth.auth_middleware", auth_middleware_instance):
-            response = client.get("/premium", headers={"Authorization": f"Bearer {token}"})
+            response = client.get("/researcher", headers={"Authorization": f"Bearer {token}"})
 
         assert response.status_code == 403
 
-    def test_premium_endpoint_as_premium_user(self, client, auth_middleware_instance):
-        """Test premium endpoint as premium user."""
+    def test_researcher_endpoint_as_researcher_user(self, client, auth_middleware_instance):
+        """Test researcher endpoint as researcher user."""
         token = auth_middleware_instance.create_access_token(
             user_id="user123",
             email="test@example.com",
             username="testuser",
-            roles=[UserRole.PREMIUM_USER],
+            roles=[UserRole.RESEARCHER],
         )
 
         with patch("musicgen.api.middleware.auth.auth_middleware", auth_middleware_instance):
-            response = client.get("/premium", headers={"Authorization": f"Bearer {token}"})
+            response = client.get("/researcher", headers={"Authorization": f"Bearer {token}"})
 
         assert response.status_code == 200
         data = response.json()
-        assert data["message"] == "premium"
+        assert data["message"] == "researcher"
 
     def test_pro_tier_endpoint_as_free_tier(self, client, auth_middleware_instance):
         """Test pro tier endpoint as free tier user."""
@@ -1137,7 +1138,7 @@ class TestEnums:
         """Test UserRole enum values."""
         assert UserRole.ADMIN.value == "admin"
         assert UserRole.USER.value == "user"
-        assert UserRole.PREMIUM_USER.value == "premium_user"
+        assert UserRole.RESEARCHER.value == "researcher"
         assert UserRole.MODERATOR.value == "moderator"
         assert UserRole.DEVELOPER.value == "developer"
 

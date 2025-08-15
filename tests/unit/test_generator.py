@@ -13,9 +13,7 @@ import numpy as np
 import pytest
 import torch
 
-# Mock transformers BEFORE importing MusicGenerator
-sys.modules["transformers"] = MagicMock()
-
+# Import will be handled by conftest.py global mocking
 from musicgen.core.generator import MusicGenerator
 
 
@@ -23,26 +21,14 @@ class TestMusicGenerator:
     """Test MusicGenerator class with mocked ML dependencies."""
 
     @pytest.fixture
-    def mock_transformers(self):
-        """Mock transformers imports."""
-        with patch("musicgen.core.generator.AutoProcessor") as mock_processor, patch(
-            "musicgen.core.generator.MusicgenForConditionalGeneration"
-        ) as mock_model:
-
-            # Mock processor
-            mock_processor_instance = MagicMock()
-            mock_processor.from_pretrained.return_value = mock_processor_instance
-
-            # Mock model
-            mock_model_instance = MagicMock()
-            mock_model.from_pretrained.return_value = mock_model_instance
-
-            # Mock model properties
-            mock_config = MagicMock()
-            mock_config.audio_encoder.sampling_rate = 32000
-            mock_model_instance.config = mock_config
-
-            yield mock_processor, mock_model, mock_processor_instance, mock_model_instance
+    def mock_transformers(self, mock_model_downloads):
+        """Use global model mocks from conftest.py."""
+        yield (
+            mock_model_downloads["processor_class"],
+            mock_model_downloads["model_class"], 
+            mock_model_downloads["processor_instance"],
+            mock_model_downloads["model_instance"]
+        )
 
     @pytest.fixture
     def temp_cache_dir(self):
@@ -56,7 +42,7 @@ class TestMusicGenerator:
 
         with patch("torch.cuda.is_available", return_value=True):
             generator = MusicGenerator()
-            assert generator.device == torch.device("cuda")
+            assert generator.device.type == "cuda"
 
         with patch("torch.cuda.is_available", return_value=False):
             generator = MusicGenerator()

@@ -5,6 +5,7 @@ Environment variables for educational demonstration.
 """
 
 import os
+import secrets
 import tempfile
 from typing import Optional
 
@@ -54,7 +55,7 @@ class Config:
     )
 
     # Security
-    SECRET_KEY: str = os.environ.get("SECRET_KEY", "educational-demo-not-secure")
+    SECRET_KEY: str = os.environ.get("SECRET_KEY", secrets.token_urlsafe(32))
     SECURE_HEADERS: bool = os.environ.get("SECURE_HEADERS", "true").lower() == "true"
 
     # AWS (optional)
@@ -72,10 +73,8 @@ class Config:
         if cls.API_KEY and len(cls.API_KEY) < 16:
             errors.append("API_KEY should be at least 16 characters")
 
-        if cls.SECRET_KEY == "educational-demo-not-secure":
-            import logging
-
-            logging.warning("Using default SECRET_KEY - for educational purposes only!")
+        if len(cls.SECRET_KEY) < 32:
+            errors.append("SECRET_KEY should be at least 32 characters for security")
 
         if errors:
             raise ValueError(f"Configuration errors: {'; '.join(errors)}")

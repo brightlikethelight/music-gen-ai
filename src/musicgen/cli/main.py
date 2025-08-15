@@ -257,7 +257,7 @@ def serve(
     rprint(f"[yellow]Starting web server on http://{host}:{port}[/yellow]")
 
     # Import here to avoid circular imports
-    from .web import create_app
+    from ..web.app import create_app
 
     app = create_app()
 
@@ -285,12 +285,13 @@ def api(
     rprint(f"[dim]API docs: http://{host}:{port}/docs[/dim]")
 
     # Import here to avoid circular imports
-    from .api import app
+    from ..api.app import create_app
 
     try:
         import uvicorn
 
-        uvicorn.run("musicgen.api:app", host=host, port=port, workers=workers, reload=False)
+        api_app = create_app()
+        uvicorn.run(api_app, host=host, port=port, workers=workers, reload=False)
     except ImportError:
         rprint("[red]Error: API server requires uvicorn[/red]")
         rprint("Install with: pip install musicgen-unified[api]")
