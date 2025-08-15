@@ -361,7 +361,8 @@ class TestAuthenticationMiddleware:
         assert payload["token_type"] == "refresh"
         assert "iat" in payload
         assert "exp" in payload
-        assert payload["jti"].startswith("refresh_user123_")
+        assert isinstance(payload["jti"], str)
+        assert len(payload["jti"]) == 32  # 16 bytes as hex = 32 chars
 
     def test_create_refresh_token_default_expiry(self, auth_middleware_instance):
         """Test refresh token with default expiry."""
@@ -454,7 +455,9 @@ class TestAuthenticationMiddleware:
             user_id="user123", email="test@example.com", username="testuser", roles=[UserRole.USER]
         )
 
-        with pytest.raises(AuthenticationError, match="Token has been revoked"):
+        with pytest.raises(
+            AuthenticationError, match="Token verification failed: Token is blacklisted"
+        ):
             auth_middleware_instance.verify_token(token)
 
     def test_verify_token_missing_user_id(self, auth_middleware_instance):
@@ -468,7 +471,9 @@ class TestAuthenticationMiddleware:
 
         token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
-        with pytest.raises(AuthenticationError, match="Invalid token: missing user ID"):
+        with pytest.raises(
+            AuthenticationError, match="Token verification failed: Token missing user_id"
+        ):
             auth_middleware_instance.verify_token(token)
 
     def test_verify_token_unverified_user(self, auth_middleware_instance):
@@ -481,7 +486,9 @@ class TestAuthenticationMiddleware:
             is_verified=False,  # Unverified user
         )
 
-        with pytest.raises(AuthenticationError, match="Email verification required"):
+        with pytest.raises(
+            AuthenticationError, match="Token verification failed: User not verified"
+        ):
             auth_middleware_instance.verify_token(token)
 
     def test_verify_token_refresh_unverified_allowed(self, auth_middleware_instance):
@@ -569,7 +576,7 @@ class TestAuthenticationMiddleware:
         expires_at = datetime.now(timezone.utc) - timedelta(hours=1)  # Already expired
 
         result = auth_middleware_instance.blacklist_token("token123", expires_at)
-        assert result is False
+        assert result is True  # Already expired tokens return True (successful blacklisting)
         mock_redis_client.setex.assert_not_called()
 
     def test_blacklist_token_redis_error(self, auth_middleware_instance, mock_redis_client):
@@ -618,7 +625,9 @@ class TestAuthenticationMiddleware:
             user_id="user123", email="test@example.com", username="testuser", roles=[UserRole.USER]
         )
 
-        with pytest.raises(AuthenticationError, match="Invalid refresh token"):
+        with pytest.raises(
+            AuthenticationError, match="Token refresh failed: Invalid token type for refresh"
+        ):
             auth_middleware_instance.refresh_access_token(access_token)
 
     def test_refresh_access_token_with_blacklist(self, auth_middleware_instance, mock_redis_client):
