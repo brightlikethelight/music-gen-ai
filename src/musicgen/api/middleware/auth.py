@@ -318,7 +318,7 @@ class TierChecker:
             raise AuthorizationError("Authentication required")
 
         if user.tier not in self.required_tiers:
-            raise AuthorizationError("Insufficient tier access")
+            raise AuthorizationError("Subscription upgrade required")
 
         return user
 

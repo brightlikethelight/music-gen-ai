@@ -13,6 +13,15 @@ import torch
 from transformers import AutoProcessor, MusicgenForConditionalGeneration
 
 try:
+    from rich.console import Console
+    from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+    RICH_AVAILABLE = True
+    console = Console()
+except ImportError:
+    RICH_AVAILABLE = False
+    console = None
+
+try:
     import soundfile as sf
 
     SOUNDFILE_AVAILABLE = True
@@ -91,13 +100,43 @@ class MusicGenerator:
         return torch.device("cpu")
 
     def _load_model(self):
-        """Load model with error handling."""
+        """Load model with error handling and progress indication."""
         try:
-            self.processor = AutoProcessor.from_pretrained(self.model_name)
-            self.model = MusicgenForConditionalGeneration.from_pretrained(
-                self.model_name, torch_dtype=torch.float16 if self.optimize else torch.float32
-            )
-            self.model.to(self.device)
+            if RICH_AVAILABLE and console:
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    TimeElapsedColumn(),
+                    console=console,
+                ) as progress:
+                    # Load processor
+                    task = progress.add_task(f"Loading processor for {self.model_name}...", total=None)
+                    self.processor = AutoProcessor.from_pretrained(self.model_name)
+                    progress.update(task, description=f"✓ Processor loaded")
+                    
+                    # Load model
+                    task = progress.add_task(f"Loading model {self.model_name} (this may take a while)...", total=None)
+                    self.model = MusicgenForConditionalGeneration.from_pretrained(
+                        self.model_name, torch_dtype=torch.float16 if self.optimize else torch.float32
+                    )
+                    progress.update(task, description=f"✓ Model loaded")
+                    
+                    # Move to device
+                    task = progress.add_task(f"Moving model to {self.device}...", total=None)
+                    self.model.to(self.device)
+                    progress.update(task, description=f"✓ Model ready on {self.device}")
+            else:
+                # Fallback to simple logging
+                logger.info(f"Loading processor for {self.model_name}...")
+                self.processor = AutoProcessor.from_pretrained(self.model_name)
+                
+                logger.info(f"Loading model {self.model_name} (this may take a while)...")
+                self.model = MusicgenForConditionalGeneration.from_pretrained(
+                    self.model_name, torch_dtype=torch.float16 if self.optimize else torch.float32
+                )
+                
+                logger.info(f"Moving model to {self.device}...")
+                self.model.to(self.device)
 
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
@@ -377,7 +416,25 @@ class MusicGenerator:
 
         if torch.cuda.is_available():
             info["gpu"] = torch.cuda.get_device_name()
-            info["gpu_memory"] = f"{torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB"
+            
+            # Get memory info
+            mem_info = torch.cuda.get_device_properties(0)
+            total_memory = mem_info.total_memory / 1e9
+            
+            # Get current usage
+            allocated = torch.cuda.memory_allocated() / 1e9
+            reserved = torch.cuda.memory_reserved() / 1e9
+            
+            info["gpu_memory"] = {
+                "total": f"{total_memory:.1f} GB",
+                "allocated": f"{allocated:.1f} GB",
+                "reserved": f"{reserved:.1f} GB",
+                "available": f"{total_memory - reserved:.1f} GB",
+            }
+            
+            # Add memory warning if low
+            if (total_memory - reserved) < 2.0:
+                info["memory_warning"] = "Low GPU memory available. Consider using smaller model or CPU."
 
         return info
 

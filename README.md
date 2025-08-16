@@ -15,7 +15,7 @@ An academic research project exploring AI music generation using Facebook's Musi
 ## 🚨 Important Disclaimers
 
 - **Experimental Software**: This is a learning project with limited testing and known issues
-- **Not Production-Ready**: Current test coverage is 0%, most features are incomplete
+- **Not Production-Ready**: Current test coverage is ~30%, most features are incomplete
 - **Educational Purpose**: Created for academic exploration, not commercial use
 - **No Warranty**: Provided "as-is" for educational purposes only
 
@@ -69,7 +69,7 @@ This project was designed to demonstrate:
 - Docker configuration examples
 
 ❌ **Known Limitations (See [LIMITATIONS.md](LIMITATIONS.md)):**
-- Test coverage is 0% (no meaningful tests implemented)
+- Test coverage is ~30% (basic test framework established)
 - Many unit tests skip due to missing dependencies (65+ skipped, 1-2 failing)
 - Monitoring features are placeholder examples
 - No actual PyPI package published

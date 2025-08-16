@@ -7,22 +7,45 @@ import asyncio
 import os
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from ...core.generator import MusicGenerator
 from ...core.prompt import PromptEngineer
 from ...services.batch import BatchProcessor
+
+
+# Global executor for background tasks
+_executor = ThreadPoolExecutor(max_workers=2)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifecycle with startup and shutdown events."""
+    # Startup
+    try:
+        generator = get_generator()
+        print(f"✓ Model loaded: {generator.model_name}")
+    except Exception as e:
+        print(f"Warning: Failed to preload model: {e}")
+    
+    yield
+    
+    # Shutdown
+    _executor.shutdown(wait=True)
+
 
 # Create app
 app = FastAPI(
     title="MusicGen API",
     description="Simple API for instrumental music generation",
     version="2.0.0",
+    lifespan=lifespan,
 )
 
 # Add CORS
@@ -36,7 +59,6 @@ app.add_middleware(
 
 # Global generator instance (lazy loaded)
 _generator = None
-_executor = ThreadPoolExecutor(max_workers=2)
 
 
 def get_generator() -> MusicGenerator:
@@ -55,8 +77,8 @@ class GenerateRequest(BaseModel):
     guidance_scale: float = Field(3.0, ge=1.0, le=10.0, description="Guidance scale")
     format: str = Field("mp3", description="Output format (wav/mp3)")
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "prompt": "smooth jazz piano with soft drums",
                 "duration": 30,
@@ -65,6 +87,7 @@ class GenerateRequest(BaseModel):
                 "format": "mp3",
             }
         }
+    )
 
 
 class GenerateResponse(BaseModel):
@@ -84,8 +107,9 @@ class JobStatus(BaseModel):
 class PromptRequest(BaseModel):
     prompt: str
 
-    class Config:
-        json_schema_extra = {"example": {"prompt": "jazz piano"}}
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"prompt": "jazz piano"}}
+    )
 
 
 class PromptResponse(BaseModel):
@@ -282,22 +306,6 @@ async def health():
         return JSONResponse(status_code=503, content={"status": "unhealthy", "error": str(e)})
 
 
-# Startup event
-@app.on_event("startup")
-async def startup():
-    """Preload model on startup."""
-    try:
-        generator = get_generator()
-        print(f"✓ Model loaded: {generator.model_name}")
-    except Exception as e:
-        print(f"Warning: Failed to preload model: {e}")
-
-
-# Shutdown event
-@app.on_event("shutdown")
-async def shutdown():
-    """Cleanup on shutdown."""
-    _executor.shutdown(wait=True)
 
 
 def main():
