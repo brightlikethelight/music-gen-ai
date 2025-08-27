@@ -2,7 +2,7 @@
 # This Dockerfile is part of Harvard CS 109B coursework
 # NOT tested for production use - FOR LEARNING PURPOSES ONLY
 
-FROM python:3.10-slim
+FROM python:3.13-slim
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
