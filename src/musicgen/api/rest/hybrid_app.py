@@ -362,16 +362,34 @@ async def get_job_status(job_id: str):
 @app.get("/audio/{filename}")
 async def get_audio_file(filename: str):
     """Serve generated audio files."""
+    from pathlib import Path
+    
     output_dir = config.OUTPUT_DIR
     if not output_dir.startswith("/app/"):
-        output_dir = os.path.join(os.getcwd(), "outputs")
+        output_dir = Path.cwd() / "outputs"
+    else:
+        output_dir = Path(output_dir)
+    
+    # Prevent directory traversal attacks
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Safely construct the file path
+    safe_filename = Path(filename).name  # Removes any directory components
+    file_path = output_dir / safe_filename
+    
+    # Verify the resolved path is within our output directory
+    try:
+        file_path = file_path.resolve(strict=False)
+        output_dir = output_dir.resolve(strict=False)
+        if not file_path.is_relative_to(output_dir):
+            raise HTTPException(status_code=403, detail="Access denied")
+    except (ValueError, RuntimeError):
+        raise HTTPException(status_code=403, detail="Invalid filename")
 
-    file_path = os.path.join(output_dir, filename)
-
-    if not os.path.exists(file_path):
+    if not file_path.exists():
         raise HTTPException(status_code=404, detail="Audio file not found")
 
-    return FileResponse(file_path, media_type="audio/wav", filename=filename)
+    return FileResponse(str(file_path), media_type="audio/wav", filename=safe_filename)
 
 
 @app.get("/jobs")

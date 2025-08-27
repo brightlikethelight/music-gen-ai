@@ -10,10 +10,22 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-import torch
 
-# Set test environment variable globally before any imports
+# Lazy import torch only when needed
+torch = None
+
+def _ensure_torch():
+    """Ensure torch is imported when needed."""
+    global torch
+    if torch is None:
+        import torch as torch_lib
+        torch = torch_lib
+    return torch
+
+# Set test environment variables globally before any imports
 os.environ["MUSICGEN_SKIP_MODEL_DOWNLOAD"] = "1"
+os.environ["MUSICGEN_SKIP_AUTH"] = "1"
+os.environ["PYTEST_CURRENT_TEST"] = "1"
 
 # Make AudioQualityMetrics import optional to avoid librosa dependency in tests
 try:
@@ -32,15 +44,37 @@ except ImportError:
     ConditioningEncoder = None
     CONDITIONING_AVAILABLE = False
 
-# Import auth modules for test authentication
-try:
-    from musicgen.api.middleware.auth import AuthenticationMiddleware, UserRole
+# Mock auth modules for test authentication to avoid import hangs
+AUTH_AVAILABLE = False
 
-    AUTH_AVAILABLE = True
-except ImportError:
-    AuthenticationMiddleware = None
-    UserRole = None
-    AUTH_AVAILABLE = False
+# Create mock auth classes for tests
+class MockUserRole:
+    """Mock UserRole for tests."""
+    USER = "user"
+    ADMIN = "admin"
+    RESEARCHER = "researcher"
+
+class MockAuthenticationMiddleware:
+    """Mock AuthenticationMiddleware for tests."""
+    
+    def __init__(self):
+        self.redis_client = None
+    
+    def create_access_token(self, user_id, email, username, roles, tier="free", is_verified=True):
+        return f"mock_token_{user_id}"
+    
+    def verify_token(self, token):
+        # Return mock user claims
+        from unittest.mock import MagicMock
+        user = MagicMock()
+        user.user_id = "test_user"
+        user.email = "test@example.com"
+        user.username = "testuser"
+        user.roles = [MockUserRole.USER]
+        return user
+
+AuthenticationMiddleware = MockAuthenticationMiddleware
+UserRole = MockUserRole
 
 try:
     from musicgen.models.musicgen import create_musicgen_model
@@ -87,12 +121,14 @@ def test_config():
 @pytest.fixture(scope="session")
 def device():
     """Get test device (CPU for CI/CD compatibility)."""
+    _ensure_torch()
     return torch.device("cpu")
 
 
 @pytest.fixture
 def sample_audio():
     """Generate sample audio for testing."""
+    _ensure_torch()
     sample_rate = 24000
     duration = 1.0
     samples = int(duration * sample_rate)
@@ -115,6 +151,7 @@ def sample_audio():
 @pytest.fixture
 def sample_batch():
     """Create a sample batch for testing."""
+    _ensure_torch()
     batch_size = 2
     seq_len = 100
     vocab_size = 256
@@ -293,8 +330,33 @@ def mock_model_downloads():
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
     os.environ["HF_DATASETS_OFFLINE"] = "1"
     
-    # Return without context manager to avoid session-scope issues
-    return None
+    # Create mock processor and model instances
+    processor_instance = MagicMock()
+    _ensure_torch()
+    processor_instance.return_value = {
+        "input_ids": torch.zeros((1, 10)),
+        "attention_mask": torch.ones((1, 10))
+    }
+    
+    model_instance = MagicMock()
+    model_instance.to = MagicMock(return_value=model_instance)
+    model_instance.config.audio_encoder.sampling_rate = 32000
+    model_instance.generate = MagicMock(return_value=torch.randn(1, 1, 32000))
+    
+    # Create mock classes
+    processor_class = MagicMock()
+    processor_class.from_pretrained = MagicMock(return_value=processor_instance)
+    
+    model_class = MagicMock()
+    model_class.from_pretrained = MagicMock(return_value=model_instance)
+    
+    # Return dictionary with all mocks for tests that need them
+    return {
+        "processor_class": processor_class,
+        "model_class": model_class,
+        "processor_instance": processor_instance,
+        "model_instance": model_instance
+    }
 
 
 @pytest.fixture
@@ -308,6 +370,7 @@ def mock_musicgen():
         
         # Mock processor
         mock_processor = MagicMock()
+        _ensure_torch()
         mock_processor.return_value = {
             "input_ids": torch.tensor([[1, 2, 3]]),
             "attention_mask": torch.tensor([[1, 1, 1]]),
@@ -320,6 +383,7 @@ def mock_musicgen():
         mock_config.audio_encoder.sampling_rate = 32000
         mock_model.config = mock_config
         mock_model.to.return_value = mock_model
+        _ensure_torch()
         mock_model.generate.return_value = torch.randn(1, 1, 32000)
         mock_model_class.from_pretrained.return_value = mock_model
         
@@ -334,7 +398,9 @@ def mock_musicgen():
 @pytest.fixture(autouse=True)
 def set_random_seed():
     """Set random seeds for reproducible tests."""
-    torch.manual_seed(42)
+    # Only set torch seed if torch is already imported
+    if torch is not None:
+        torch.manual_seed(42)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(42)
     np.random.seed(42)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(42)

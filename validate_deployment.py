@@ -98,9 +98,9 @@ class DeploymentValidator:
             else:
                 self.results["environment"]["gpu"] = "Not available"
                 return False, "No CUDA GPU available"
-        except:
-            self.results["environment"]["gpu"] = "Error checking"
-            return False, "Could not check GPU"
+        except Exception as e:
+            self.results["environment"]["gpu"] = f"Error checking: {str(e)}"
+            return False, f"Could not check GPU: {str(e)}"
             
     def check_docker(self) -> Tuple[bool, str]:
         """Check Docker availability."""
@@ -118,9 +118,9 @@ class DeploymentValidator:
             else:
                 self.results["environment"]["docker"] = "Not available"
                 return False, "Docker not installed"
-        except:
-            self.results["environment"]["docker"] = "Not available"
-            return False, "Docker not available"
+        except Exception as e:
+            self.results["environment"]["docker"] = f"Not available: {str(e)}"
+            return False, f"Docker not available: {str(e)}"
             
     def test_api_endpoint(self, url: str, timeout: int = 5) -> Tuple[bool, str]:
         """Test API endpoint availability."""
@@ -178,9 +178,10 @@ class DeploymentValidator:
                     options["docker_prebuilt"] = (True, "Pre-built image available")
                 else:
                     options["docker_prebuilt"] = (False, "Pre-built image not pulled")
-            except:
-                options["docker_custom"] = (False, "Cannot check images")
-                options["docker_prebuilt"] = (False, "Cannot check images")
+            except Exception as e:
+                error_msg = f"Cannot check images: {str(e)}"
+                options["docker_custom"] = (False, error_msg)
+                options["docker_prebuilt"] = (False, error_msg)
         else:
             options["docker_custom"] = (False, "Docker not available")
             options["docker_prebuilt"] = (False, "Docker not available")

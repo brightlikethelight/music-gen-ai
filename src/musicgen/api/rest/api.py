@@ -13,11 +13,28 @@ from typing import Optional
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
-from ...core.generator import MusicGenerator
-from ...core.prompt import PromptEngineer
-from ...services.batch import BatchProcessor
+# Lazy imports to speed up module loading for tests
+# These will be imported when first used
+from ..streaming import websocket_endpoint, list_sessions
+from .middleware.rate_limiting import RateLimitMiddleware, rate_limiter
+
+# Lazy loading for heavy ML dependencies
+def get_music_generator():
+    """Lazy import MusicGenerator to avoid loading heavy ML dependencies."""
+    from ...core.generator import MusicGenerator
+    return MusicGenerator
+
+def get_prompt_engineer():
+    """Lazy import PromptEngineer."""
+    from ...core.prompt import PromptEngineer
+    return PromptEngineer
+
+def get_batch_processor():
+    """Lazy import BatchProcessor."""
+    from ...services.batch import BatchProcessor
+    return BatchProcessor
 
 
 # Global executor for background tasks
@@ -27,12 +44,13 @@ _executor = ThreadPoolExecutor(max_workers=2)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifecycle with startup and shutdown events."""
-    # Startup
-    try:
-        generator = get_generator()
-        print(f"✓ Model loaded: {generator.model_name}")
-    except Exception as e:
-        print(f"Warning: Failed to preload model: {e}")
+    # Startup - only preload if not in test mode
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        try:
+            generator = get_generator()
+            print(f"✓ Model loaded: {generator.model_name}")
+        except Exception as e:
+            print(f"Warning: Failed to preload model: {e}")
     
     yield
     
@@ -57,25 +75,57 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add Rate Limiting for security
+app.add_middleware(RateLimitMiddleware, rate_limiter=rate_limiter)
+
 # Global generator instance (lazy loaded)
 _generator = None
 
 
-def get_generator() -> MusicGenerator:
+def get_generator():
     """Get or create generator instance."""
     global _generator
     if _generator is None:
+        MusicGenerator = get_music_generator()
         _generator = MusicGenerator()
     return _generator
 
 
 # Request/Response models
 class GenerateRequest(BaseModel):
-    prompt: str = Field(..., description="Music description")
+    prompt: str = Field(..., description="Music description", min_length=3, max_length=500)
     duration: float = Field(30.0, ge=0.1, le=300, description="Duration in seconds")
     temperature: float = Field(1.0, ge=0.1, le=2.0, description="Sampling temperature")
     guidance_scale: float = Field(3.0, ge=1.0, le=10.0, description="Guidance scale")
     format: str = Field("mp3", description="Output format (wav/mp3)")
+
+    @field_validator('prompt')
+    @classmethod
+    def validate_prompt(cls, v: str) -> str:
+        """Validate and sanitize prompt."""
+        # Remove excessive whitespace
+        v = ' '.join(v.split())
+        
+        # Check for potential injection patterns
+        dangerous_patterns = ['<script', 'javascript:', 'file://', '../', '\\x', '\0']
+        for pattern in dangerous_patterns:
+            if pattern.lower() in v.lower():
+                raise ValueError(f"Invalid prompt: contains potentially dangerous content")
+        
+        # Ensure prompt is music-related (basic check)
+        if len(v) < 3:
+            raise ValueError("Prompt too short, please provide a meaningful description")
+        
+        return v
+    
+    @field_validator('format')
+    @classmethod
+    def validate_format(cls, v: str) -> str:
+        """Validate output format."""
+        allowed_formats = ['mp3', 'wav']
+        if v.lower() not in allowed_formats:
+            raise ValueError(f"Format must be one of: {', '.join(allowed_formats)}")
+        return v.lower()
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -219,21 +269,39 @@ async def get_status(job_id: str):
 @app.get("/download/{filename}")
 async def download(filename: str):
     """Download generated audio file."""
-    file_path = f"api_outputs/{filename}"
+    from pathlib import Path
+    
+    # Prevent directory traversal attacks
+    output_dir = Path("api_outputs")
+    output_dir.mkdir(exist_ok=True)  # Ensure directory exists
+    
+    # Safely construct the file path
+    safe_filename = Path(filename).name  # This removes any directory components
+    file_path = output_dir / safe_filename
+    
+    # Verify the resolved path is within our output directory
+    try:
+        file_path = file_path.resolve(strict=False)
+        output_dir = output_dir.resolve(strict=False)
+        if not file_path.is_relative_to(output_dir):
+            raise HTTPException(status_code=403, detail="Access denied")
+    except (ValueError, RuntimeError):
+        raise HTTPException(status_code=403, detail="Invalid filename")
 
-    if not os.path.exists(file_path):
+    if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
 
     return FileResponse(
-        file_path,
+        str(file_path),
         media_type="audio/mpeg" if filename.endswith(".mp3") else "audio/wav",
-        filename=filename,
+        filename=safe_filename,
     )
 
 
 @app.post("/improve-prompt", response_model=PromptResponse)
 async def improve_prompt(request: PromptRequest):
     """Improve and validate a prompt."""
+    PromptEngineer = get_prompt_engineer()
     engineer = PromptEngineer()
 
     # Validate
@@ -270,6 +338,7 @@ async def batch_process(file: UploadFile = File(...)):
             f.write(contents)
 
         # Process batch
+        BatchProcessor = get_batch_processor()
         processor = BatchProcessor()
         jobs = processor.load_csv(temp_path)
 
@@ -304,6 +373,19 @@ async def health():
         return {"status": "healthy", "model": info["model"], "device": info["device"]}
     except Exception as e:
         return JSONResponse(status_code=503, content={"status": "unhealthy", "error": str(e)})
+
+
+# WebSocket endpoint for streaming
+@app.websocket("/ws/generate")
+async def websocket_generate(websocket):
+    """WebSocket endpoint for streaming music generation."""
+    await websocket_endpoint(websocket)
+
+
+@app.get("/streaming/sessions")
+async def get_streaming_sessions():
+    """Get list of active streaming sessions."""
+    return {"sessions": list_sessions()}
 
 
 

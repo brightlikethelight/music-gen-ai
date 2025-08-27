@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field
 from musicgen.api.middleware.auth import (
     UserClaims,
     UserRole,
-    auth_middleware,
+    get_auth_middleware,
     get_current_user,
     require_auth,
 )
@@ -346,17 +346,35 @@ async def get_job_status(job_id: str):
 @app.get("/audio/{filename}")
 async def get_audio(filename: str):
     """Serve generated audio files."""
+    from pathlib import Path
+    
     output_dir = config.OUTPUT_DIR
     if not output_dir.startswith("/app/"):
         # Local environment
-        output_dir = os.path.join(os.getcwd(), "outputs")
+        output_dir = Path.cwd() / "outputs"
+    else:
+        output_dir = Path(output_dir)
+    
+    # Prevent directory traversal attacks
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Safely construct the file path
+    safe_filename = Path(filename).name  # Removes any directory components
+    file_path = output_dir / safe_filename
+    
+    # Verify the resolved path is within our output directory
+    try:
+        file_path = file_path.resolve(strict=False)
+        output_dir = output_dir.resolve(strict=False)
+        if not file_path.is_relative_to(output_dir):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    except (ValueError, RuntimeError):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid filename")
 
-    file_path = os.path.join(output_dir, filename)
-
-    if not os.path.exists(file_path):
+    if not file_path.exists():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audio file not found")
 
-    return FileResponse(file_path, media_type="audio/wav", filename=filename)
+    return FileResponse(str(file_path), media_type="audio/wav", filename=safe_filename)
 
 
 @app.get("/models")
@@ -417,10 +435,10 @@ async def health_services():
             "response_time_ms": 5,
         },
         "redis": {
-            "status": "healthy" if auth_middleware.redis_client else "unavailable",
+            "status": "healthy" if get_auth_middleware().redis_client else "unavailable",
             "message": (
                 "Redis cache operational"
-                if auth_middleware.redis_client
+                if get_auth_middleware().redis_client
                 else "Redis not configured"
             ),
             "response_time_ms": 3,
@@ -545,7 +563,7 @@ async def register_user(user_data: UserRegistration):
         logger.info(f"User registered: {user_data.username} ({user_data.email})")
 
         # Create tokens for auto-login
-        access_token = auth_middleware.create_access_token(
+        access_token = get_auth_middleware().create_access_token(
             user_id=user_id,
             email=user_data.email,
             username=user_data.username,
@@ -554,7 +572,7 @@ async def register_user(user_data: UserRegistration):
             is_verified=True,
         )
 
-        refresh_token = auth_middleware.create_refresh_token(user_id)
+        refresh_token = get_auth_middleware().create_refresh_token(user_id)
 
         # Return registration response with tokens and user info
         return {
@@ -602,7 +620,7 @@ async def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
             )
 
         # Create tokens
-        access_token = auth_middleware.create_access_token(
+        access_token = get_auth_middleware().create_access_token(
             user_id=user["user_id"],
             email=user["email"],
             username=user["username"],
@@ -611,7 +629,7 @@ async def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
             is_verified=user["is_verified"],
         )
 
-        refresh_token = auth_middleware.create_refresh_token(user["user_id"])
+        refresh_token = get_auth_middleware().create_refresh_token(user["user_id"])
 
         logger.info(f"User logged in: {user['username']}")
 

@@ -64,8 +64,8 @@ class TestCLI:
 
             try:
                 os.unlink(temp_file.name)
-            except:
-                pass
+            except (OSError, FileNotFoundError):
+                pass  # File already deleted or doesn't exist
 
     def test_generate_basic(self, runner, mock_generator):
         """Test basic generate command."""

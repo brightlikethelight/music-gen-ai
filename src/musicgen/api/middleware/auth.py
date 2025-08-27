@@ -19,15 +19,38 @@ from pydantic import BaseModel, field_validator
 
 from musicgen.utils.exceptions import AuthenticationError, AuthorizationError
 
-# Constants
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "educational-demo-key-not-secure")
+# Constants - Security critical configuration
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not JWT_SECRET_KEY:
+    # Allow bypass only in test environment
+    if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("MUSICGEN_SKIP_AUTH"):
+        JWT_SECRET_KEY = "test-key-for-pytest-only"
+    else:
+        raise ValueError(
+            "JWT_SECRET_KEY environment variable is required for security. "
+            "Set it to a secure random string: export JWT_SECRET_KEY=$(openssl rand -hex 32)"
+        )
 JWT_ALGORITHM = "HS256"
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 30
 JWT_REFRESH_TOKEN_EXPIRE_DAYS = 7
 
-# FastAPI security schemes
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
-bearer_scheme = HTTPBearer(auto_error=False)
+# FastAPI security schemes - lazy initialization to avoid test hangs
+_oauth2_scheme = None
+_bearer_scheme = None
+
+def get_oauth2_scheme():
+    """Get OAuth2 scheme instance, creating it if needed."""
+    global _oauth2_scheme
+    if _oauth2_scheme is None:
+        _oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
+    return _oauth2_scheme
+
+def get_bearer_scheme():
+    """Get Bearer scheme instance, creating it if needed."""
+    global _bearer_scheme
+    if _bearer_scheme is None:
+        _bearer_scheme = HTTPBearer(auto_error=False)
+    return _bearer_scheme
 
 
 class UserRole(str, Enum):
@@ -90,13 +113,22 @@ class AuthenticationMiddleware:
         self.algorithm = JWT_ALGORITHM
 
         # Setup Redis client for token blacklisting (optional)
-        try:
-            redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
-            self.redis_client = redis.from_url(redis_url, decode_responses=True)
-            # Test connection
-            self.redis_client.ping()
-        except Exception:
+        # Skip Redis setup in test environment to prevent hangs
+        if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("MUSICGEN_SKIP_AUTH"):
             self.redis_client = None
+        else:
+            try:
+                redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+                self.redis_client = redis.from_url(
+                    redis_url, 
+                    decode_responses=True,
+                    socket_connect_timeout=2,  # 2 second connection timeout
+                    socket_timeout=2  # 2 second operation timeout
+                )
+                # Test connection with timeout
+                self.redis_client.ping()
+            except Exception:
+                self.redis_client = None
 
     def create_access_token(
         self,
@@ -323,13 +355,20 @@ class TierChecker:
         return user
 
 
-# Global middleware instance
-auth_middleware = AuthenticationMiddleware()
+# Global middleware instance - initialized conditionally to avoid test hangs
+auth_middleware = None
+
+def get_auth_middleware():
+    """Get auth middleware instance, creating it if needed."""
+    global auth_middleware
+    if auth_middleware is None:
+        auth_middleware = AuthenticationMiddleware()
+    return auth_middleware
 
 
 # Dependency functions
 async def get_current_user(
-    request: Request, credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme)
+    request: Request, credentials: Optional[HTTPAuthorizationCredentials] = Depends(get_bearer_scheme)
 ) -> Optional[UserClaims]:
     """Get current authenticated user from request."""
     token = None
@@ -341,6 +380,7 @@ async def get_current_user(
     # Try to get token from OAuth2 scheme
     if not token:
         try:
+            oauth2_scheme = get_oauth2_scheme()
             token = await oauth2_scheme(request)
         except HTTPException:
             pass
@@ -349,7 +389,8 @@ async def get_current_user(
         return None
 
     try:
-        user = auth_middleware.verify_token(token)
+        middleware = get_auth_middleware()
+        user = middleware.verify_token(token)
         # Set user info in request state
         request.state.user_id = user.user_id
         request.state.user_roles = [role.value for role in user.roles]
@@ -372,7 +413,7 @@ async def require_auth(user: Optional[UserClaims] = Depends(get_current_user)) -
 async def logout_user(user: UserClaims = Depends(require_auth)) -> Dict:
     """Logout user by blacklisting their token."""
     if user.jti:
-        success = auth_middleware.blacklist_token(user.jti, user.expires_at)
+        success = get_auth_middleware().blacklist_token(user.jti, user.expires_at)
         return {"message": "Logged out successfully", "success": success}
     return {"message": "Logged out successfully", "success": True}
 
@@ -380,7 +421,7 @@ async def logout_user(user: UserClaims = Depends(require_auth)) -> Dict:
 async def refresh_token(token: str) -> Dict:
     """Refresh access token using refresh token."""
     try:
-        access_token, refresh_token = auth_middleware.refresh_access_token(token)
+        access_token, refresh_token = get_auth_middleware().refresh_access_token(token)
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
