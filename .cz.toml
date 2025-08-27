@@ -1,0 +1,91 @@
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "2.0.1"
+version_files = [
+    "pyproject.toml:^version",
+    "src/musicgen/__init__.py:^__version__"
+]
+tag_format = "v$version"
+update_changelog_on_bump = true
+major_version_zero = false
+annotated_tag = true
+
+[tool.commitizen.customize]
+message_template = "{{change_type}}{% if scope %}({{scope}}){% endif %}: {{subject}}{% if body %}\n\n{{body}}{% endif %}{% if footer %}\n\n{{footer}}{% endif %}"
+example = "feat(api): add new endpoint for batch processing"
+schema_pattern = "^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\\(\\S+\\))?!?:(\\s.*)"
+
+bump_pattern = "^(feat|fix|refactor|perf|BREAKING CHANGE)"
+bump_map = {"BREAKING CHANGE" = "MAJOR", "feat" = "MINOR", "fix" = "PATCH", "refactor" = "PATCH", "perf" = "PATCH"}
+
+change_type_order = ["BREAKING CHANGE", "feat", "fix", "refactor", "perf", "build", "style", "docs", "test", "ci", "chore"]
+
+info_path = "cz"
+info = """
+Commitizen configuration for the MusicGen-Unified project.
+
+This project follows Conventional Commits specification:
+- feat: New features (bumps MINOR version)
+- fix: Bug fixes (bumps PATCH version)
+- docs: Documentation changes
+- style: Code style changes (formatting, etc.)
+- refactor: Code refactoring without changing functionality
+- perf: Performance improvements
+- test: Adding or updating tests
+- build: Build system or dependency changes
+- ci: CI/CD configuration changes
+- chore: Maintenance tasks
+- revert: Reverting previous commits
+- BREAKING CHANGE: Breaking API changes (bumps MAJOR version)
+
+Examples:
+- feat(generator): add GPU acceleration support
+- fix(api): resolve memory leak in audio processing
+- docs: update installation instructions
+- ci: add automated security scanning
+- BREAKING CHANGE: remove deprecated API endpoints
+"""
+
+[[tool.commitizen.customize.questions]]
+type = "list"
+name = "change_type"
+message = "Select the type of change you're committing:"
+choices = [
+    {value = "feat", name = "feat: A new feature"},
+    {value = "fix", name = "fix: A bug fix"},
+    {value = "docs", name = "docs: Documentation only changes"},
+    {value = "style", name = "style: Code style changes (formatting, etc.)"},
+    {value = "refactor", name = "refactor: Code refactoring"},
+    {value = "perf", name = "perf: Performance improvements"},
+    {value = "test", name = "test: Adding or updating tests"},
+    {value = "build", name = "build: Build system or dependency changes"},
+    {value = "ci", name = "ci: CI/CD configuration changes"},
+    {value = "chore", name = "chore: Maintenance tasks"},
+    {value = "revert", name = "revert: Revert a previous commit"}
+]
+
+[[tool.commitizen.customize.questions]]
+type = "input"
+name = "scope"
+message = "Scope of this change (optional, e.g., api, generator, cli):"
+
+[[tool.commitizen.customize.questions]]
+type = "input"
+name = "subject"
+message = "Short description (imperative mood):"
+
+[[tool.commitizen.customize.questions]]
+type = "input"
+name = "body"
+message = "Longer description (optional):"
+
+[[tool.commitizen.customize.questions]]
+type = "confirm"
+name = "is_breaking_change"
+message = "Is this a breaking change?"
+default = false
+
+[[tool.commitizen.customize.questions]]
+type = "input"
+name = "footer"
+message = "Footer (optional, e.g., 'Closes #123'):"

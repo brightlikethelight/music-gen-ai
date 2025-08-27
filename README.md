@@ -1,7 +1,12 @@
 # 🎓 MusicGen Unified - Academic Research & Educational Project
 
-[![Python](https://img.shields.io/badge/python-3.10_|_3.11-blue.svg)](https://www.python.org/downloads/)
+[![CI Pipeline](https://github.com/brightlikethelight/music-gen-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/brightlikethelight/music-gen-ai/actions/workflows/ci.yml)
+[![Comprehensive Test Suite](https://github.com/brightlikethelight/music-gen-ai/actions/workflows/test.yml/badge.svg)](https://github.com/brightlikethelight/music-gen-ai/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/brightlikethelight/music-gen-ai/graph/badge.svg)](https://codecov.io/gh/brightlikethelight/music-gen-ai)
+[![Python](https://img.shields.io/badge/python-3.10%20|%203.11%20|%203.12-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Security: bandit](https://img.shields.io/badge/security-bandit-red.svg)](https://github.com/PyCQA/bandit)
 [![Academic](https://img.shields.io/badge/project-academic-orange.svg)](https://github.com/brightlikethelight/music-gen-ai)
 
 > **🎓 ACADEMIC PROJECT**: This is an educational research project developed for Harvard's CS 109B: Advanced Data Science course. It is **NOT production-ready** and is intended for learning and experimentation purposes only.
