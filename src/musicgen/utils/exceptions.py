@@ -24,6 +24,10 @@ class MusicGenError(Exception):
         self.error_code = error_code or self.__class__.__name__
 
 
+# Alias for backward compatibility
+MusicGenException = MusicGenError
+
+
 class ModelError(MusicGenError):
     """Errors related to model loading or inference."""
 
@@ -44,6 +48,12 @@ class PromptError(MusicGenError):
 
 class AudioError(MusicGenError):
     """Errors related to audio processing or saving."""
+
+    pass
+
+
+class AudioGenerationError(AudioError):
+    """Errors during audio generation operations."""
 
     pass
 
