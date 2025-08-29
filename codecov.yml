@@ -1,0 +1,79 @@
+codecov:
+  require_ci_to_pass: true
+  max_report_age: 24
+  disable_default_path_fixes: false
+
+comment:
+  layout: "reach,diff,flags,files,footer"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+  hide_project_coverage: false
+
+coverage:
+  precision: 2
+  round: down
+  range: "20...80"
+  
+  status:
+    project:
+      default:
+        target: 25%
+        threshold: 1%
+        base: auto
+        flags:
+          - unittests
+        paths:
+          - "src/"
+        if_ci_failed: error
+        informational: false
+        only_pulls: false
+        
+    patch:
+      default:
+        target: 80%
+        threshold: 10%
+        base: auto
+        if_ci_failed: error
+        informational: false
+        only_pulls: false
+
+flags:
+  unittests:
+    paths:
+      - src/
+    carryforward: true
+
+ignore:
+  - "tests/"
+  - "scripts/"
+  - "docs/"
+  - "examples/"
+  - "*.md"
+  - "*.yml"
+  - "*.yaml"
+  - "*.toml"
+  - "*.txt"
+  - "*.cfg"
+  - "*.ini"
+  - "setup.py"
+  - "conftest.py"
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/tests.py"
+  - "**/static/"
+  - "**/migrations/"
+  - "**/__pycache__/"
+  - "**/.pytest_cache/"
+
+parsers:
+  gcov:
+    branch_detection:
+      conditional: true
+      loop: true
+      method: false
+      macro: false
+
+github_checks:
+  annotations: true

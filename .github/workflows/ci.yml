@@ -27,10 +27,14 @@ jobs:
     - name: Cache Python dependencies
       uses: actions/cache@v4
       with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}
+        path: |
+          ~/.cache/pip
+          ~/.cache/pypoetry
+          ~/.local
+        key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ hashFiles('pyproject.toml', 'poetry.lock', 'requirements*.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-
+          ${{ runner.os }}-pip-
           
     - name: Install dependencies
       run: |
@@ -68,10 +72,26 @@ jobs:
     - name: Cache Python dependencies
       uses: actions/cache@v4
       with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}
+        path: |
+          ~/.cache/pip
+          ~/.cache/pypoetry
+          ~/.local
+        key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml', 'poetry.lock', 'requirements*.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ matrix.python-version }}-
+          ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-
+          
+    - name: Cache ML models
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/huggingface
+          ~/.cache/torch
+          ~/musicgen_models
+        key: ${{ runner.os }}-models-${{ env.CACHE_VERSION }}-${{ hashFiles('src/musicgen/core/generator.py') }}
+        restore-keys: |
+          ${{ runner.os }}-models-${{ env.CACHE_VERSION }}-
+          ${{ runner.os }}-models-
           
     - name: Install system dependencies
       run: |
