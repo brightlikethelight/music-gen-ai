@@ -363,9 +363,12 @@ def get_auth_middleware():
 
 
 # Dependency functions
+_http_bearer = HTTPBearer(auto_error=False)
+
+
 async def get_current_user(
     request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(get_bearer_scheme),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_http_bearer),
 ) -> Optional[UserClaims]:
     """Get current authenticated user from request."""
     token = None
