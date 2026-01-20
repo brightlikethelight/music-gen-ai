@@ -1,8 +1,7 @@
 name: Release Pipeline
 
 on:
-  push:
-    branches: [main]
+  # Only run on manual trigger or version tags
   workflow_dispatch:
     inputs:
       release_type:
@@ -80,7 +79,7 @@ jobs:
         git config user.email "actions@github.com"
         
         # Bump version using commitizen
-        cz bump --${{ steps.version_bump.outputs.bump_type }} --yes
+        cz bump --increment ${{ steps.version_bump.outputs.bump_type }} --yes
         
         # Get new version
         NEW_VERSION=$(cz version --project)
