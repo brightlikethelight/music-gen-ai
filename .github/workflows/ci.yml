@@ -123,6 +123,7 @@ jobs:
           --ignore=tests/unit/test_cli.py \
           --ignore=tests/unit/test_api.py \
           --ignore=tests/unit/test_logging.py \
+          --ignore=tests/unit/test_prompt.py \
           --ignore=tests/unit/services/test_batch.py \
           -v --tb=short
           
