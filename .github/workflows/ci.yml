@@ -209,7 +209,8 @@ jobs:
           
     - name: Store benchmark results
       uses: benchmark-action/github-action-benchmark@v1
-      if: github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main' && hashFiles('benchmark.json') != ''
+      continue-on-error: true
       with:
         tool: 'pytest'
         output-file-path: benchmark.json
