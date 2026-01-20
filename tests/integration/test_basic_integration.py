@@ -4,10 +4,11 @@ This establishes that integration testing capability exists even if
 full integration tests are not yet implemented.
 """
 
-import pytest
-from pathlib import Path
-import tempfile
 import json
+import tempfile
+from pathlib import Path
+
+import pytest
 
 
 @pytest.mark.integration
@@ -77,7 +78,7 @@ class TestBasicIntegration:
 
     def test_exception_handling_integration(self):
         """Test that custom exceptions work correctly across modules."""
-        from musicgen.utils.exceptions import MusicGenError, ConfigurationError, ValidationError
+        from musicgen.utils.exceptions import ConfigurationError, MusicGenError, ValidationError
 
         # Test exception hierarchy
         assert issubclass(ConfigurationError, MusicGenError)

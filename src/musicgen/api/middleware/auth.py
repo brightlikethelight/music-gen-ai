@@ -17,19 +17,12 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2Pas
 from jose import JWTError, jwt
 from pydantic import BaseModel, field_validator
 
+from musicgen.infrastructure.security.secrets import get_jwt_secret
 from musicgen.utils.exceptions import AuthenticationError, AuthorizationError
 
 # Constants - Security critical configuration
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
-if not JWT_SECRET_KEY:
-    # Allow bypass only in test environment
-    if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("MUSICGEN_SKIP_AUTH"):
-        JWT_SECRET_KEY = "test-key-for-pytest-only"
-    else:
-        raise ValueError(
-            "JWT_SECRET_KEY environment variable is required for security. "
-            "Set it to a secure random string: export JWT_SECRET_KEY=$(openssl rand -hex 32)"
-        )
+# SECURE: Use centralized secret management with proper validation
+JWT_SECRET_KEY = get_jwt_secret()
 JWT_ALGORITHM = "HS256"
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 30
 JWT_REFRESH_TOKEN_EXPIRE_DAYS = 7
@@ -38,12 +31,14 @@ JWT_REFRESH_TOKEN_EXPIRE_DAYS = 7
 _oauth2_scheme = None
 _bearer_scheme = None
 
+
 def get_oauth2_scheme():
     """Get OAuth2 scheme instance, creating it if needed."""
     global _oauth2_scheme
     if _oauth2_scheme is None:
         _oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
     return _oauth2_scheme
+
 
 def get_bearer_scheme():
     """Get Bearer scheme instance, creating it if needed."""
@@ -120,10 +115,10 @@ class AuthenticationMiddleware:
             try:
                 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
                 self.redis_client = redis.from_url(
-                    redis_url, 
+                    redis_url,
                     decode_responses=True,
                     socket_connect_timeout=2,  # 2 second connection timeout
-                    socket_timeout=2  # 2 second operation timeout
+                    socket_timeout=2,  # 2 second operation timeout
                 )
                 # Test connection with timeout
                 self.redis_client.ping()
@@ -358,6 +353,7 @@ class TierChecker:
 # Global middleware instance - initialized conditionally to avoid test hangs
 auth_middleware = None
 
+
 def get_auth_middleware():
     """Get auth middleware instance, creating it if needed."""
     global auth_middleware
@@ -368,7 +364,8 @@ def get_auth_middleware():
 
 # Dependency functions
 async def get_current_user(
-    request: Request, credentials: Optional[HTTPAuthorizationCredentials] = Depends(get_bearer_scheme)
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(get_bearer_scheme),
 ) -> Optional[UserClaims]:
     """Get current authenticated user from request."""
     token = None

@@ -6,7 +6,7 @@ Clean implementation focused on what works.
 import logging
 import os
 import time
-from typing import Callable, Optional, Tuple, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Optional, Tuple, Union
 
 # Lazy imports for heavy ML libraries
 if TYPE_CHECKING:
@@ -20,24 +20,30 @@ else:
     AutoProcessor = None
     MusicgenForConditionalGeneration = None
 
+
 def _ensure_imports():
     """Ensure heavy imports are loaded when needed."""
     global np, torch, AutoProcessor, MusicgenForConditionalGeneration
     if np is None:
         import numpy
+
         np = numpy
     if torch is None:
         import torch as torch_lib
+
         torch = torch_lib
     if AutoProcessor is None:
         from transformers import AutoProcessor as AP
         from transformers import MusicgenForConditionalGeneration as MFCG
+
         AutoProcessor = AP
         MusicgenForConditionalGeneration = MFCG
+
 
 try:
     from rich.console import Console
     from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+
     RICH_AVAILABLE = True
     console = Console()
 except ImportError:
@@ -87,7 +93,7 @@ class MusicGenerator:
         """
         # Ensure imports before using them
         _ensure_imports()
-        
+
         self.model_name = model_name
         self.device = self._setup_device(device)
         self.optimize = optimize and torch.cuda.is_available()
@@ -136,17 +142,22 @@ class MusicGenerator:
                     console=console,
                 ) as progress:
                     # Load processor
-                    task = progress.add_task(f"Loading processor for {self.model_name}...", total=None)
+                    task = progress.add_task(
+                        f"Loading processor for {self.model_name}...", total=None
+                    )
                     self.processor = AutoProcessor.from_pretrained(self.model_name)
                     progress.update(task, description=f"✓ Processor loaded")
-                    
+
                     # Load model
-                    task = progress.add_task(f"Loading model {self.model_name} (this may take a while)...", total=None)
+                    task = progress.add_task(
+                        f"Loading model {self.model_name} (this may take a while)...", total=None
+                    )
                     self.model = MusicgenForConditionalGeneration.from_pretrained(
-                        self.model_name, torch_dtype=torch.float16 if self.optimize else torch.float32
+                        self.model_name,
+                        torch_dtype=torch.float16 if self.optimize else torch.float32,
                     )
                     progress.update(task, description=f"✓ Model loaded")
-                    
+
                     # Move to device
                     task = progress.add_task(f"Moving model to {self.device}...", total=None)
                     self.model.to(self.device)
@@ -155,12 +166,12 @@ class MusicGenerator:
                 # Fallback to simple logging
                 logger.info(f"Loading processor for {self.model_name}...")
                 self.processor = AutoProcessor.from_pretrained(self.model_name)
-                
+
                 logger.info(f"Loading model {self.model_name} (this may take a while)...")
                 self.model = MusicgenForConditionalGeneration.from_pretrained(
                     self.model_name, torch_dtype=torch.float16 if self.optimize else torch.float32
                 )
-                
+
                 logger.info(f"Moving model to {self.device}...")
                 self.model.to(self.device)
 
@@ -261,7 +272,7 @@ class MusicGenerator:
         # Extract audio
         audio = audio_values[0, 0].cpu().numpy()
         sample_rate = self.model.config.audio_encoder.sampling_rate
-        
+
         # Clean up GPU memory
         del audio_values
         if torch.cuda.is_available():
@@ -335,15 +346,13 @@ class MusicGenerator:
         # Clean up GPU memory after extended generation
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-            
+
         if progress_callback:
             progress_callback(100, "Complete!")
 
         return final_audio, sr
 
-    def _blend_segments(
-        self, segments: list, sample_rate: int, overlap_seconds: float
-    ):
+    def _blend_segments(self, segments: list, sample_rate: int, overlap_seconds: float):
         """Blend audio segments with crossfade."""
         if len(segments) == 1:
             return segments[0]
@@ -376,9 +385,7 @@ class MusicGenerator:
 
         return result
 
-    def save_audio(
-        self, audio, sample_rate: int, filename: str, format: str = "auto"
-    ) -> str:
+    def save_audio(self, audio, sample_rate: int, filename: str, format: str = "auto") -> str:
         """
         Save audio to file with format detection.
 
@@ -446,7 +453,7 @@ class MusicGenerator:
                 "optimized": self.optimize,
                 "sample_rate": 32000,
             }
-        
+
         info = {
             "model": self.model_name,
             "device": str(self.device),
@@ -456,29 +463,33 @@ class MusicGenerator:
 
         if torch.cuda.is_available():
             info["gpu"] = torch.cuda.get_device_name()
-            
+
             # Get memory info
             mem_info = torch.cuda.get_device_properties(0)
             total_memory = mem_info.total_memory / 1e9
-            
+
             # Get current usage
             allocated = torch.cuda.memory_allocated() / 1e9
             reserved = torch.cuda.memory_reserved() / 1e9
-            
+
             info["gpu_memory"] = {
                 "total": f"{total_memory:.1f} GB",
                 "allocated": f"{allocated:.1f} GB",
                 "reserved": f"{reserved:.1f} GB",
                 "available": f"{total_memory - reserved:.1f} GB",
             }
-            
+
             # Add memory warning if low
             if (total_memory - reserved) < 2.0:
-                info["memory_warning"] = "Low GPU memory available. Consider using smaller model or CPU."
-                
+                info["memory_warning"] = (
+                    "Low GPU memory available. Consider using smaller model or CPU."
+                )
+
             # Add cleanup recommendation if memory is highly allocated
             if allocated / total_memory > 0.8:
-                info["memory_recommendation"] = "High GPU memory usage. Running torch.cuda.empty_cache() after generation."
+                info["memory_recommendation"] = (
+                    "High GPU memory usage. Running torch.cuda.empty_cache() after generation."
+                )
                 torch.cuda.empty_cache()
 
         return info

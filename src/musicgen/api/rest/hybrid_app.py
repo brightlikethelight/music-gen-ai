@@ -363,20 +363,20 @@ async def get_job_status(job_id: str):
 async def get_audio_file(filename: str):
     """Serve generated audio files."""
     from pathlib import Path
-    
+
     output_dir = config.OUTPUT_DIR
     if not output_dir.startswith("/app/"):
         output_dir = Path.cwd() / "outputs"
     else:
         output_dir = Path(output_dir)
-    
+
     # Prevent directory traversal attacks
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Safely construct the file path
     safe_filename = Path(filename).name  # Removes any directory components
     file_path = output_dir / safe_filename
-    
+
     # Verify the resolved path is within our output directory
     try:
         file_path = file_path.resolve(strict=False)

@@ -4,10 +4,10 @@ Mocks heavy ML dependencies for CI compatibility.
 """
 
 import os
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, PropertyMock, patch
-import sys
 
 import numpy as np
 import pytest
@@ -25,17 +25,19 @@ class TestMusicGenerator:
         """Setup mocks for all tests."""
         # Temporarily disable the skip environment variable for these tests
         monkeypatch.delenv("MUSICGEN_SKIP_MODEL_DOWNLOAD", raising=False)
-        
+
         # Patch the transformers imports in the generator module
         self.mock_processor_class = mock_model_downloads["processor_class"]
         self.mock_model_class = mock_model_downloads["model_class"]
         self.mock_processor_instance = mock_model_downloads["processor_instance"]
         self.mock_model_instance = mock_model_downloads["model_instance"]
-        
+
         # Apply patches
         monkeypatch.setattr("musicgen.core.generator.AutoProcessor", self.mock_processor_class)
-        monkeypatch.setattr("musicgen.core.generator.MusicgenForConditionalGeneration", self.mock_model_class)
-        
+        monkeypatch.setattr(
+            "musicgen.core.generator.MusicgenForConditionalGeneration", self.mock_model_class
+        )
+
         # Mock soundfile if not available
         mock_sf = MagicMock()
         mock_sf.write = MagicMock()
@@ -49,7 +51,7 @@ class TestMusicGenerator:
             self.mock_processor_class,
             self.mock_model_class,
             self.mock_processor_instance,
-            self.mock_model_instance
+            self.mock_model_instance,
         )
 
     @pytest.fixture
@@ -142,7 +144,7 @@ class TestMusicGenerator:
 
         generator = MusicGenerator()
         audio, sample_rate = generator.generate(prompt="test music", duration=1.0)
-        
+
         assert isinstance(audio, np.ndarray)
         assert sample_rate == 32000
         assert len(audio) > 0
@@ -181,11 +183,11 @@ class TestMusicGenerator:
         _, _, mock_processor_instance, mock_model_instance = mock_transformers
         mock_processor_instance.return_value = {"input_ids": torch.tensor([[1]])}
         mock_model_instance.generate.return_value = torch.randn(1, 1, 32000)
-        
+
         # Test short duration
         audio, sr = generator.generate("test", duration=5.0)
         assert isinstance(audio, np.ndarray)
-        
+
         # Test long duration (should trigger extended generation)
         audio, sr = generator.generate("test", duration=60.0)
         assert isinstance(audio, np.ndarray)

@@ -89,7 +89,7 @@ class TestCLI:
         # CLI should call generate() and then save_audio() separately
         mock_instance.generate.assert_called_once()
         mock_instance.save_audio.assert_called_once()
-        
+
         # Check save_audio was called with the output path
         save_call_args = mock_instance.save_audio.call_args
         assert save_call_args[0][2] == output_path  # Third argument is filename
@@ -156,9 +156,7 @@ class TestCLI:
         result = runner.invoke(app, ["generate", "piano music", "--device", "cpu", "--yes"])
 
         assert result.exit_code == 0
-        mock_class.assert_called_with(
-            "facebook/musicgen-small", device="cpu", optimize=True
-        )
+        mock_class.assert_called_with("facebook/musicgen-small", device="cpu", optimize=True)
 
     def test_generate_no_optimize(self, runner, mock_generator):
         """Test generate without optimization."""
@@ -167,9 +165,7 @@ class TestCLI:
         result = runner.invoke(app, ["generate", "piano music", "--no-optimize", "--yes"])
 
         assert result.exit_code == 0
-        mock_class.assert_called_with(
-            "facebook/musicgen-small", device=None, optimize=False
-        )
+        mock_class.assert_called_with("facebook/musicgen-small", device=None, optimize=False)
 
     def test_generate_error_handling(self, runner, mock_generator):
         """Test error handling during generation."""
@@ -186,9 +182,17 @@ class TestCLI:
         """Test batch processing command."""
         mock_processor = MagicMock()
         # Mock the methods actually called by CLI
-        mock_processor.load_csv.return_value = [{"prompt": "piano", "duration": 30}, {"prompt": "guitar", "duration": 45}]
-        mock_processor.process_batch.return_value = ["output1.mp3", "output2.mp3"] 
-        mock_processor.save_results.return_value = {"total_jobs": 2, "successful": 2, "failed": 0, "success_rate": 1.0}
+        mock_processor.load_csv.return_value = [
+            {"prompt": "piano", "duration": 30},
+            {"prompt": "guitar", "duration": 45},
+        ]
+        mock_processor.process_batch.return_value = ["output1.mp3", "output2.mp3"]
+        mock_processor.save_results.return_value = {
+            "total_jobs": 2,
+            "successful": 2,
+            "failed": 0,
+            "success_rate": 1.0,
+        }
         mock_batch.return_value = mock_processor
 
         csv_file = temp_dir / "batch.csv"
@@ -285,7 +289,7 @@ class TestCLI:
             assert result.exit_code == 0
             mock_uvicorn_run.assert_called_once()
 
-            # Check default parameters  
+            # Check default parameters
             call_args = mock_uvicorn_run.call_args
             assert call_args[1]["host"] == "127.0.0.1"
             assert call_args[1]["port"] == 8080
@@ -319,6 +323,7 @@ class TestCLI:
                 callback(50, "Half done...")
                 callback(100, "Complete!")
             import numpy as np
+
             return (np.array([0.1, 0.2, 0.3]), 44100)
 
         mock_instance.generate.side_effect = generate_with_progress
@@ -385,13 +390,11 @@ class TestCLI:
         assert result.exit_code == 0
 
         # Verify all parameters were passed correctly
-        mock_class.assert_called_with(
-            "facebook/musicgen-medium", device="cuda", optimize=False
-        )
+        mock_class.assert_called_with("facebook/musicgen-medium", device="cuda", optimize=False)
 
         call_args = mock_instance.generate.call_args
         # CLI calls: prompt, duration, temperature, guidance, callback
         assert call_args[0][0] == "complex piano jazz"  # prompt
         assert call_args[0][1] == 60.0  # duration
-        assert call_args[0][2] == 0.9   # temperature
-        assert call_args[0][3] == 4.0   # guidance_scale
+        assert call_args[0][2] == 0.9  # temperature
+        assert call_args[0][3] == 4.0  # guidance_scale

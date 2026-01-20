@@ -14,13 +14,16 @@ import pytest
 # Lazy import torch only when needed
 torch = None
 
+
 def _ensure_torch():
     """Ensure torch is imported when needed."""
     global torch
     if torch is None:
         import torch as torch_lib
+
         torch = torch_lib
     return torch
+
 
 # Set test environment variables globally before any imports
 os.environ["MUSICGEN_SKIP_MODEL_DOWNLOAD"] = "1"
@@ -47,31 +50,36 @@ except ImportError:
 # Mock auth modules for test authentication to avoid import hangs
 AUTH_AVAILABLE = False
 
+
 # Create mock auth classes for tests
 class MockUserRole:
     """Mock UserRole for tests."""
+
     USER = "user"
     ADMIN = "admin"
     RESEARCHER = "researcher"
 
+
 class MockAuthenticationMiddleware:
     """Mock AuthenticationMiddleware for tests."""
-    
+
     def __init__(self):
         self.redis_client = None
-    
+
     def create_access_token(self, user_id, email, username, roles, tier="free", is_verified=True):
         return f"mock_token_{user_id}"
-    
+
     def verify_token(self, token):
         # Return mock user claims
         from unittest.mock import MagicMock
+
         user = MagicMock()
         user.user_id = "test_user"
         user.email = "test@example.com"
         user.username = "testuser"
         user.roles = [MockUserRole.USER]
         return user
+
 
 AuthenticationMiddleware = MockAuthenticationMiddleware
 UserRole = MockUserRole
@@ -329,33 +337,33 @@ def mock_model_downloads():
     os.environ["MUSICGEN_SKIP_MODEL_DOWNLOAD"] = "1"
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
     os.environ["HF_DATASETS_OFFLINE"] = "1"
-    
+
     # Create mock processor and model instances
     processor_instance = MagicMock()
     _ensure_torch()
     processor_instance.return_value = {
         "input_ids": torch.zeros((1, 10)),
-        "attention_mask": torch.ones((1, 10))
+        "attention_mask": torch.ones((1, 10)),
     }
-    
+
     model_instance = MagicMock()
     model_instance.to = MagicMock(return_value=model_instance)
     model_instance.config.audio_encoder.sampling_rate = 32000
     model_instance.generate = MagicMock(return_value=torch.randn(1, 1, 32000))
-    
+
     # Create mock classes
     processor_class = MagicMock()
     processor_class.from_pretrained = MagicMock(return_value=processor_instance)
-    
+
     model_class = MagicMock()
     model_class.from_pretrained = MagicMock(return_value=model_instance)
-    
+
     # Return dictionary with all mocks for tests that need them
     return {
         "processor_class": processor_class,
         "model_class": model_class,
         "processor_instance": processor_instance,
-        "model_instance": model_instance
+        "model_instance": model_instance,
     }
 
 
@@ -365,9 +373,10 @@ def mock_musicgen():
     Fixture to mock MusicGenerator for individual tests.
     Use this instead of global mocking to avoid conflicts.
     """
-    with patch("transformers.AutoProcessor") as mock_processor_class, \
-         patch("transformers.MusicgenForConditionalGeneration") as mock_model_class:
-        
+    with patch("transformers.AutoProcessor") as mock_processor_class, patch(
+        "transformers.MusicgenForConditionalGeneration"
+    ) as mock_model_class:
+
         # Mock processor
         mock_processor = MagicMock()
         _ensure_torch()
@@ -376,7 +385,7 @@ def mock_musicgen():
             "attention_mask": torch.tensor([[1, 1, 1]]),
         }
         mock_processor_class.from_pretrained.return_value = mock_processor
-        
+
         # Mock model
         mock_model = MagicMock()
         mock_config = MagicMock()
@@ -386,7 +395,7 @@ def mock_musicgen():
         _ensure_torch()
         mock_model.generate.return_value = torch.randn(1, 1, 32000)
         mock_model_class.from_pretrained.return_value = mock_model
-        
+
         yield {
             "processor_class": mock_processor_class,
             "model_class": mock_model_class,

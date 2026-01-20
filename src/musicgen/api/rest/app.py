@@ -29,6 +29,12 @@ from musicgen.api.rest.middleware.rate_limiting import RateLimitMiddleware
 from musicgen.infrastructure.config.config import config
 from musicgen.infrastructure.monitoring.logging import setup_logging
 from musicgen.infrastructure.monitoring.metrics import metrics
+from musicgen.infrastructure.security import (
+    hash_password,
+    log_login_attempt,
+    log_registration,
+    verify_password,
+)
 from musicgen.utils.exceptions import AuthenticationError, MusicGenError
 
 # Setup logging
@@ -347,21 +353,21 @@ async def get_job_status(job_id: str):
 async def get_audio(filename: str):
     """Serve generated audio files."""
     from pathlib import Path
-    
+
     output_dir = config.OUTPUT_DIR
     if not output_dir.startswith("/app/"):
         # Local environment
         output_dir = Path.cwd() / "outputs"
     else:
         output_dir = Path(output_dir)
-    
+
     # Prevent directory traversal attacks
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Safely construct the file path
     safe_filename = Path(filename).name  # Removes any directory components
     file_path = output_dir / safe_filename
-    
+
     # Verify the resolved path is within our output directory
     try:
         file_path = file_path.resolve(strict=False)
@@ -551,7 +557,7 @@ async def register_user(user_data: UserRegistration):
             "user_id": user_id,
             "username": user_data.username,
             "email": user_data.email,
-            "password": user_data.password,  # Educational demo only - NOT secure
+            "password_hash": hash_password(user_data.password),  # SECURE: bcrypt hash
             "roles": [UserRole.USER.value],
             "tier": "free",
             "is_verified": True,
@@ -612,7 +618,9 @@ async def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
                 user = u
                 break
 
-        if not user or user.get("password") != form_data.password:
+        # SECURE: Use constant-time password verification
+        password_hash = user.get("password_hash") if user else ""
+        if not user or not verify_password(form_data.password, password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid credentials",

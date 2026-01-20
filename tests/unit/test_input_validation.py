@@ -1,6 +1,7 @@
 """Tests for input validation in API."""
 
 import os
+
 # Set test environment variables before any imports
 os.environ["JWT_SECRET_KEY"] = "test-key"
 os.environ["PYTEST_CURRENT_TEST"] = "1"
@@ -22,7 +23,7 @@ class TestGenerateRequestValidation:
             duration=30.0,
             temperature=1.0,
             guidance_scale=3.0,
-            format="mp3"
+            format="mp3",
         )
         assert request.prompt == "smooth jazz piano"
         assert request.duration == 30.0
@@ -42,9 +43,7 @@ class TestGenerateRequestValidation:
 
     def test_prompt_sanitization(self):
         """Test prompt sanitization removes extra whitespace."""
-        request = GenerateRequest(
-            prompt="  smooth   jazz    piano  "
-        )
+        request = GenerateRequest(prompt="  smooth   jazz    piano  ")
         assert request.prompt == "smooth jazz piano"
 
     def test_dangerous_content_detection(self):
@@ -55,9 +54,9 @@ class TestGenerateRequestValidation:
             "file:///etc/passwd",
             "../../../etc/passwd",
             "test\\x00null",
-            "test\0null"
+            "test\0null",
         ]
-        
+
         for dangerous_prompt in dangerous_prompts:
             with pytest.raises(ValidationError) as exc_info:
                 GenerateRequest(prompt=dangerous_prompt)

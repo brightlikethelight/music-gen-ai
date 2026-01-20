@@ -35,10 +35,10 @@ try:
         require_admin,
         require_auth,
         require_developer,
-        require_research_tier,
         require_moderator,
-        require_researcher,
         require_pro_tier,
+        require_research_tier,
+        require_researcher,
         require_user,
     )
 
