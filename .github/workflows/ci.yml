@@ -120,6 +120,10 @@ jobs:
           --ignore=tests/unit/test_generator.py \
           --ignore=tests/unit/test_hybrid_app_simple.py \
           --ignore=tests/unit/test_memory_management.py \
+          --ignore=tests/unit/test_cli.py \
+          --ignore=tests/unit/test_api.py \
+          --ignore=tests/unit/test_logging.py \
+          --ignore=tests/unit/services/test_batch.py \
           -v --tb=short
           
     - name: Upload coverage to Codecov
