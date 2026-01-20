@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MusicGen AI - Music Generation Interface</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎵 MusicGen AI</h1>
+            <p class="subtitle">Generate music from text descriptions</p>
+        </header>
+
+        <main>
+            <div class="generation-form">
+                <h2>Create Your Music</h2>
+                
+                <div class="form-group">
+                    <label for="prompt">Music Description</label>
+                    <textarea id="prompt" placeholder="e.g., peaceful acoustic guitar with soft piano, ambient background" rows="3"></textarea>
+                    <div class="hint">Describe the style, instruments, mood, and tempo you want</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="duration">Duration (seconds)</label>
+                        <input type="number" id="duration" min="1" max="30" value="10" step="1">
+                        <div class="hint">1-30 seconds (longer durations use segmented generation)</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="temperature">Creativity</label>
+                        <input type="range" id="temperature" min="0.1" max="2.0" value="1.0" step="0.1">
+                        <span id="tempValue">1.0</span>
+                        <div class="hint">Higher = more creative, Lower = more consistent</div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="guidance">Guidance Scale</label>
+                        <input type="range" id="guidance" min="1.0" max="10.0" value="3.0" step="0.5">
+                        <span id="guidanceValue">3.0</span>
+                        <div class="hint">How closely to follow your description</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="format">Output Format</label>
+                        <select id="format">
+                            <option value="mp3">MP3</option>
+                            <option value="wav">WAV</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button id="generateBtn" class="btn-primary">Generate Music</button>
+            </div>
+
+            <div id="progressSection" class="progress-section hidden">
+                <h3>Generating...</h3>
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+                <p id="progressText">Initializing...</p>
+            </div>
+
+            <div id="resultSection" class="result-section hidden">
+                <h3>Your Generated Music</h3>
+                <audio id="audioPlayer" controls></audio>
+                <div class="result-actions">
+                    <button id="downloadBtn" class="btn-secondary">Download</button>
+                    <button id="regenerateBtn" class="btn-secondary">Generate Another</button>
+                </div>
+            </div>
+
+            <div id="errorSection" class="error-section hidden">
+                <h3>⚠️ Error</h3>
+                <p id="errorMessage"></p>
+                <button id="retryBtn" class="btn-secondary">Try Again</button>
+            </div>
+        </main>
+
+        <footer>
+            <div class="info-cards">
+                <div class="info-card">
+                    <h4>📝 Tips for Better Results</h4>
+                    <ul>
+                        <li>Be specific about instruments and style</li>
+                        <li>Include mood descriptors (peaceful, energetic, dark)</li>
+                        <li>Mention tempo if important (slow, fast, 120 bpm)</li>
+                        <li>MusicGen generates instrumental music only</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h4>🚀 API Documentation</h4>
+                    <p>Want to integrate MusicGen into your app?</p>
+                    <a href="/api/docs" target="_blank" class="link">View API Docs →</a>
+                </div>
+
+                <div class="info-card">
+                    <h4>ℹ️ About</h4>
+                    <p>MusicGen AI v2.0</p>
+                    <p>Academic Research Project</p>
+                    <p>Harvard CS 109B</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

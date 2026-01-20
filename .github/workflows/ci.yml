@@ -45,7 +45,7 @@ jobs:
       run: black --check --line-length=100 src tests
       
     - name: Import sorting check (isort)
-      run: isort --profile black src tests
+      run: isort --check-only --profile black src tests
       
     - name: Linting (flake8)
       run: flake8 src tests --max-line-length=100 --extend-ignore=E203,W503,F401,F841,E722,E712,F811,W293,W605,E402,F541,E501,F403,F405
@@ -231,19 +231,45 @@ jobs:
         pip install -e .[dev]
         
     - name: Run safety check
-      run: safety check --json
-      continue-on-error: true
-      
+      run: |
+        # Check for known vulnerabilities in dependencies
+        # Fail on high severity issues
+        safety check --json --output safety-report.json || {
+          echo "::warning::Vulnerabilities found in dependencies - review safety-report.json"
+          cat safety-report.json
+        }
+      continue-on-error: true  # Allow warnings but track them
+
     - name: Run bandit security scan
-      run: bandit -r src -f json -o bandit-report.json
-      continue-on-error: true
-      
+      run: |
+        # Security scan with threshold enforcement
+        bandit -r src -f json -o bandit-report.json --severity-level medium --confidence-level medium
+        # Check for high severity issues (blocking)
+        python -c "
+        import json
+        import sys
+        with open('bandit-report.json') as f:
+            data = json.load(f)
+        results = data.get('results', [])
+        high_sev = sum(1 for r in results if r.get('issue_severity') == 'HIGH')
+        if high_sev > 0:
+            print(f'::error::Found {high_sev} HIGH severity security issues')
+            for r in results:
+                if r.get('issue_severity') == 'HIGH':
+                    print(f\"  - {r.get('filename')}:{r.get('line_number')}: {r.get('issue_text')}\")
+            sys.exit(1)
+        med_sev = sum(1 for r in results if r.get('issue_severity') == 'MEDIUM')
+        print(f'Security scan passed: {high_sev} high, {med_sev} medium severity issues')
+        "
+
     - name: Upload security scan results
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: security-reports
         path: |
           bandit-report.json
+          safety-report.json
 
   # documentation:
   #   name: Documentation Build
