@@ -1,7 +1,6 @@
 name: Release Pipeline
 
 on:
-  # Only run on manual trigger or version tags
   workflow_dispatch:
     inputs:
       release_type:
@@ -15,44 +14,53 @@ on:
           - minor
           - major
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
   pull-requests: write
   issues: write
 
 jobs:
+  # Gate on CI passing before releasing
+  ci:
+    name: Run CI
+    uses: ./.github/workflows/ci.yml
+
   release:
     name: Create Release
     runs-on: ubuntu-latest
+    needs: ci
     if: github.ref == 'refs/heads/main'
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
-    
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install commitizen
-    
+
     - name: Check for release commits
       id: check_release
       run: |
-        # Check if there are any commits that should trigger a release
         if git log --format=%B -n 10 | grep -E "^(feat|fix|perf|refactor|BREAKING CHANGE)"; then
           echo "should_release=true" >> $GITHUB_OUTPUT
         else
           echo "should_release=false" >> $GITHUB_OUTPUT
         fi
-    
+
     - name: Determine version bump
       id: version_bump
       if: steps.check_release.outputs.should_release == 'true'
@@ -60,7 +68,6 @@ jobs:
         if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.release_type }}" != "auto" ]]; then
           echo "bump_type=${{ github.event.inputs.release_type }}" >> $GITHUB_OUTPUT
         else
-          # Auto-detect based on conventional commits
           if git log --format=%B -n 10 | grep -E "BREAKING CHANGE"; then
             echo "bump_type=major" >> $GITHUB_OUTPUT
           elif git log --format=%B -n 10 | grep -E "^feat"; then
@@ -69,50 +76,41 @@ jobs:
             echo "bump_type=patch" >> $GITHUB_OUTPUT
           fi
         fi
-    
+
     - name: Bump version
       id: bump_version
       if: steps.check_release.outputs.should_release == 'true'
       run: |
-        # Configure git
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
-        
-        # Bump version using commitizen
+
         cz bump --increment ${{ steps.version_bump.outputs.bump_type }} --yes
-        
-        # Get new version
+
         NEW_VERSION=$(cz version --project)
         echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-        
-        # Push changes
+
         git push --follow-tags origin main
-    
+
     - name: Generate changelog
       id: changelog
       if: steps.check_release.outputs.should_release == 'true'
       run: |
-        # Generate changelog for this release
         cz changelog --incremental --dry-run > RELEASE_NOTES.md
-        
-        # Also update the main CHANGELOG.md
         cz changelog
         git add CHANGELOG.md
-        git commit -m "docs: update CHANGELOG.md for v${{ steps.bump_version.outputs.new_version }}" || true
-        git push origin main || true
-    
+        git commit -m "docs: update CHANGELOG.md for v${{ steps.bump_version.outputs.new_version }}"
+        git push origin main
+
     - name: Create GitHub Release
       if: steps.check_release.outputs.should_release == 'true'
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ steps.bump_version.outputs.new_version }}
-        release_name: Release v${{ steps.bump_version.outputs.new_version }}
+        name: Release v${{ steps.bump_version.outputs.new_version }}
         body_path: RELEASE_NOTES.md
         draft: false
         prerelease: false
-    
+
     - name: Build and publish to PyPI
       if: steps.check_release.outputs.should_release == 'true'
       env:
@@ -121,25 +119,19 @@ jobs:
       run: |
         pip install build twine
         python -m build
-        python -m twine upload dist/* --skip-existing
-    
-    - name: Update documentation
-      if: steps.check_release.outputs.should_release == 'true'
-      run: |
-        echo "Documentation update would happen here"
-        # Add documentation generation/deployment steps as needed
+        python -m twine upload dist/*
 
   notify:
     name: Notify Release
     needs: release
     runs-on: ubuntu-latest
     if: always()
-    
+
     steps:
     - name: Send notification
       run: |
         if [[ "${{ needs.release.result }}" == "success" ]]; then
-          echo "✅ Release successful!"
+          echo "Release successful!"
         else
-          echo "❌ Release failed or skipped"
+          echo "Release failed or skipped"
         fi

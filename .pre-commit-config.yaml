@@ -54,7 +54,7 @@ repos:
     rev: 1.7.10
     hooks:
       - id: bandit
-        args: ['-ll', '--skip=B101,B601,B602']
+        args: ['-ll']
         exclude: '^tests/'
 
   # Type checking - mypy
