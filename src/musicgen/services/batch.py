@@ -3,7 +3,6 @@ Batch processing for music generation.
 Simple, efficient, no over-engineering.
 """
 
-import csv
 import json
 import logging
 import os
@@ -53,7 +52,9 @@ class BatchProcessor:
         self.model_name = model_name
         self.device = device
 
-        logger.info(f"Batch processor ready: {self.max_workers} workers, output: {self.output_dir}")
+        logger.info(
+            "Batch processor ready: %s workers, output: %s", self.max_workers, self.output_dir
+        )
 
     def load_csv(self, csv_file: str) -> List[Dict[str, Any]]:
         """Load and validate CSV file."""
@@ -74,18 +75,22 @@ class BatchProcessor:
                 "id": idx,
                 "prompt": str(row["prompt"]).strip(),
                 "duration": float(row.get("duration", 10.0)),
-                "output_file": str(row.get("output_file", f"output_{idx:04d}.mp3")),
+                "output_file": (
+                    str(row["output_file"])
+                    if "output_file" in row and pd.notna(row["output_file"])
+                    else f"output_{idx:04d}.mp3"
+                ),
                 "temperature": float(row.get("temperature", 1.0)),
                 "guidance_scale": float(row.get("guidance_scale", 3.0)),
             }
 
             # Validate
             if not job["prompt"]:
-                logger.warning(f"Row {idx}: Empty prompt, skipping")
+                logger.warning("Row %s: Empty prompt, skipping", idx)
                 continue
 
             if not (0.1 <= job["duration"] <= 120):
-                logger.warning(f"Row {idx}: Invalid duration, using 10s")
+                logger.warning("Row %s: Invalid duration, using 10s", idx)
                 job["duration"] = 10.0
 
             # Ensure output path
@@ -94,7 +99,7 @@ class BatchProcessor:
 
             jobs.append(job)
 
-        logger.info(f"Loaded {len(jobs)} valid jobs from {csv_file}")
+        logger.info("Loaded %s valid jobs from %s", len(jobs), csv_file)
         return jobs
 
     def process_single(self, job: Dict[str, Any]) -> Dict[str, Any]:
@@ -131,11 +136,11 @@ class BatchProcessor:
             result["generation_time"] = time.time() - start_time
             result["file_size"] = os.path.getsize(output_path)
 
-            logger.info(f"✓ Job {job['id']}: Generated in {result['generation_time']:.1f}s")
+            logger.info("✓ Job %s: Generated in %.1fs", job["id"], result["generation_time"])
 
         except Exception as e:
             result["error"] = str(e)
-            logger.error(f"✗ Job {job['id']} failed: {e}")
+            logger.error("✗ Job %s failed: %s", job["id"], e)
 
         return result
 
@@ -189,7 +194,9 @@ class BatchProcessor:
 
         return results
 
-    def save_results(self, results: List[Dict[str, Any]], filename: str = "results.json"):
+    def save_results(
+        self, results: List[Dict[str, Any]], filename: str = "results.json"
+    ) -> Dict[str, Any]:
         """Save batch results to JSON."""
         output_path = self.output_dir / filename
 
@@ -211,11 +218,11 @@ class BatchProcessor:
         with open(output_path, "w") as f:
             json.dump(output_data, f, indent=2)
 
-        logger.info(f"Results saved to {output_path}")
+        logger.info("Results saved to %s", output_path)
         return summary
 
 
-def create_sample_csv(filename: str = "sample_batch.csv"):
+def create_sample_csv(filename: str = "sample_batch.csv") -> str:
     """Create a sample CSV file for batch processing."""
     sample_data = [
         {"prompt": "upbeat jazz piano", "duration": 30, "output_file": "jazz_piano.mp3"},
@@ -226,5 +233,5 @@ def create_sample_csv(filename: str = "sample_batch.csv"):
     df = pd.DataFrame(sample_data)
     df.to_csv(filename, index=False)
 
-    logger.info(f"Sample CSV created: {filename}")
+    logger.info("Sample CSV created: %s", filename)
     return filename

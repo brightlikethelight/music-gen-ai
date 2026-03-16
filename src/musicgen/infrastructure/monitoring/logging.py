@@ -5,12 +5,10 @@ Provides consistent logging across all components with support for different
 output formats and log levels based on environment.
 """
 
-import functools
 import logging
 import sys
-import time
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Optional, cast
 
 try:
     import structlog
@@ -18,13 +16,6 @@ try:
     STRUCTLOG_AVAILABLE = True
 except ImportError:
     STRUCTLOG_AVAILABLE = False
-
-try:
-    import torch
-
-    TORCH_AVAILABLE = True
-except ImportError:
-    TORCH_AVAILABLE = False
 
 
 def setup_logging(level: str = "INFO", log_file: Optional[str] = None) -> None:
@@ -53,7 +44,7 @@ def setup_logging(level: str = "INFO", log_file: Optional[str] = None) -> None:
 
 
 def configure_logging(
-    level: str = "INFO", format_type: str = "detailed", log_file: str = None
+    level: str = "INFO", format_type: str = "detailed", log_file: Optional[str] = None
 ) -> None:
     """
     Configure application logging.
@@ -66,7 +57,7 @@ def configure_logging(
     log_level = getattr(logging, level.upper(), logging.INFO)
 
     # Configure basic logging
-    handlers = []
+    handlers: list[logging.Handler] = []
 
     # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
@@ -117,12 +108,12 @@ def configure_logging(
     # Configure root logger
     logging.basicConfig(level=log_level, handlers=handlers, force=True)
 
-    # Also configure music_gen logger specifically for tests
-    music_gen_logger = logging.getLogger("music_gen")
-    music_gen_logger.setLevel(log_level)
-    music_gen_logger.handlers = []  # Clear existing handlers
+    # Also configure musicgen logger for the package hierarchy
+    musicgen_logger = logging.getLogger("musicgen")
+    musicgen_logger.setLevel(log_level)
+    musicgen_logger.handlers = []  # Clear existing handlers
     for handler in handlers:
-        music_gen_logger.addHandler(handler)
+        musicgen_logger.addHandler(handler)
 
     # Silence some noisy libraries
     logging.getLogger("transformers").setLevel(logging.WARNING)
@@ -133,123 +124,5 @@ def configure_logging(
 def get_logger(name: str) -> logging.Logger:
     """Get a logger instance with the given name."""
     if STRUCTLOG_AVAILABLE:
-        return structlog.get_logger(name)
+        return cast(logging.Logger, structlog.get_logger(name))
     return logging.getLogger(name)
-
-
-class ContextualLogger:
-    """Logger that maintains context across operations."""
-
-    def __init__(self, name: str):
-        self.logger = get_logger(name)
-        self.context = {}
-
-    def with_context(self, **kwargs) -> "ContextualLogger":
-        """Create a new logger with additional context."""
-        new_logger = ContextualLogger(self.logger.name)
-        new_logger.context = {**self.context, **kwargs}
-        new_logger.logger = self.logger
-        return new_logger
-
-    def _log_with_context(self, level: str, message: str, **kwargs):
-        """Log message with context."""
-        full_context = {**self.context, **kwargs}
-
-        if STRUCTLOG_AVAILABLE:
-            getattr(self.logger, level)(message, **full_context)
-        else:
-            # Format context for standard logging
-            context_str = " ".join(f"{k}={v}" for k, v in full_context.items())
-            if context_str:
-                message = f"{message} | {context_str}"
-            getattr(self.logger, level)(message)
-
-    def debug(self, message: str, **kwargs):
-        self._log_with_context("debug", message, **kwargs)
-
-    def info(self, message: str, **kwargs):
-        self._log_with_context("info", message, **kwargs)
-
-    def warning(self, message: str, **kwargs):
-        self._log_with_context("warning", message, **kwargs)
-
-    def error(self, message: str, **kwargs):
-        self._log_with_context("error", message, **kwargs)
-
-    def exception(self, message: str, **kwargs):
-        if STRUCTLOG_AVAILABLE:
-            self.logger.exception(message, **{**self.context, **kwargs})
-        else:
-            context_str = " ".join(f"{k}={v}" for k, v in {**self.context, **kwargs}.items())
-            if context_str:
-                message = f"{message} | {context_str}"
-            self.logger.exception(message)
-
-
-class LoggerMixin:
-    """Mixin class that provides a logger property."""
-
-    _logger_cache = {}
-
-    @property
-    def logger(self) -> logging.Logger:
-        """Get logger for this class."""
-        class_name = self.__class__.__module__ + "." + self.__class__.__name__
-
-        # Cache logger instances
-        if class_name not in self._logger_cache:
-            self._logger_cache[class_name] = get_logger(class_name)
-
-        return self._logger_cache[class_name]
-
-
-def log_function_call(func: Callable) -> Callable:
-    """
-    Decorator that logs function calls with timing information.
-
-    Args:
-        func: Function to decorate
-
-    Returns:
-        Decorated function
-    """
-
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        logger = get_logger(func.__module__)
-        func_name = func.__name__
-
-        # Log function call
-        logger.debug(f"Calling {func_name}")
-
-        start_time = time.time()
-        try:
-            result = func(*args, **kwargs)
-            elapsed = time.time() - start_time
-            logger.debug(f"{func_name} completed in {elapsed:.3f}s")
-            return result
-        except Exception as e:
-            elapsed = time.time() - start_time
-            logger.debug(f"{func_name} failed after {elapsed:.3f}s")
-            raise
-
-    return wrapper
-
-
-def log_gpu_memory(logger: logging.Logger, operation: str) -> None:
-    """
-    Log GPU memory usage for an operation.
-
-    Args:
-        logger: Logger instance to use
-        operation: Description of the operation
-    """
-    if not TORCH_AVAILABLE or not torch.cuda.is_available():
-        # Silent return if CUDA not available
-        return
-
-    # Get memory stats
-    allocated = torch.cuda.memory_allocated() / 1024**3  # Convert to GB
-    reserved = torch.cuda.memory_reserved() / 1024**3
-
-    logger.debug(f"GPU Memory {operation}: {allocated:.2f}GB allocated, {reserved:.2f}GB reserved")

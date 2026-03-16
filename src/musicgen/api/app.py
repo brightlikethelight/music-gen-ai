@@ -5,9 +5,7 @@ This module provides a factory function to create configured FastAPI instances.
 """
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
-from .cors_config import cors_config
 from .rest.app import app as base_app
 
 
@@ -21,6 +19,8 @@ def create_app() -> FastAPI:
     # Return the base app which already has CORS configured
     return base_app
 
+
+__all__ = ["app", "create_app"]
 
 # Export the default app
 app = create_app()

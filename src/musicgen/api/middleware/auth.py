@@ -6,10 +6,11 @@ including JWT token management, role-based access control, and Redis-based
 token blacklisting.
 """
 
+import logging
 import os
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 
 import redis
 from fastapi import Depends, HTTPException, Request, status
@@ -19,6 +20,8 @@ from pydantic import BaseModel, field_validator
 
 from musicgen.infrastructure.security.secrets import get_jwt_secret
 from musicgen.utils.exceptions import AuthenticationError, AuthorizationError
+
+logger = logging.getLogger(__name__)
 
 # Constants - Security critical configuration
 # SECURE: Use centralized secret management with proper validation
@@ -32,7 +35,7 @@ _oauth2_scheme = None
 _bearer_scheme = None
 
 
-def get_oauth2_scheme():
+def get_oauth2_scheme() -> OAuth2PasswordBearer:
     """Get OAuth2 scheme instance, creating it if needed."""
     global _oauth2_scheme
     if _oauth2_scheme is None:
@@ -40,7 +43,7 @@ def get_oauth2_scheme():
     return _oauth2_scheme
 
 
-def get_bearer_scheme():
+def get_bearer_scheme() -> HTTPBearer:
     """Get Bearer scheme instance, creating it if needed."""
     global _bearer_scheme
     if _bearer_scheme is None:
@@ -81,35 +84,35 @@ class UserClaims(BaseModel):
 
     @field_validator("issued_at", "expires_at", mode="before")
     @classmethod
-    def parse_timestamp(cls, v):
+    def parse_timestamp(cls, v: Any) -> datetime:
         """Parse timestamp from int/float to datetime."""
         if isinstance(v, (int, float)):
             return datetime.fromtimestamp(v, tz=timezone.utc)
         elif isinstance(v, datetime):
             return v
-        return v
+        return cast(datetime, v)
 
     @field_validator("roles", mode="before")
     @classmethod
-    def parse_roles(cls, v):
+    def parse_roles(cls, v: Any) -> List["UserRole"]:
         """Parse roles from string/list to List[UserRole]."""
         if isinstance(v, str):
             return [UserRole(v)]
         elif isinstance(v, list):
             return [UserRole(role) if isinstance(role, str) else role for role in v]
-        return v
+        return cast(List["UserRole"], v)
 
 
 class AuthenticationMiddleware:
     """JWT authentication middleware."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.secret_key = JWT_SECRET_KEY
         self.algorithm = JWT_ALGORITHM
 
         # Setup Redis client for token blacklisting (optional)
         # Skip Redis setup in test environment to prevent hangs
-        if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("MUSICGEN_SKIP_AUTH"):
+        if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("MUSICGEN_SKIP_REDIS"):
             self.redis_client = None
         else:
             try:
@@ -123,6 +126,7 @@ class AuthenticationMiddleware:
                 # Test connection with timeout
                 self.redis_client.ping()
             except Exception:
+                logger.warning("Redis connection failed, token blacklisting disabled")
                 self.redis_client = None
 
     def create_access_token(
@@ -163,9 +167,10 @@ class AuthenticationMiddleware:
         }
 
         try:
-            return jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
+            return cast(str, jwt.encode(payload, self.secret_key, algorithm=self.algorithm))
         except Exception as e:
-            raise AuthenticationError(f"Failed to create access token: {str(e)}")
+            logger.error("Failed to create access token: %s", e)
+            raise AuthenticationError("Failed to create access token")
 
     def create_refresh_token(
         self, user_id: str, expires_delta: Optional[Union[int, timedelta]] = None
@@ -189,9 +194,10 @@ class AuthenticationMiddleware:
         }
 
         try:
-            return jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
+            return cast(str, jwt.encode(payload, self.secret_key, algorithm=self.algorithm))
         except Exception as e:
-            raise AuthenticationError(f"Failed to create refresh token: {str(e)}")
+            logger.error("Failed to create refresh token: %s", e)
+            raise AuthenticationError("Failed to create refresh token")
 
     def verify_token(self, token: str) -> UserClaims:
         """Verify a JWT token and return user claims."""
@@ -235,7 +241,8 @@ class AuthenticationMiddleware:
                 raise AuthenticationError("Token has expired")
             raise AuthenticationError("Invalid token")
         except Exception as e:
-            raise AuthenticationError(f"Token verification failed: {str(e)}")
+            logger.error("Token verification failed: %s", e)
+            raise AuthenticationError("Token verification failed")
 
     def _is_token_blacklisted(self, jti: str) -> bool:
         """Check if a token JTI is blacklisted."""
@@ -243,8 +250,9 @@ class AuthenticationMiddleware:
             return False
 
         try:
-            return self.redis_client.exists(f"blacklist:{jti}") == 1
+            return cast(bool, self.redis_client.exists(f"blacklist:{jti}") == 1)
         except Exception:
+            logger.warning("Redis blacklist check failed for JTI %s, failing open", jti)
             return False
 
     def blacklist_token(self, jti: str, expires_at: datetime) -> bool:
@@ -261,7 +269,8 @@ class AuthenticationMiddleware:
             ttl = int((expires_at - now).total_seconds())
             self.redis_client.setex(f"blacklist:{jti}", ttl, "revoked")
             return True
-        except Exception:
+        except Exception as e:
+            logger.warning("Failed to blacklist token: %s", e)
             return False
 
     def refresh_access_token(self, refresh_token: str) -> tuple[str, str]:
@@ -306,7 +315,8 @@ class AuthenticationMiddleware:
             return new_access_token, new_refresh_token
 
         except Exception as e:
-            raise AuthenticationError(f"Token refresh failed: {str(e)}")
+            logger.error("Token refresh failed: %s", e)
+            raise AuthenticationError("Token refresh failed")
 
 
 class RoleChecker:
@@ -354,7 +364,7 @@ class TierChecker:
 auth_middleware = None
 
 
-def get_auth_middleware():
+def get_auth_middleware() -> AuthenticationMiddleware:
     """Get auth middleware instance, creating it if needed."""
     global auth_middleware
     if auth_middleware is None:
@@ -428,7 +438,8 @@ async def refresh_token(token: str) -> Dict:
             "token_type": "bearer",
         }
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+        logger.error("Token refresh failed: %s", e)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token refresh failed")
 
 
 # Role/Permission factory functions

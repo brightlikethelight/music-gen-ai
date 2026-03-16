@@ -3,11 +3,10 @@ Simple web server for MusicGen UI.
 No frameworks, just what we need.
 """
 
-import os
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 # Get static directory
@@ -30,12 +29,12 @@ def create_app() -> FastAPI:
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     # Also mount the API app
-    from ..api.rest.api import app as api_app
+    from ..api.rest.app import app as api_app
 
     app.mount("/api", api_app)
 
     @app.get("/", response_class=HTMLResponse)
-    async def root():
+    async def root() -> Response:
         """Serve main page."""
         index_path = STATIC_DIR / "index.html"
 
@@ -43,7 +42,8 @@ def create_app() -> FastAPI:
             return FileResponse(index_path)
         else:
             # Fallback HTML if static files not found
-            return """
+            return HTMLResponse(
+                """
             <!DOCTYPE html>
             <html>
             <head>
@@ -75,11 +75,12 @@ def create_app() -> FastAPI:
             </body>
             </html>
             """
+            )
 
     return app
 
 
-def run_server(host: str = "127.0.0.1", port: int = 8080):
+def run_server(host: str = "127.0.0.1", port: int = 8080) -> None:
     """Run the web server."""
     import uvicorn
 
@@ -87,7 +88,7 @@ def run_server(host: str = "127.0.0.1", port: int = 8080):
     uvicorn.run(app, host=host, port=port)
 
 
-def main():
+def main() -> None:
     """Main entry point for web server."""
     run_server()
 

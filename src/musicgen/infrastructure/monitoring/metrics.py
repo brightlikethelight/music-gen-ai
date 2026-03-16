@@ -4,8 +4,6 @@ Metrics collection and monitoring utilities.
 Provides Prometheus metrics for monitoring MusicGen performance and usage.
 """
 
-import time
-from functools import wraps
 from typing import Any, Dict
 
 try:
@@ -19,7 +17,16 @@ except ImportError:
 class MetricsCollector:
     """Collects and exposes metrics for monitoring."""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        # Declare metric attributes as Any to support both prometheus and mock paths
+        self.generation_requests: Any
+        self.generation_completed: Any
+        self.generation_failed: Any
+        self.generation_duration: Any
+        self.audio_duration_generated: Any
+        self.active_generations: Any
+        self.model_load_time: Any
+
         if not PROMETHEUS_AVAILABLE:
             self.enabled = False
             self._setup_placeholder_metrics()
@@ -86,10 +93,10 @@ class MetricsCollector:
             registry=self.registry,
         )
 
-    def _setup_placeholder_metrics(self):
+    def _setup_placeholder_metrics(self) -> None:
         """Setup placeholder metrics when prometheus is not available."""
         # Track counts manually when prometheus is not available
-        self._mock_counts = {
+        self._mock_counts: Dict[str, int] = {
             "generation_requests": 0,
             "generation_completed": 0,
             "generation_failed": 0,
@@ -98,31 +105,31 @@ class MetricsCollector:
 
         # Create mock metrics that support the same interface
         class MockMetric:
-            def __init__(self, parent, name=None):
+            def __init__(self, parent: "MetricsCollector", name: str | None = None) -> None:
                 self.parent = parent
                 self.name = name
                 # Create a mock _value object that mimics prometheus Counter structure
                 self._value = MockValue()
 
-            def inc(self):
+            def inc(self) -> None:
                 if self.name and self.name in self.parent._mock_counts:
                     self.parent._mock_counts[self.name] += 1
 
-            def dec(self):
+            def dec(self) -> None:
                 if self.name and self.name in self.parent._mock_counts:
                     self.parent._mock_counts[self.name] = max(
                         0, self.parent._mock_counts[self.name] - 1
                     )
 
-            def labels(self, **kwargs):
+            def labels(self, **kwargs: Any) -> "MockMetric":
                 return self
 
-            def observe(self, value):
+            def observe(self, value: float) -> None:
                 pass
 
         class MockValue:
-            def __init__(self):
-                self._value = 0
+            def __init__(self) -> None:
+                self._value: int = 0
 
         # Setup the same attributes that would be created with prometheus
         self.generation_requests = MockMetric(self, "generation_requests")
@@ -133,7 +140,7 @@ class MetricsCollector:
         self.active_generations = MockMetric(self, "active_generations")
         self.model_load_time = MockMetric(self)
 
-    def record_generation_request(self, model: str, status: str):
+    def record_generation_request(self, model: str, status: str) -> None:
         """Record a generation request."""
         if self.enabled:
             self.generation_requests.labels(model=model, status=status).inc()
@@ -153,17 +160,17 @@ class MetricsCollector:
             elif status == "failed":
                 self._mock_counts["generation_failed"] += 1
 
-    def record_generation_duration(self, model: str, duration: float):
+    def record_generation_duration(self, model: str, duration: float) -> None:
         """Record generation timing."""
         if self.enabled:
             self.generation_duration.labels(model=model).observe(duration)
 
-    def record_audio_duration(self, model: str, duration: float):
+    def record_audio_duration(self, model: str, duration: float) -> None:
         """Record generated audio duration."""
         if self.enabled:
             self.audio_duration_generated.labels(model=model).observe(duration)
 
-    def inc_active_generations(self):
+    def inc_active_generations(self) -> None:
         """Increment active generation counter."""
         if self.enabled:
             self.active_generations.inc()
@@ -171,7 +178,7 @@ class MetricsCollector:
         else:
             self._mock_counts["active_generations"] += 1
 
-    def dec_active_generations(self):
+    def dec_active_generations(self) -> None:
         """Decrement active generation counter."""
         if self.enabled:
             self.active_generations.dec()
@@ -183,7 +190,7 @@ class MetricsCollector:
                 0, self._mock_counts["active_generations"] - 1
             )
 
-    def record_model_load_time(self, model: str, duration: float):
+    def record_model_load_time(self, model: str, duration: float) -> None:
         """Record model loading time."""
         if self.enabled:
             self.model_load_time.labels(model=model).observe(duration)
@@ -215,54 +222,3 @@ class MetricsCollector:
 
 # Global metrics instance
 metrics = MetricsCollector()
-
-
-def track_generation_time(model: str):
-    """Decorator to track generation timing."""
-
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            if not metrics.enabled:
-                return func(*args, **kwargs)
-
-            start_time = time.time()
-            metrics.inc_active_generations()
-
-            try:
-                result = func(*args, **kwargs)
-                metrics.record_generation_request(model, "success")
-                return result
-            except Exception as e:
-                metrics.record_generation_request(model, "error")
-                raise
-            finally:
-                duration = time.time() - start_time
-                metrics.record_generation_duration(model, duration)
-                metrics.dec_active_generations()
-
-        return wrapper
-
-    return decorator
-
-
-def track_model_loading(model: str):
-    """Decorator to track model loading time."""
-
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            if not metrics.enabled:
-                return func(*args, **kwargs)
-
-            start_time = time.time()
-            try:
-                result = func(*args, **kwargs)
-                return result
-            finally:
-                duration = time.time() - start_time
-                metrics.record_model_load_time(model, duration)
-
-        return wrapper
-
-    return decorator

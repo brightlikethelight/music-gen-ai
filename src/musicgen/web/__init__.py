@@ -4,4 +4,4 @@ Web interface for MusicGen.
 Provides a web-based UI for music generation and management.
 """
 
-__all__ = []
+__all__: list[str] = []

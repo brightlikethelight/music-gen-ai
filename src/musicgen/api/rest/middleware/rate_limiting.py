@@ -6,10 +6,10 @@ Simplified implementation for learning purposes - Harvard CS 109B.
 
 import ipaddress
 import logging
+import os
 import time
 from collections import defaultdict, deque
-from datetime import datetime, timedelta
-from typing import Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Set, Tuple
 
 from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
@@ -17,12 +17,18 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger(__name__)
 
+# Only trust proxy headers when the direct connection comes from a known proxy
+_trusted_proxy_ips: Set[str] = set()
+_raw = os.getenv("TRUSTED_PROXY_IPS", "")
+if _raw:
+    _trusted_proxy_ips = {ip.strip() for ip in _raw.split(",") if ip.strip()}
+
 
 class RateLimiter:
     """In-memory rate limiter with sliding window."""
 
-    def __init__(self):
-        self.requests = defaultdict(deque)  # IP -> deque of timestamps
+    def __init__(self) -> None:
+        self.requests: Dict[str, deque[float]] = defaultdict(deque)  # IP -> deque of timestamps
         self.last_cleanup = time.time()
 
         # Rate limits (requests per time window)
@@ -35,7 +41,7 @@ class RateLimiter:
         # Time windows in seconds
         self.windows = {"per_minute": 60, "per_hour": 3600, "per_day": 86400}
 
-    def _cleanup_old_requests(self):
+    def _cleanup_old_requests(self) -> None:
         """Remove expired request timestamps."""
         current_time = time.time()
 
@@ -58,23 +64,23 @@ class RateLimiter:
                 del self.requests[ip]
 
     def _get_client_ip(self, request: Request) -> str:
-        """Extract client IP with proxy support."""
-        # Check for forwarded IP headers (educational example)
-        forwarded_ips = [
-            request.headers.get("X-Forwarded-For"),
-            request.headers.get("X-Real-IP"),
-            request.headers.get("CF-Connecting-IP"),  # Cloudflare
-        ]
-
-        for header_value in forwarded_ips:
-            if header_value:
-                # X-Forwarded-For can contain multiple IPs, take the first
-                ip = header_value.split(",")[0].strip()
-                if self._is_valid_ip(ip):
-                    return ip
-
-        # Fallback to direct connection IP
+        """Extract client IP, only trusting proxy headers from known proxies."""
         client_host = request.client.host if request.client else "127.0.0.1"
+
+        # Only trust forwarded headers when the direct connection is from a trusted proxy
+        if _trusted_proxy_ips and client_host in _trusted_proxy_ips:
+            forwarded_ips = [
+                request.headers.get("X-Forwarded-For"),
+                request.headers.get("X-Real-IP"),
+                request.headers.get("CF-Connecting-IP"),
+            ]
+
+            for header_value in forwarded_ips:
+                if header_value:
+                    ip = header_value.split(",")[-1].strip()
+                    if self._is_valid_ip(ip):
+                        return ip
+
         return client_host
 
     def _is_valid_ip(self, ip: str) -> bool:
@@ -152,16 +158,17 @@ class RateLimiter:
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """FastAPI middleware for rate limiting."""
 
-    def __init__(self, app, rate_limiter: Optional[RateLimiter] = None):
+    def __init__(self, app: Any, rate_limiter: Optional[RateLimiter] = None) -> None:
         super().__init__(app)
         self.rate_limiter = rate_limiter or RateLimiter()
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Any]) -> Response:
         """Process request with rate limiting."""
 
         # Skip rate limiting for health checks and static files
         if request.url.path in ["/health", "/docs", "/openapi.json"]:
-            return await call_next(request)
+            skip_response: Response = await call_next(request)
+            return skip_response
 
         # Check rate limits
         allowed, info = self.rate_limiter.is_allowed(request)
@@ -189,7 +196,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             )
 
         # Process request normally
-        response = await call_next(request)
+        response: Response = await call_next(request)
 
         # Add rate limit headers to successful responses
         if "per_minute" in info:

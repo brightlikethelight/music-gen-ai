@@ -6,7 +6,7 @@ __version__ = "2.0.1"
 
 
 # Lazy imports to avoid heavy ML dependencies at package level
-def __getattr__(name):
+def __getattr__(name: str) -> type:
     """Lazy import for heavy ML dependencies."""
     if name == "MusicGenerator":
         from .core.generator import MusicGenerator
@@ -24,4 +24,4 @@ def __getattr__(name):
         raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
-__all__ = ["MusicGenerator", "BatchProcessor", "PromptEngineer"]
+__all__: list[str] = ["MusicGenerator", "BatchProcessor", "PromptEngineer"]

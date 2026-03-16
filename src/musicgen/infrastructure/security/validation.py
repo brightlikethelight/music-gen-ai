@@ -14,13 +14,8 @@ References:
 import re
 import unicodedata
 from pathlib import Path
-from typing import Optional
 
-
-class ValidationError(ValueError):
-    """Raised when input validation fails."""
-
-    pass
+from musicgen.utils.exceptions import ValidationError
 
 
 def sanitize_filename(filename: str, max_length: int = 255) -> str:

@@ -4,7 +4,7 @@ Simple, practical, no over-engineering.
 """
 
 import random  # nosec B311 - Not used for cryptographic purposes, only for music variations
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 
 class PromptEngineer:
@@ -13,7 +13,7 @@ class PromptEngineer:
     Based on what actually works with MusicGen.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Genre knowledge
         self.genres = {
             "jazz": ["smooth", "bebop", "cool", "swing", "fusion"],
@@ -136,7 +136,7 @@ class PromptEngineer:
         if not has_mood:
             # Pick appropriate mood based on genre
             if "jazz" in prompt or "classical" in prompt:
-                mood = random.choice(["smooth", "peaceful", "mellow"])  # nosec B311
+                mood = random.choice(["peaceful", "mellow", "dreamy"])  # nosec B311
             elif "rock" in prompt or "electronic" in prompt:
                 mood = random.choice(["energetic", "upbeat", "intense"])  # nosec B311
             else:

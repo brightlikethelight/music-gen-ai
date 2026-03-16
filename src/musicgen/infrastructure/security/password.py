@@ -11,6 +11,8 @@ References:
 - CWE-256: Plaintext Storage of a Password
 """
 
+from typing import cast
+
 from passlib.context import CryptContext
 
 # Use bcrypt with automatic salt generation
@@ -37,7 +39,7 @@ def hash_password(password: str) -> str:
         >>> hashed.startswith("$2b$")  # bcrypt prefix
         True
     """
-    return pwd_context.hash(password)
+    return cast(str, pwd_context.hash(password))
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -63,7 +65,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         False
     """
     try:
-        return pwd_context.verify(plain_password, hashed_password)
+        return cast(bool, pwd_context.verify(plain_password, hashed_password))
     except Exception:
         # Invalid hash format or other error - return False safely
         return False
@@ -83,4 +85,4 @@ def needs_rehash(hashed_password: str) -> bool:
     Returns:
         True if the hash should be updated
     """
-    return pwd_context.needs_update(hashed_password)
+    return cast(bool, pwd_context.needs_update(hashed_password))

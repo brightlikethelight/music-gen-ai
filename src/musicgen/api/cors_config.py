@@ -5,14 +5,14 @@ Educational demonstration of Cross-Origin Resource Sharing configuration.
 """
 
 import os
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, Optional, Set
 from urllib.parse import urlparse
 
 
 class CORSConfig:
     """Configuration for CORS (Cross-Origin Resource Sharing)."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize CORS configuration based on environment."""
         self.environment = os.environ.get("ENVIRONMENT", "development")
         self.allowed_origins: Set[str] = set()
@@ -30,7 +30,7 @@ class CORSConfig:
         if self.environment == "staging":
             self._load_staging_dev_origins()
 
-    def _load_environment_defaults(self):
+    def _load_environment_defaults(self) -> None:
         """Load default origins based on environment."""
         if self.environment == "development":
             # Allow localhost origins in development
@@ -63,7 +63,7 @@ class CORSConfig:
                 ]
             )
 
-    def _load_custom_origins(self):
+    def _load_custom_origins(self) -> None:
         """Load custom allowed origins from environment variable."""
         custom_origins = os.environ.get("ALLOWED_ORIGINS", "")
         if custom_origins:
@@ -75,7 +75,7 @@ class CORSConfig:
                         continue
                     self.allowed_origins.add(origin)
 
-    def _load_allowed_domains(self):
+    def _load_allowed_domains(self) -> None:
         """Load allowed domains and generate HTTPS variants."""
         allowed_domains = os.environ.get("ALLOWED_DOMAINS", "")
         if allowed_domains:
@@ -86,7 +86,7 @@ class CORSConfig:
                     self.allowed_origins.add(f"https://{domain}")
                     self.allowed_origins.add(f"https://www.{domain}")
 
-    def _load_staging_dev_origins(self):
+    def _load_staging_dev_origins(self) -> None:
         """Load development origins allowed in staging."""
         staging_dev_origins = os.environ.get("STAGING_DEV_ORIGINS", "")
         if staging_dev_origins:
@@ -143,7 +143,7 @@ class CORSConfig:
         """Validate origin header (alias for is_origin_allowed)."""
         return self.is_origin_allowed(origin)
 
-    def get_cors_options(self) -> Dict[str, any]:
+    def get_cors_options(self) -> Dict[str, Any]:
         """Get CORS middleware options."""
         return {
             "allow_origins": list(self.allowed_origins),
@@ -234,6 +234,6 @@ class CORSConfig:
 cors_config = CORSConfig()
 
 
-def get_cors_config() -> Dict[str, any]:
+def get_cors_config() -> Dict[str, Any]:
     """Get the CORS configuration options for middleware."""
     return cors_config.get_cors_options()

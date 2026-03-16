@@ -4,4 +4,4 @@ Configuration management.
 Handles application settings, environment configuration, and feature flags.
 """
 
-__all__ = []
+__all__: list[str] = []

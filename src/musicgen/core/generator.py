@@ -6,22 +6,22 @@ Clean implementation focused on what works.
 import logging
 import os
 import time
-from typing import TYPE_CHECKING, Callable, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple
 
-# Lazy imports for heavy ML libraries
+# Lazy imports for heavy ML libraries — typed as Any to satisfy mypy
+# while allowing runtime lazy-loading via _ensure_imports().
 if TYPE_CHECKING:
     import numpy as np
     import torch
-    from transformers import AutoProcessor, MusicgenForConditionalGeneration
 else:
-    # These will be imported on first use
-    np = None
-    torch = None
-    AutoProcessor = None
-    MusicgenForConditionalGeneration = None
+    np: Any = None
+    torch: Any = None
+
+AutoProcessor: Any = None
+MusicgenForConditionalGeneration: Any = None
 
 
-def _ensure_imports():
+def _ensure_imports() -> None:
     """Ensure heavy imports are loaded when needed."""
     global np, torch, AutoProcessor, MusicgenForConditionalGeneration
     if np is None:
@@ -32,7 +32,7 @@ def _ensure_imports():
         import torch as torch_lib
 
         torch = torch_lib
-    if AutoProcessor is None:
+    if AutoProcessor is None and not os.environ.get("MUSICGEN_SKIP_MODEL_DOWNLOAD"):
         from transformers import AutoProcessor as AP
         from transformers import MusicgenForConditionalGeneration as MFCG
 
@@ -97,15 +97,15 @@ class MusicGenerator:
         self.model_name = model_name
         self.device = self._setup_device(device)
         self.optimize = optimize and torch.cuda.is_available()
+        self.model: Any = None
+        self.processor: Any = None
 
         # Skip model loading during tests to prevent downloading multi-GB models
         if os.environ.get("MUSICGEN_SKIP_MODEL_DOWNLOAD"):
             logger.info("Skipping model loading for tests")
-            self.model = None
-            self.processor = None
             return
 
-        logger.info(f"Loading {model_name} on {self.device}")
+        logger.info("Loading %s on %s", model_name, self.device)
         self._load_model()
 
         if self.optimize:
@@ -113,7 +113,7 @@ class MusicGenerator:
 
         logger.info("✓ Model ready for generation")
 
-    def _setup_device(self, device: Optional[str]):
+    def _setup_device(self, device: Optional[str]) -> Any:
         """Setup and validate device."""
         if device:
             return torch.device(device)
@@ -126,12 +126,12 @@ class MusicGenerator:
                 for i in range(torch.cuda.device_count()):
                     torch.cuda.set_device(i)
                     free_memory.append(torch.cuda.mem_get_info()[0])
-                gpu_id = np.argmax(free_memory)
+                gpu_id = int(np.argmax(free_memory))
             return torch.device(f"cuda:{gpu_id}")
 
         return torch.device("cpu")
 
-    def _load_model(self):
+    def _load_model(self) -> None:
         """Load model with error handling and progress indication."""
         try:
             if RICH_AVAILABLE and console:
@@ -146,7 +146,7 @@ class MusicGenerator:
                         f"Loading processor for {self.model_name}...", total=None
                     )
                     self.processor = AutoProcessor.from_pretrained(self.model_name)
-                    progress.update(task, description=f"✓ Processor loaded")
+                    progress.update(task, description="✓ Processor loaded")
 
                     # Load model
                     task = progress.add_task(
@@ -156,7 +156,7 @@ class MusicGenerator:
                         self.model_name,
                         torch_dtype=torch.float16 if self.optimize else torch.float32,
                     )
-                    progress.update(task, description=f"✓ Model loaded")
+                    progress.update(task, description="✓ Model loaded")
 
                     # Move to device
                     task = progress.add_task(f"Moving model to {self.device}...", total=None)
@@ -164,22 +164,22 @@ class MusicGenerator:
                     progress.update(task, description=f"✓ Model ready on {self.device}")
             else:
                 # Fallback to simple logging
-                logger.info(f"Loading processor for {self.model_name}...")
+                logger.info("Loading processor for %s...", self.model_name)
                 self.processor = AutoProcessor.from_pretrained(self.model_name)
 
-                logger.info(f"Loading model {self.model_name} (this may take a while)...")
+                logger.info("Loading model %s (this may take a while)...", self.model_name)
                 self.model = MusicgenForConditionalGeneration.from_pretrained(
                     self.model_name, torch_dtype=torch.float16 if self.optimize else torch.float32
                 )
 
-                logger.info(f"Moving model to {self.device}...")
+                logger.info("Moving model to %s...", self.device)
                 self.model.to(self.device)
 
         except Exception as e:
-            logger.error(f"Failed to load model: {e}")
+            logger.error("Failed to load model: %s", e)
             raise RuntimeError(f"Model loading failed: {e}")
 
-    def _apply_optimizations(self):
+    def _apply_optimizations(self) -> None:
         """Apply GPU optimizations for faster generation."""
         logger.info("Applying GPU optimizations...")
 
@@ -198,7 +198,7 @@ class MusicGenerator:
                 self.model = torch.compile(self.model, mode="reduce-overhead", fullgraph=True)
                 logger.info("✓ Model compiled with torch.compile")
             except Exception as e:
-                logger.warning(f"Compilation failed, continuing without: {e}")
+                logger.warning("Compilation failed, continuing without: %s", e)
 
         # Enable flash attention if available
         if hasattr(self.model.config, "use_flash_attention_2"):
@@ -235,7 +235,7 @@ class MusicGenerator:
             return np.random.randn(int(duration * 32000)).astype(np.float32), 32000
 
         if duration > 30:
-            logger.info(f"Duration {duration}s > 30s, using extended generation")
+            logger.info("Duration %ss > 30s, using extended generation", duration)
             return self.generate_extended(
                 prompt, duration, temperature, guidance_scale, progress_callback
             )
@@ -281,7 +281,7 @@ class MusicGenerator:
         # Log performance
         gen_time = time.time() - start_time
         speed = duration / gen_time
-        logger.info(f"✓ Generated {duration:.1f}s in {gen_time:.1f}s ({speed:.1f}x realtime)")
+        logger.info("✓ Generated %.1fs in %.1fs (%.1fx realtime)", duration, gen_time, speed)
 
         if progress_callback:
             progress_callback(100, "Complete!")
@@ -316,7 +316,7 @@ class MusicGenerator:
         segments = []
         num_segments = int(np.ceil(duration / (segment_duration - overlap)))
 
-        logger.info(f"Extended generation: {num_segments} segments for {duration}s")
+        logger.info("Extended generation: %s segments for %ss", num_segments, duration)
 
         for i in range(num_segments):
             if progress_callback:
@@ -352,7 +352,7 @@ class MusicGenerator:
 
         return final_audio, sr
 
-    def _blend_segments(self, segments: list, sample_rate: int, overlap_seconds: float):
+    def _blend_segments(self, segments: list, sample_rate: int, overlap_seconds: float) -> Any:
         """Blend audio segments with crossfade."""
         if len(segments) == 1:
             return segments[0]
@@ -385,7 +385,7 @@ class MusicGenerator:
 
         return result
 
-    def save_audio(self, audio, sample_rate: int, filename: str, format: str = "auto") -> str:
+    def save_audio(self, audio: Any, sample_rate: int, filename: str, format: str = "auto") -> str:
         """
         Save audio to file with format detection.
 
@@ -420,21 +420,21 @@ class MusicGenerator:
                 audio_segment = AudioSegment.from_wav(temp_wav)
                 audio_segment.export(output_path, format="mp3", bitrate="192k")
                 os.remove(temp_wav)
-                logger.info(f"✓ Saved as MP3: {output_path}")
+                logger.info("✓ Saved as MP3: %s", output_path)
             except Exception as e:
-                logger.warning(f"MP3 conversion failed: {e}")
+                logger.warning("MP3 conversion failed: %s", e)
                 output_path = f"{base}.wav"
                 os.rename(temp_wav, output_path)
-                logger.info(f"✓ Saved as WAV instead: {output_path}")
+                logger.info("✓ Saved as WAV instead: %s", output_path)
         else:
             # Save as WAV
             output_path = f"{base}.wav"
             self._save_wav(audio, sample_rate, output_path)
-            logger.info(f"✓ Saved as WAV: {output_path}")
+            logger.info("✓ Saved as WAV: %s", output_path)
 
         return output_path
 
-    def _save_wav(self, audio, sample_rate: int, filename: str):
+    def _save_wav(self, audio: Any, sample_rate: int, filename: str) -> None:
         """Save audio as WAV file."""
         if SOUNDFILE_AVAILABLE:
             sf.write(filename, audio, sample_rate, subtype="PCM_16")
@@ -445,21 +445,20 @@ class MusicGenerator:
 
     def get_info(self) -> dict:
         """Get model and system information."""
-        # Skip during tests
         if os.environ.get("MUSICGEN_SKIP_MODEL_DOWNLOAD"):
-            return {
+            info = {
                 "model": self.model_name,
                 "device": str(self.device),
                 "optimized": self.optimize,
                 "sample_rate": 32000,
             }
-
-        info = {
-            "model": self.model_name,
-            "device": str(self.device),
-            "optimized": self.optimize,
-            "sample_rate": self.model.config.audio_encoder.sampling_rate,
-        }
+        else:
+            info = {
+                "model": self.model_name,
+                "device": str(self.device),
+                "optimized": self.optimize,
+                "sample_rate": self.model.config.audio_encoder.sampling_rate,
+            }
 
         if torch.cuda.is_available():
             info["gpu"] = torch.cuda.get_device_name()
@@ -493,30 +492,3 @@ class MusicGenerator:
                 torch.cuda.empty_cache()
 
         return info
-
-
-# Convenience function
-def quick_generate(
-    prompt: str, output_file: str = "output.mp3", duration: float = 30.0, model: str = "small"
-) -> str:
-    """
-    Quick generation helper.
-
-    Args:
-        prompt: Music description
-        output_file: Output filename
-        duration: Duration in seconds
-        model: Model size (small, medium, large)
-
-    Returns:
-        Path to generated file
-    """
-    model_map = {
-        "small": "facebook/musicgen-small",
-        "medium": "facebook/musicgen-medium",
-        "large": "facebook/musicgen-large",
-    }
-
-    generator = MusicGenerator(model_map.get(model, model))
-    audio, sr = generator.generate(prompt, duration)
-    return generator.save_audio(audio, sr, output_file)

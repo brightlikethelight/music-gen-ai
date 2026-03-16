@@ -42,7 +42,7 @@ def generate(
     yes: bool = typer.Option(
         False, "--yes", "-y", help="Answer yes to all prompts (non-interactive mode)"
     ),
-):
+) -> None:
     """Generate music from text description."""
 
     # Validate duration
@@ -71,7 +71,7 @@ def generate(
 
         # Show info
         info = generator.get_info()
-        rprint(f"[green]✓ Model loaded[/green]")
+        rprint("[green]✓ Model loaded[/green]")
         rprint(f"  Device: {info['device']}")
         if "gpu" in info:
             rprint(f"  GPU: {info['gpu']}")
@@ -102,7 +102,7 @@ def generate(
         ) as progress:
             task = progress.add_task("Generating...", total=100)
 
-            def progress_callback(percent, message):
+            def progress_callback(percent: float, message: str) -> None:
                 progress.update(task, completed=percent, description=message)
 
             start_time = time.time()
@@ -116,7 +116,7 @@ def generate(
 
         # Show results
         file_size = os.path.getsize(output_path) / (1024 * 1024)  # MB
-        rprint(f"\n[green]✅ Success![/green]")
+        rprint("\n[green]✅ Success![/green]")
         rprint(f"  Output: {output_path} ({file_size:.1f} MB)")
         rprint(f"  Duration: {duration}s")
         rprint(f"  Time: {gen_time:.1f}s ({duration/gen_time:.1f}x realtime)")
@@ -137,7 +137,7 @@ def batch(
     model: str = typer.Option("small", "-m", "--model", help="Model size"),
     device: Optional[str] = typer.Option(None, "--device", help="Device (cuda/cpu)"),
     results: str = typer.Option("results.json", "-r", "--results", help="Results file"),
-):
+) -> None:
     """Process multiple generations from CSV file."""
 
     model_map = {
@@ -174,7 +174,7 @@ def batch(
         ) as progress:
             task = progress.add_task("Processing...", total=len(jobs))
 
-            def progress_callback(current, total, message):
+            def progress_callback(current: int, total: int, message: str) -> None:
                 progress.update(task, completed=current, description=message)
 
             start_time = time.time()
@@ -207,7 +207,7 @@ def prompt(
     examples: bool = typer.Option(False, "-e", "--examples", help="Show examples"),
     validate: bool = typer.Option(False, "-v", "--validate", help="Validate prompt"),
     variations: int = typer.Option(0, "--variations", help="Generate variations"),
-):
+) -> None:
     """Improve prompts for better results."""
 
     engineer = PromptEngineer()
@@ -240,7 +240,7 @@ def prompt(
 
     # Variations
     if variations > 0:
-        rprint(f"\n[cyan]Variations:[/cyan]")
+        rprint("\n[cyan]Variations:[/cyan]")
         for var in engineer.suggest_variations(improved, variations):
             rprint(f"  • {var}")
 
@@ -251,7 +251,7 @@ def serve(
     host: str = typer.Option(
         "127.0.0.1", "-h", "--host", help="Host to bind to (use 0.0.0.0 for all interfaces)"
     ),
-):
+) -> None:
     """Start web interface."""
 
     rprint(f"[yellow]Starting web server on http://{host}:{port}[/yellow]")
@@ -278,7 +278,7 @@ def api(
         "127.0.0.1", "-h", "--host", help="Host to bind to (use 0.0.0.0 for all interfaces)"
     ),
     workers: int = typer.Option(1, "-w", "--workers", help="Number of workers"),
-):
+) -> None:
     """Start REST API server."""
 
     rprint(f"[yellow]Starting API server on http://{host}:{port}[/yellow]")
@@ -299,7 +299,7 @@ def api(
 
 
 @app.command()
-def info():
+def info() -> None:
     """Show system information."""
 
     table = Table(title="MusicGen Unified - System Info")
@@ -334,7 +334,7 @@ def info():
 
 
 @app.command("create-sample-csv")
-def create_sample():
+def create_sample() -> None:
     """Create sample CSV for batch processing."""
 
     filename = "sample_batch.csv"
@@ -344,7 +344,7 @@ def create_sample():
     rprint(f"\nTo process: [cyan]musicgen batch {filename}[/cyan]")
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     app()
 
