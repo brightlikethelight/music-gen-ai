@@ -1,6 +1,5 @@
-# ⚠️ ACADEMIC PROJECT - EDUCATIONAL EXAMPLE ONLY
-# This Docker Compose configuration is part of Harvard CS 109B coursework
-# NOT tested for production use - FOR LEARNING PURPOSES ONLY
+# Academic project — educational example only
+# Docker Compose for local development (Harvard CS 109B)
 
 version: '3.8'
 
@@ -22,6 +21,7 @@ services:
       - DEVICE=cpu
       - MAX_DURATION=300
       - OUTPUT_DIR=/app/outputs
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-only-change-in-production-32chars}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -31,7 +31,7 @@ services:
       start_period: 40s
 
   nginx:
-    image: nginx:alpine
+    image: nginx:1.25-alpine
     ports:
       - "80:80"
     volumes:
@@ -42,21 +42,21 @@ services:
     restart: unless-stopped
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.51.0
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     depends_on:
       - musicgen-api
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:10.4.0
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?Set GRAFANA_PASSWORD}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
     volumes:
       - grafana-storage:/var/lib/grafana
     depends_on:

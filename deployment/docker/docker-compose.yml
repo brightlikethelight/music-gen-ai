@@ -9,13 +9,15 @@ services:
       - "8000:8000"
     environment:
       - MUSICGEN_ENV=production
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD}@redis:6379/0
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?Set JWT_SECRET_KEY}
       - PROMETHEUS_PORT=9090
     depends_on:
-      - redis
-      - prometheus
+      redis:
+        condition: service_healthy
+      prometheus:
+        condition: service_started
     volumes:
-      - ./configs:/app/configs:ro
       - musicgen-models:/app/models
     restart: unless-stopped
     healthcheck:
@@ -31,36 +33,35 @@ services:
       dockerfile: deployment/docker/Dockerfile.worker
     environment:
       - MUSICGEN_ENV=production
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     volumes:
-      - ./configs:/app/configs:ro
       - musicgen-models:/app/models
     restart: unless-stopped
     deploy:
       replicas: 2
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.2-alpine
     command: redis-server --requirepass ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
-    ports:
-      - "6379:6379"
+    # No ports exposed — only accessible within the Docker network
     volumes:
       - redis-data:/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$REDIS_PASSWORD redis-cli ping"]
       interval: 30s
       timeout: 10s
       retries: 3
 
   prometheus:
-    image: prom/prometheus:latest
-    ports:
-      - "9090:9090"
+    image: prom/prometheus:v2.51.0
+    # No ports exposed — only accessible within the Docker network
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../../configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -71,14 +72,13 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:10.4.0
     ports:
       - "3000:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?Set GRAFANA_PASSWORD}
     volumes:
       - grafana-data:/var/lib/grafana
-      - ./monitoring/grafana/:/etc/grafana/provisioning/
     depends_on:
       - prometheus
     restart: unless-stopped
