@@ -13,8 +13,9 @@ except ImportError:
     API_AVAILABLE = False
     app = None
 
+pytestmark = pytest.mark.unit
 
-@pytest.mark.unit
+
 @pytest.mark.skipif(not API_AVAILABLE, reason="API dependencies not available")
 class TestStreamingApi:
     """Test cases for streaming API endpoints."""

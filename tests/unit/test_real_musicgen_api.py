@@ -15,8 +15,9 @@ except ImportError:
     GenerationRequest = None
     GenerationResponse = None
 
+pytestmark = pytest.mark.unit
 
-@pytest.mark.unit
+
 @pytest.mark.skipif(not API_AVAILABLE, reason="API dependencies not available")
 class TestGenerationApi:
     """Test cases for generation API endpoints."""

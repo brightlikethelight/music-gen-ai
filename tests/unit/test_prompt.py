@@ -4,6 +4,8 @@ import pytest
 
 from musicgen.core.prompt import PromptEngineer
 
+pytestmark = pytest.mark.unit
+
 
 class TestPromptEngineer:
     """Test PromptEngineer functionality."""

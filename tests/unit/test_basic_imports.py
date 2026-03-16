@@ -6,6 +6,8 @@ These tests provide quick coverage wins by testing basic imports and module attr
 
 import pytest
 
+pytestmark = pytest.mark.unit
+
 
 class TestBasicImports:
     """Test basic module imports and structure."""

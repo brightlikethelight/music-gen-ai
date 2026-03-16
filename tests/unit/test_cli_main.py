@@ -12,6 +12,8 @@ from typer.testing import CliRunner
 
 from musicgen.cli.main import app
 
+pytestmark = pytest.mark.unit
+
 
 class TestCLI:
     """Test CLI commands."""

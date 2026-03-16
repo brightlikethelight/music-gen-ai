@@ -2,7 +2,11 @@
 
 from unittest.mock import patch
 
+import pytest
+
 from musicgen.infrastructure.monitoring.metrics import MetricsCollector
+
+pytestmark = pytest.mark.unit
 
 
 class TestMetricsCollector:

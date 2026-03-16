@@ -15,6 +15,8 @@ try:
 except ImportError:
     RATE_LIMITING_AVAILABLE = False
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.mark.skipif(not RATE_LIMITING_AVAILABLE, reason="Rate limiting not available")
 class TestRateLimiter:

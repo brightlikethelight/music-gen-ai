@@ -7,6 +7,8 @@ Covers audit event logging, client info extraction, and convenience loggers.
 import logging
 from unittest.mock import MagicMock
 
+import pytest
+
 from musicgen.infrastructure.security.audit import (
     AuditEvent,
     AuditRecord,
@@ -16,6 +18,8 @@ from musicgen.infrastructure.security.audit import (
     log_login_attempt,
     log_registration,
 )
+
+pytestmark = pytest.mark.unit
 
 
 class TestAuditRecord:

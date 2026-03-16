@@ -11,6 +11,7 @@ import wave
 from contextlib import asynccontextmanager
 
 import numpy as np
+import pytest
 from fastapi import BackgroundTasks, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -21,6 +22,8 @@ from musicgen.infrastructure.monitoring.logging import setup_logging
 
 # Setup logging
 setup_logging()
+
+pytestmark = pytest.mark.unit
 
 
 class GenerationRequest(BaseModel):

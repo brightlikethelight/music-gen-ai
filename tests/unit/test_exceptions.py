@@ -17,6 +17,8 @@ from musicgen.utils.exceptions import (
     ValidationError,
 )
 
+pytestmark = pytest.mark.unit
+
 
 class TestExceptions:
     """Test custom exception classes."""

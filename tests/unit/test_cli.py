@@ -28,8 +28,9 @@ except ImportError:
 
     app = MockApp()
 
+pytestmark = pytest.mark.unit
 
-@pytest.mark.unit
+
 @pytest.mark.skipif(not CLI_AVAILABLE, reason="CLI modules not available")
 class TestCLI:
     """Test CLI interface functionality."""

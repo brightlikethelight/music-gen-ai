@@ -48,6 +48,8 @@ except ImportError:
     UserRole = None
     TokenType = None
 
+pytestmark = pytest.mark.integration
+
 
 def _create_mock_user_claims(user_id: str, email: str, username: str) -> "UserClaims":
     """Create a mock UserClaims object for testing."""

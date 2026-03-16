@@ -11,6 +11,8 @@ import torch
 
 from musicgen.core.generator import MusicGenerator
 
+pytestmark = pytest.mark.unit
+
 
 class TestMusicGeneratorSkipMode:
     """Tests with MUSICGEN_SKIP_MODEL_DOWNLOAD set (no real model loading)."""

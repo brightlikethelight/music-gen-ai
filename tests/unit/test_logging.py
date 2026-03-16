@@ -5,10 +5,14 @@ Tests for musicgen.utils.logging module
 import logging
 from unittest.mock import patch
 
+import pytest
+
 from musicgen.infrastructure.monitoring.logging import (
     get_logger,
     setup_logging,
 )
+
+pytestmark = pytest.mark.unit
 
 
 class TestLoggingSetup:

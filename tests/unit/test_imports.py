@@ -2,11 +2,15 @@
 
 import os
 
+import pytest
+
 # Set required environment variables for auth module
 os.environ["JWT_SECRET_KEY"] = "test-key"
 os.environ["PYTEST_CURRENT_TEST"] = "1"
 os.environ["MUSICGEN_SKIP_REDIS"] = "1"
 os.environ["MUSICGEN_SKIP_MODEL_DOWNLOAD"] = "1"
+
+pytestmark = pytest.mark.unit
 
 
 class TestImports:

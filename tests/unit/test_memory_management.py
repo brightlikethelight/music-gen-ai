@@ -7,6 +7,8 @@ import pytest
 
 from musicgen.core.generator import MusicGenerator
 
+pytestmark = pytest.mark.unit
+
 
 class TestMemoryManagement:
     """Test memory management in generators."""

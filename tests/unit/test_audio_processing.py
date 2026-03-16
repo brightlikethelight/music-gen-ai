@@ -12,6 +12,8 @@ import numpy as np
 import pytest
 import torch
 
+pytestmark = pytest.mark.unit
+
 # Import audio processing modules - handle missing dependencies gracefully
 try:
     from musicgen.utils.audio import (
@@ -216,36 +218,36 @@ class TestAudioNormalizer:
         return AudioNormalizer()
 
     @pytest.fixture
-    def test_audio(self):
+    def audio_sample(self):
         """Create test audio with known characteristics."""
         # Audio with peak at 0.5
         audio = torch.randn(1, 24000) * 0.3
         audio[0, 1000] = 0.5  # Set peak
         return audio
 
-    def test_peak_normalization(self, normalizer, test_audio):
+    def test_peak_normalization(self, normalizer, audio_sample):
         """Test peak normalization."""
-        normalized = normalizer.normalize_peak(test_audio, target_peak=1.0)
+        normalized = normalizer.normalize_peak(audio_sample, target_peak=1.0)
 
         # Peak should be exactly 1.0
         assert torch.abs(normalized.abs().max() - 1.0) < 1e-6
 
-    def test_rms_normalization(self, normalizer, test_audio):
+    def test_rms_normalization(self, normalizer, audio_sample):
         """Test RMS normalization."""
-        normalized = normalizer.normalize_rms(test_audio, target_rms=0.5)
+        normalized = normalizer.normalize_rms(audio_sample, target_rms=0.5)
 
         # RMS should be approximately 0.5
         rms = torch.sqrt(torch.mean(normalized**2))
         assert torch.abs(rms - 0.5) < 0.01
 
-    def test_lufs_normalization(self, normalizer, test_audio):
+    def test_lufs_normalization(self, normalizer, audio_sample):
         """Test LUFS normalization."""
         # Mock LUFS calculation for testing
         with patch.object(normalizer, "_calculate_lufs", return_value=-20.0):
-            normalized = normalizer.normalize_lufs(test_audio, target_lufs=-14.0)
+            normalized = normalizer.normalize_lufs(audio_sample, target_lufs=-14.0)
 
             assert isinstance(normalized, torch.Tensor)
-            assert normalized.shape == test_audio.shape
+            assert normalized.shape == audio_sample.shape
 
     def test_normalize_batch(self, normalizer):
         """Test batch normalization."""
@@ -259,24 +261,24 @@ class TestAudioNormalizer:
             peak = normalized[i].abs().max()
             assert torch.abs(peak - 1.0) < 0.01
 
-    def test_normalization_methods(self, normalizer, test_audio):
+    def test_normalization_methods(self, normalizer, audio_sample):
         """Test different normalization methods."""
         methods = ["peak", "rms", "lufs"]
 
         for method in methods:
             if method == "lufs":
                 with patch.object(normalizer, "_calculate_lufs", return_value=-20.0):
-                    normalized = normalizer.normalize(test_audio, method=method)
+                    normalized = normalizer.normalize(audio_sample, method=method)
             else:
-                normalized = normalizer.normalize(test_audio, method=method)
+                normalized = normalizer.normalize(audio_sample, method=method)
 
             assert isinstance(normalized, torch.Tensor)
-            assert normalized.shape == test_audio.shape
+            assert normalized.shape == audio_sample.shape
 
-    def test_invalid_normalization_method(self, normalizer, test_audio):
+    def test_invalid_normalization_method(self, normalizer, audio_sample):
         """Test invalid normalization method."""
         with pytest.raises(ValueError, match="Unknown normalization method"):
-            normalizer.normalize(test_audio, method="invalid_method")
+            normalizer.normalize(audio_sample, method="invalid_method")
 
     def test_normalize_silent_audio(self, normalizer):
         """Test normalizing silent audio."""
@@ -298,31 +300,31 @@ class TestAudioEffects:
         return AudioEffects(sample_rate=24000)
 
     @pytest.fixture
-    def test_audio(self):
+    def audio_sample(self):
         """Create test audio."""
         return torch.randn(1, 24000) * 0.5
 
-    def test_apply_reverb(self, effects, test_audio):
+    def test_apply_reverb(self, effects, audio_sample):
         """Test reverb effect."""
-        reverb_audio = effects.apply_reverb(test_audio, room_size=0.8, damping=0.5, wet_level=0.3)
+        reverb_audio = effects.apply_reverb(audio_sample, room_size=0.8, damping=0.5, wet_level=0.3)
 
-        assert reverb_audio.shape == test_audio.shape
+        assert reverb_audio.shape == audio_sample.shape
         # Reverb should change the audio
-        assert not torch.equal(reverb_audio, test_audio)
+        assert not torch.equal(reverb_audio, audio_sample)
 
-    def test_apply_compression(self, effects, test_audio):
+    def test_apply_compression(self, effects, audio_sample):
         """Test dynamic compression."""
         compressed = effects.apply_compression(
-            test_audio, threshold=-10.0, ratio=4.0, attack_ms=5.0, release_ms=50.0  # dB
+            audio_sample, threshold=-10.0, ratio=4.0, attack_ms=5.0, release_ms=50.0  # dB
         )
 
-        assert compressed.shape == test_audio.shape
+        assert compressed.shape == audio_sample.shape
         # Compression should reduce dynamic range
-        original_range = test_audio.max() - test_audio.min()
+        original_range = audio_sample.max() - audio_sample.min()
         compressed_range = compressed.max() - compressed.min()
         assert compressed_range <= original_range
 
-    def test_apply_eq(self, effects, test_audio):
+    def test_apply_eq(self, effects, audio_sample):
         """Test equalizer effect."""
         eq_bands = [
             {"freq": 100, "gain": 3.0, "q": 1.0},  # Bass boost
@@ -330,35 +332,35 @@ class TestAudioEffects:
             {"freq": 8000, "gain": 1.5, "q": 1.5},  # Treble boost
         ]
 
-        eq_audio = effects.apply_eq(test_audio, eq_bands)
+        eq_audio = effects.apply_eq(audio_sample, eq_bands)
 
-        assert eq_audio.shape == test_audio.shape
-        assert not torch.equal(eq_audio, test_audio)
+        assert eq_audio.shape == audio_sample.shape
+        assert not torch.equal(eq_audio, audio_sample)
 
-    def test_apply_distortion(self, effects, test_audio):
+    def test_apply_distortion(self, effects, audio_sample):
         """Test distortion effect."""
-        distorted = effects.apply_distortion(test_audio, drive=0.7, tone=0.5)
+        distorted = effects.apply_distortion(audio_sample, drive=0.7, tone=0.5)
 
-        assert distorted.shape == test_audio.shape
+        assert distorted.shape == audio_sample.shape
         # Distortion should clip peaks
         assert distorted.abs().max() <= 1.0
 
-    def test_apply_delay(self, effects, test_audio):
+    def test_apply_delay(self, effects, audio_sample):
         """Test delay effect."""
-        delayed = effects.apply_delay(test_audio, delay_ms=250, feedback=0.4, wet_level=0.3)
+        delayed = effects.apply_delay(audio_sample, delay_ms=250, feedback=0.4, wet_level=0.3)
 
-        assert delayed.shape[0] == test_audio.shape[0]  # Same channels
+        assert delayed.shape[0] == audio_sample.shape[0]  # Same channels
         # Delay might change length slightly
-        assert abs(delayed.shape[1] - test_audio.shape[1]) < 1000
+        assert abs(delayed.shape[1] - audio_sample.shape[1]) < 1000
 
-    def test_apply_chorus(self, effects, test_audio):
+    def test_apply_chorus(self, effects, audio_sample):
         """Test chorus effect."""
-        chorus_audio = effects.apply_chorus(test_audio, rate=1.5, depth=0.3, voices=3)
+        chorus_audio = effects.apply_chorus(audio_sample, rate=1.5, depth=0.3, voices=3)
 
-        assert chorus_audio.shape == test_audio.shape
-        assert not torch.equal(chorus_audio, test_audio)
+        assert chorus_audio.shape == audio_sample.shape
+        assert not torch.equal(chorus_audio, audio_sample)
 
-    def test_effect_chain(self, effects, test_audio):
+    def test_effect_chain(self, effects, audio_sample):
         """Test applying multiple effects in chain."""
         effect_chain = [
             {"type": "compression", "params": {"threshold": -15.0, "ratio": 3.0}},
@@ -366,15 +368,15 @@ class TestAudioEffects:
             {"type": "reverb", "params": {"room_size": 0.6, "wet_level": 0.2}},
         ]
 
-        processed = effects.apply_effect_chain(test_audio, effect_chain)
+        processed = effects.apply_effect_chain(audio_sample, effect_chain)
 
-        assert processed.shape == test_audio.shape
-        assert not torch.equal(processed, test_audio)
+        assert processed.shape == audio_sample.shape
+        assert not torch.equal(processed, audio_sample)
 
-    def test_invalid_effect_type(self, effects, test_audio):
+    def test_invalid_effect_type(self, effects, audio_sample):
         """Test invalid effect type."""
         with pytest.raises(ValueError, match="Unknown effect type"):
-            effects.apply_effect(test_audio, "invalid_effect", {})
+            effects.apply_effect(audio_sample, "invalid_effect", {})
 
 
 @pytest.mark.unit

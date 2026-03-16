@@ -31,6 +31,8 @@ from musicgen.infrastructure.security.validation import (
     validate_username,
 )
 
+pytestmark = pytest.mark.unit
+
 # --- password.py tests ---
 
 

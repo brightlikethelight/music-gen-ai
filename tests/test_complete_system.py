@@ -108,8 +108,8 @@ class APITestClient:
 
 
 @pytest.fixture
-async def test_client():
-    """Fixture providing test client"""
+async def api_client():
+    """Fixture providing test client."""
     async with APITestClient() as client:
         yield client
 
@@ -118,18 +118,18 @@ async def test_client():
 class TestSystemHealth:
     """Test system health and connectivity"""
 
-    async def test_api_gateway_health(self, test_client):
+    async def test_api_gateway_health(self, api_client):
         """Test API gateway health endpoint"""
-        response = await test_client.client.get(f"{test_client.base_url}/health")
+        response = await api_client.client.get(f"{api_client.base_url}/health")
         assert response.status_code == 200
 
         data = response.json()
         assert data["status"] == "healthy"
         assert data["service"] == "api-gateway"
 
-    async def test_services_health(self, test_client):
+    async def test_services_health(self, api_client):
         """Test all microservices health"""
-        response = await test_client.client.get(f"{test_client.base_url}/health/services")
+        response = await api_client.client.get(f"{api_client.base_url}/health/services")
         assert response.status_code == 200
 
         data = response.json()
@@ -147,9 +147,9 @@ class TestSystemHealth:
         for service in expected_services:
             assert service in data["services"]
 
-    async def test_service_connectivity(self, test_client):
+    async def test_service_connectivity(self, api_client):
         """Test that all services are reachable"""
-        health_response = await test_client.client.get(f"{test_client.base_url}/health/services")
+        health_response = await api_client.client.get(f"{api_client.base_url}/health/services")
         health_data = health_response.json()
 
         healthy_services = 0
@@ -168,13 +168,13 @@ class TestSystemHealth:
 class TestUserManagement:
     """Test user management functionality"""
 
-    async def test_user_registration(self, test_client):
+    async def test_user_registration(self, api_client):
         """Test user registration flow"""
         username = f"{TEST_USER_PREFIX}_reg"
         email = f"{username}@example.com"
         password = "testpass123"
 
-        result = await test_client.register_user(username, email, password)
+        result = await api_client.register_user(username, email, password)
 
         assert "access_token" in result
         assert "user" in result
@@ -182,31 +182,31 @@ class TestUserManagement:
         assert result["user"]["email"] == email
         assert result["user"]["tier"] == "free"
 
-    async def test_user_login(self, test_client):
+    async def test_user_login(self, api_client):
         """Test user login flow"""
         username = f"{TEST_USER_PREFIX}_login"
         email = f"{username}@example.com"
         password = "testpass123"
 
         # Register first
-        await test_client.register_user(username, email, password)
+        await api_client.register_user(username, email, password)
 
         # Clear token and login
-        test_client.token = None
-        result = await test_client.login_user(email, password)
+        api_client.token = None
+        result = await api_client.login_user(email, password)
 
         assert "access_token" in result
         assert result["user"]["username"] == username
 
-    async def test_user_profile(self, test_client):
+    async def test_user_profile(self, api_client):
         """Test user profile retrieval"""
         username = f"{TEST_USER_PREFIX}_profile"
         email = f"{username}@example.com"
 
-        await test_client.register_user(username, email, "testpass123")
+        await api_client.register_user(username, email, "testpass123")
 
-        headers = {"Authorization": f"Bearer {test_client.token}"}
-        response = await test_client.client.get(f"{test_client.base_url}/auth/me", headers=headers)
+        headers = {"Authorization": f"Bearer {api_client.token}"}
+        response = await api_client.client.get(f"{api_client.base_url}/auth/me", headers=headers)
 
         assert response.status_code == 200
         profile = response.json()
@@ -221,30 +221,30 @@ class TestUserManagement:
 class TestMusicGeneration:
     """Test music generation functionality"""
 
-    async def test_simple_generation(self, test_client):
+    async def test_simple_generation(self, api_client):
         """Test basic music generation"""
         username = f"{TEST_USER_PREFIX}_gen"
         email = f"{username}@example.com"
 
-        await test_client.register_user(username, email, "testpass123")
+        await api_client.register_user(username, email, "testpass123")
 
         # Generate music
-        job = await test_client.generate_music("Simple test melody", duration=5.0)
+        job = await api_client.generate_music("Simple test melody", duration=5.0)
 
         assert "job_id" in job
         assert job["status"] in ["queued", "processing"]
 
         # Check job status
-        job_status = await test_client.get_job_status(job["job_id"])
+        job_status = await api_client.get_job_status(job["job_id"])
         assert "status" in job_status
         assert "progress" in job_status
 
-    async def test_generation_with_options(self, test_client):
+    async def test_generation_with_options(self, api_client):
         """Test music generation with advanced options"""
         username = f"{TEST_USER_PREFIX}_gen_opts"
         email = f"{username}@example.com"
 
-        await test_client.register_user(username, email, "testpass123")
+        await api_client.register_user(username, email, "testpass123")
 
         # Generate with options
         data = {
@@ -255,21 +255,21 @@ class TestMusicGeneration:
             "instruments": ["piano", "saxophone"],
         }
 
-        headers = {"Authorization": f"Bearer {test_client.token}"}
-        response = await test_client.client.post(
-            f"{test_client.base_url}/generate", json=data, headers=headers
+        headers = {"Authorization": f"Bearer {api_client.token}"}
+        response = await api_client.client.post(
+            f"{api_client.base_url}/generate", json=data, headers=headers
         )
 
         assert response.status_code == 200
         job = response.json()
         assert "job_id" in job
 
-    async def test_batch_generation(self, test_client):
+    async def test_batch_generation(self, api_client):
         """Test batch music generation"""
         username = f"{TEST_USER_PREFIX}_batch"
         email = f"{username}@example.com"
 
-        await test_client.register_user(username, email, "testpass123")
+        await api_client.register_user(username, email, "testpass123")
 
         # Generate batch
         data = {
@@ -280,9 +280,9 @@ class TestMusicGeneration:
             "sequential": False,
         }
 
-        headers = {"Authorization": f"Bearer {test_client.token}"}
-        response = await test_client.client.post(
-            f"{test_client.base_url}/generate/batch", json=data, headers=headers
+        headers = {"Authorization": f"Bearer {api_client.token}"}
+        response = await api_client.client.post(
+            f"{api_client.base_url}/generate/batch", json=data, headers=headers
         )
 
         assert response.status_code == 200
@@ -296,34 +296,32 @@ class TestMusicGeneration:
 class TestPlaylistManagement:
     """Test playlist functionality"""
 
-    async def test_create_playlist(self, test_client):
+    async def test_create_playlist(self, api_client):
         """Test playlist creation"""
         username = f"{TEST_USER_PREFIX}_playlist"
         email = f"{username}@example.com"
 
-        await test_client.register_user(username, email, "testpass123")
+        await api_client.register_user(username, email, "testpass123")
 
-        playlist = await test_client.create_playlist("Test Playlist")
+        playlist = await api_client.create_playlist("Test Playlist")
 
         assert "id" in playlist
         assert playlist["name"] == "Test Playlist"
-        assert playlist["user_id"] == test_client.user_info["id"]
+        assert playlist["user_id"] == api_client.user_info["id"]
 
-    async def test_get_playlists(self, test_client):
+    async def test_get_playlists(self, api_client):
         """Test playlist retrieval"""
         username = f"{TEST_USER_PREFIX}_get_playlist"
         email = f"{username}@example.com"
 
-        await test_client.register_user(username, email, "testpass123")
+        await api_client.register_user(username, email, "testpass123")
 
         # Create a playlist
-        await test_client.create_playlist("My Test Playlist")
+        await api_client.create_playlist("My Test Playlist")
 
         # Get playlists
-        headers = {"Authorization": f"Bearer {test_client.token}"}
-        response = await test_client.client.get(
-            f"{test_client.base_url}/playlists", headers=headers
-        )
+        headers = {"Authorization": f"Bearer {api_client.token}"}
+        response = await api_client.client.get(f"{api_client.base_url}/playlists", headers=headers)
 
         assert response.status_code == 200
         data = response.json()
@@ -336,34 +334,34 @@ class TestPlaylistManagement:
 class TestAudioProcessing:
     """Test audio processing functionality"""
 
-    async def test_audio_analysis_request(self, test_client):
+    async def test_audio_analysis_request(self, api_client):
         """Test audio analysis endpoint"""
         username = f"{TEST_USER_PREFIX}_audio"
         email = f"{username}@example.com"
 
-        await test_client.register_user(username, email, "testpass123")
+        await api_client.register_user(username, email, "testpass123")
 
         # Test analysis request (would fail without actual audio file)
         data = {"audio_url": "https://example.com/test.wav", "feature_types": ["tempo", "key"]}
 
-        headers = {"Authorization": f"Bearer {test_client.token}"}
-        response = await test_client.client.post(
-            f"{test_client.base_url}/audio/analyze", json=data, headers=headers
+        headers = {"Authorization": f"Bearer {api_client.token}"}
+        response = await api_client.client.post(
+            f"{api_client.base_url}/audio/analyze", json=data, headers=headers
         )
 
         # May fail with 500 due to no actual audio file, but endpoint should exist
         assert response.status_code in [200, 400, 500]
 
-    async def test_waveform_generation_request(self, test_client):
+    async def test_waveform_generation_request(self, api_client):
         """Test waveform generation endpoint"""
         username = f"{TEST_USER_PREFIX}_waveform"
         email = f"{username}@example.com"
 
-        await test_client.register_user(username, email, "testpass123")
+        await api_client.register_user(username, email, "testpass123")
 
-        headers = {"Authorization": f"Bearer {test_client.token}"}
-        response = await test_client.client.post(
-            f"{test_client.base_url}/audio/waveform",
+        headers = {"Authorization": f"Bearer {api_client.token}"}
+        response = await api_client.client.post(
+            f"{api_client.base_url}/audio/waveform",
             params={"audio_url": "https://example.com/test.wav", "width": 1920, "height": 200},
             headers=headers,
         )
@@ -376,17 +374,15 @@ class TestAudioProcessing:
 class TestIntegration:
     """Test cross-service integration"""
 
-    async def test_dashboard_data(self, test_client):
+    async def test_dashboard_data(self, api_client):
         """Test dashboard data aggregation"""
         username = f"{TEST_USER_PREFIX}_dashboard"
         email = f"{username}@example.com"
 
-        await test_client.register_user(username, email, "testpass123")
+        await api_client.register_user(username, email, "testpass123")
 
-        headers = {"Authorization": f"Bearer {test_client.token}"}
-        response = await test_client.client.get(
-            f"{test_client.base_url}/dashboard", headers=headers
-        )
+        headers = {"Authorization": f"Bearer {api_client.token}"}
+        response = await api_client.client.get(f"{api_client.base_url}/dashboard", headers=headers)
 
         assert response.status_code == 200
         data = response.json()
@@ -396,16 +392,16 @@ class TestIntegration:
         assert "social_profile" in data
         assert "playlists" in data
 
-    async def test_search_functionality(self, test_client):
+    async def test_search_functionality(self, api_client):
         """Test search across services"""
         username = f"{TEST_USER_PREFIX}_search"
         email = f"{username}@example.com"
 
-        await test_client.register_user(username, email, "testpass123")
+        await api_client.register_user(username, email, "testpass123")
 
-        headers = {"Authorization": f"Bearer {test_client.token}"}
-        response = await test_client.client.get(
-            f"{test_client.base_url}/search",
+        headers = {"Authorization": f"Bearer {api_client.token}"}
+        response = await api_client.client.get(
+            f"{api_client.base_url}/search",
             params={"query": "test", "type": "all"},
             headers=headers,
         )
@@ -420,38 +416,38 @@ class TestIntegration:
 class TestAuthentication:
     """Test authentication and authorization"""
 
-    async def test_protected_endpoint_without_auth(self, test_client):
+    async def test_protected_endpoint_without_auth(self, api_client):
         """Test that protected endpoints require authentication"""
-        response = await test_client.client.post(
-            f"{test_client.base_url}/generate", json={"prompt": "test", "duration": 10.0}
+        response = await api_client.client.post(
+            f"{api_client.base_url}/generate", json={"prompt": "test", "duration": 10.0}
         )
 
         assert response.status_code == 401
 
-    async def test_invalid_token(self, test_client):
+    async def test_invalid_token(self, api_client):
         """Test invalid token handling"""
         headers = {"Authorization": "Bearer invalid_token"}
 
-        response = await test_client.client.post(
-            f"{test_client.base_url}/generate",
+        response = await api_client.client.post(
+            f"{api_client.base_url}/generate",
             json={"prompt": "test", "duration": 10.0},
             headers=headers,
         )
 
         assert response.status_code == 401
 
-    async def test_token_expiration_handling(self, test_client):
+    async def test_token_expiration_handling(self, api_client):
         """Test expired token handling"""
         # This would require generating an expired token
         # For now, just test the endpoint structure
         username = f"{TEST_USER_PREFIX}_token"
         email = f"{username}@example.com"
 
-        await test_client.register_user(username, email, "testpass123")
+        await api_client.register_user(username, email, "testpass123")
 
         # Valid token should work
-        headers = {"Authorization": f"Bearer {test_client.token}"}
-        response = await test_client.client.get(f"{test_client.base_url}/auth/me", headers=headers)
+        headers = {"Authorization": f"Bearer {api_client.token}"}
+        response = await api_client.client.get(f"{api_client.base_url}/auth/me", headers=headers)
 
         assert response.status_code == 200
 
@@ -461,7 +457,7 @@ class TestAuthentication:
 class TestPerformance:
     """Test system performance"""
 
-    async def test_concurrent_registrations(self, test_client):
+    async def test_concurrent_registrations(self, api_client):
         """Test concurrent user registrations"""
 
         async def register_user(index):
@@ -479,10 +475,10 @@ class TestPerformance:
         successful = sum(1 for r in results if not isinstance(r, Exception))
         assert successful >= 4, f"Only {successful}/5 concurrent registrations succeeded"
 
-    async def test_response_times(self, test_client):
+    async def test_response_times(self, api_client):
         """Test API response times"""
         start_time = time.time()
-        await test_client.client.get(f"{test_client.base_url}/health")
+        await api_client.client.get(f"{api_client.base_url}/health")
         end_time = time.time()
 
         response_time = end_time - start_time
@@ -490,7 +486,7 @@ class TestPerformance:
 
         # Test services health endpoint
         start_time = time.time()
-        await test_client.client.get(f"{test_client.base_url}/health/services")
+        await api_client.client.get(f"{api_client.base_url}/health/services")
         end_time = time.time()
 
         response_time = end_time - start_time

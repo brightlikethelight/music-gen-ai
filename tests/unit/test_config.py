@@ -2,6 +2,8 @@
 
 import os
 
+import pytest
+
 # Set test environment
 os.environ["JWT_SECRET_KEY"] = "test-key"
 os.environ["PYTEST_CURRENT_TEST"] = "1"
@@ -10,6 +12,8 @@ os.environ["MUSICGEN_SKIP_MODEL_DOWNLOAD"] = "1"
 from unittest.mock import patch
 
 from musicgen.infrastructure.config.config import Config
+
+pytestmark = pytest.mark.unit
 
 
 class TestConfig:

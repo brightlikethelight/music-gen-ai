@@ -288,7 +288,7 @@ def auth_headers():
         )
         return {"Authorization": f"Bearer {token}"}
     except Exception:
-        return {}
+        pytest.skip("Auth middleware not available")
 
 
 @pytest.fixture

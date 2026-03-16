@@ -10,8 +10,9 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.integration
 
-@pytest.mark.integration
+
 class TestBasicIntegration:
     """Basic integration tests to establish framework functionality."""
 

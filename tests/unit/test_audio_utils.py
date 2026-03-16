@@ -8,6 +8,8 @@ import numpy as np
 import pytest
 import torch
 
+pytestmark = pytest.mark.unit
+
 # Import audio utilities - handle missing dependencies gracefully
 try:
     from musicgen.utils.audio import (

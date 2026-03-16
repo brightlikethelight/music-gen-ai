@@ -17,6 +17,8 @@ from musicgen.api.middleware.auth import (
 )
 from musicgen.utils.exceptions import AuthenticationError, AuthorizationError
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.fixture()
 def auth():

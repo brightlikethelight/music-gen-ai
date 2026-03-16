@@ -2,9 +2,13 @@
 
 import os
 
+import pytest
+
 os.environ["JWT_SECRET_KEY"] = "test-key"
 os.environ["PYTEST_CURRENT_TEST"] = "1"
 os.environ["MUSICGEN_SKIP_MODEL_DOWNLOAD"] = "1"
+
+pytestmark = pytest.mark.unit
 
 
 def test_batch_module_coverage():
