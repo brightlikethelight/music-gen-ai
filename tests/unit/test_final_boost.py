@@ -26,25 +26,6 @@ def test_batch_module_coverage():
         os.remove(filename)
 
 
-def test_helpers_module_coverage():
-    """Test helpers module additional functions."""
-    from musicgen.utils import helpers
-
-    # Test module attributes
-    assert hasattr(helpers, "load_audio")
-    assert hasattr(helpers, "save_audio")
-
-    # Test some basic string operations
-    text = "test prompt"
-    assert isinstance(text, str)
-
-    # Test path operations
-    import os
-
-    test_path = os.path.join("test", "path")
-    assert "/" in test_path or "\\" in test_path
-
-
 def test_prompt_engineer_coverage():
     """Test PromptEngineer additional methods."""
     from musicgen.core.prompt import PromptEngineer
@@ -75,45 +56,6 @@ def test_prompt_engineer_coverage():
 
     improved = engineer.improve_prompt("a" * 100)
     assert isinstance(improved, str)
-
-
-def test_api_rest_comprehensive():
-    """Test API REST models comprehensively."""
-    from musicgen.api.rest.api import GenerateRequest, JobStatus, PromptRequest
-
-    # Test with edge case values
-    req = GenerateRequest(
-        prompt="minimal",
-        duration=0.1,  # minimum
-        temperature=0.1,  # minimum
-        guidance_scale=1.0,  # minimum
-        format="wav",
-    )
-    assert req.duration == 0.1
-    assert req.format == "wav"
-
-    # Test with maximum values
-    req = GenerateRequest(
-        prompt="x" * 500,  # maximum length
-        duration=300.0,  # maximum
-        temperature=2.0,  # maximum
-        guidance_scale=10.0,  # maximum
-    )
-    assert req.duration == 300.0
-
-    # Test PromptRequest edge cases
-    prompt_req = PromptRequest(prompt="abc")  # minimum valid
-    assert len(prompt_req.prompt) == 3
-
-    # Test JobStatus with various statuses
-    for status in ["pending", "processing", "completed", "failed"]:
-        job = JobStatus(
-            job_id=f"test-{status}",
-            status=status,
-            progress=50 if status == "processing" else 100,
-            created_at="2024-01-01T00:00:00",
-        )
-        assert job.status == status
 
 
 def test_config_edge_cases():

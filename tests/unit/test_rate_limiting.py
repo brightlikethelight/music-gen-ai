@@ -43,17 +43,28 @@ class TestRateLimiter:
         assert ip == "192.168.1.1"
 
     def test_ip_extraction_with_forwarded_header(self):
-        """Test IP extraction with X-Forwarded-For header."""
+        """Test IP extraction: proxy headers only trusted from known proxies."""
+        from musicgen.api.rest.middleware import rate_limiting
+
         limiter = RateLimiter()
 
-        # Mock request with forwarded header
+        # Without trusted proxies configured, direct client IP is used
         request = Mock()
         request.client = Mock()
-        request.client.host = "10.0.0.1"  # This should be ignored
+        request.client.host = "10.0.0.1"
         request.headers = {"X-Forwarded-For": "203.0.113.1, 192.168.1.1"}
 
         ip = limiter._get_client_ip(request)
-        assert ip == "203.0.113.1"  # Should take first IP
+        assert ip == "10.0.0.1"  # Proxy headers ignored without trusted proxies
+
+        # With trusted proxy configured, forwarded header is used
+        original = rate_limiting._trusted_proxy_ips
+        try:
+            rate_limiting._trusted_proxy_ips = {"10.0.0.1"}
+            ip = limiter._get_client_ip(request)
+            assert ip == "192.168.1.1"  # Now trusted
+        finally:
+            rate_limiting._trusted_proxy_ips = original
 
     def test_ip_validation(self):
         """Test IP address validation."""

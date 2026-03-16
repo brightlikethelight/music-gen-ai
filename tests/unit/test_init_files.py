@@ -8,7 +8,7 @@ import pytest
 
 # Set environment variables before imports
 os.environ["JWT_SECRET_KEY"] = "test-key"
-os.environ["MUSICGEN_SKIP_AUTH"] = "1"
+os.environ["MUSICGEN_SKIP_REDIS"] = "1"
 os.environ["MUSICGEN_SKIP_MODEL_DOWNLOAD"] = "1"
 os.environ["PYTEST_CURRENT_TEST"] = "1"
 
@@ -117,36 +117,8 @@ def test_middleware_init():
     assert musicgen.api.middleware is not None
 
 
-def test_streaming_init():
-    """Test streaming package __init__.py"""
-    import musicgen.api.streaming
-
-    assert musicgen.api.streaming is not None
-
-
-def test_audio_init():
-    """Test audio package __init__.py"""
-    import musicgen.core.audio
-
-    assert musicgen.core.audio is not None
-
-
-def test_cli_commands_init():
-    """Test cli commands package __init__.py"""
-    import musicgen.cli.commands
-
-    assert musicgen.cli.commands is not None
-
-
 def test_rest_middleware_init():
     """Test rest middleware package __init__.py"""
     import musicgen.api.rest.middleware
 
     assert musicgen.api.rest.middleware is not None
-
-
-def test_rest_routes_init():
-    """Test rest routes package __init__.py"""
-    import musicgen.api.rest.routes
-
-    assert musicgen.api.rest.routes is not None

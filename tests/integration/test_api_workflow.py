@@ -38,7 +38,7 @@ try:
     )
 
     API_AVAILABLE = True
-except ImportError as e:
+except ImportError:
     API_AVAILABLE = False
     app = None
     GenerationRequest = None
@@ -469,7 +469,7 @@ class TestAuthWorkflow:
 
         response = client.post("/auth/register", json=duplicate_data)
         assert response.status_code == 400
-        assert "already exists" in response.json()["detail"]
+        assert "Registration failed" in response.json()["detail"]
 
     def test_duplicate_username_rejected(self, client, registered_user):
         """Test that duplicate username registration is rejected."""
@@ -481,7 +481,7 @@ class TestAuthWorkflow:
 
         response = client.post("/auth/register", json=duplicate_data)
         assert response.status_code == 400
-        assert "already taken" in response.json()["detail"]
+        assert "Registration failed" in response.json()["detail"]
 
     def test_login_invalid_credentials(self, client, registered_user):
         """Test login with invalid credentials."""

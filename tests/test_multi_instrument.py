@@ -110,6 +110,7 @@ class TestMultiInstrumentConfig:
         assert "drums" in names
 
 
+@pytest.mark.skipif(not MULTI_INSTRUMENT_AVAILABLE, reason="Multi-instrument modules not available")
 class TestInstrumentConditioner:
     """Test instrument conditioning system."""
 
@@ -167,6 +168,7 @@ class TestInstrumentConditioner:
         assert output.shape == (batch_size, seq_len, hidden_size)
 
 
+@pytest.mark.skipif(not MULTI_INSTRUMENT_AVAILABLE, reason="Multi-instrument modules not available")
 class TestMultiInstrumentModel:
     """Test multi-instrument model."""
 
@@ -185,9 +187,7 @@ class TestMultiInstrumentModel:
 
     def test_generate_multi_track(self, model):
         """Test multi-track generation."""
-        prompt = "Jazz quartet"
         instruments = ["piano", "bass", "drums", "saxophone"]
-        duration = 5.0
 
         # Mock generation for testing
         with torch.no_grad():
@@ -215,6 +215,7 @@ class TestMultiInstrumentModel:
         assert sum(scores.values()) <= len(scores)  # Softmax constraint
 
 
+@pytest.mark.skipif(not MULTI_INSTRUMENT_AVAILABLE, reason="Multi-instrument modules not available")
 class TestMultiTrackGenerator:
     """Test multi-track generator."""
 
@@ -272,7 +273,7 @@ class TestMultiTrackGenerator:
 
         # Test variation parameters
         num_variations = 3
-        variation_strength = 0.5
+        _ = 0.5  # variation_strength placeholder
 
         # Mock variations
         variations = []
@@ -366,7 +367,7 @@ class TestMIDIExport:
         converter = MIDIConverter(config)
 
         # Create test audio
-        audio_tracks = {"piano": torch.randn(1, 44100 * 5), "bass": torch.randn(1, 44100 * 5)}
+        _ = {"piano": torch.randn(1, 44100 * 5), "bass": torch.randn(1, 44100 * 5)}
 
         # Test basic conversion (would need actual pitch detection)
         # For now, just verify the interface
@@ -413,8 +414,7 @@ class TestTrackSeparation:
         separator.load_model()  # Will use mock if demucs not installed
 
         # Test with dummy audio
-        audio = torch.randn(2, 44100 * 5)  # 5 seconds stereo
-        sample_rate = 44100
+        _ = torch.randn(2, 44100 * 5)  # 5 seconds stereo
 
         # This would perform actual separation with real model
         # For testing, we verify the interface
@@ -436,45 +436,3 @@ class TestTrackSeparation:
         assert separator.primary_method == "demucs"
         assert separator.secondary_method == "spleeter"
         assert separator.blend_mode == "weighted"
-
-
-class TestMultiInstrumentAPI:
-    """Test multi-instrument API endpoints."""
-
-    @pytest.fixture
-    def client(self):
-        """Create test client."""
-        from fastapi.testclient import TestClient
-
-        from musicgen.api.main import app
-
-        return TestClient(app)
-
-    def test_list_instruments(self, client):
-        """Test instrument listing endpoint."""
-        response = client.get("/instruments")
-
-        # Would work with actual API
-        # assert response.status_code == 200
-        # data = response.json()
-        # assert "instruments" in data
-        # assert len(data["instruments"]) > 20
-
-    def test_generate_multi_instrument(self, client):
-        """Test multi-instrument generation endpoint."""
-        request_data = {
-            "prompt": "Jazz quartet",
-            "tracks": [
-                {"instrument": "piano", "volume": 0.8},
-                {"instrument": "bass", "volume": 0.6},
-                {"instrument": "drums", "volume": 0.7},
-                {"instrument": "saxophone", "volume": 0.7},
-            ],
-            "duration": 30.0,
-        }
-
-        # Would test actual endpoint
-        # response = client.post("/generate/multi-instrument", json=request_data)
-        # assert response.status_code == 200
-        # data = response.json()
-        # assert "task_id" in data

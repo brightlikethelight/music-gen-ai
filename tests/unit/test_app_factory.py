@@ -32,14 +32,14 @@ class TestAppFactory:
 
     def test_api_main_exports(self):
         """Test API main module exports."""
-        import musicgen.api.main
+        import musicgen.api.app
 
         # Test __all__ is properly defined
-        assert hasattr(musicgen.api.main, "__all__")
-        assert "app" in musicgen.api.main.__all__
+        assert hasattr(musicgen.api.app, "__all__")
+        assert "app" in musicgen.api.app.__all__
 
         # Test app is accessible
-        from musicgen.api.main import app
+        from musicgen.api.app import app
 
         assert app is not None
 

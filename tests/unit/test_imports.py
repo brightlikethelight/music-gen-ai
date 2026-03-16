@@ -8,7 +8,7 @@ import pytest
 # Set required environment variables for auth module
 os.environ["JWT_SECRET_KEY"] = "test-key"
 os.environ["PYTEST_CURRENT_TEST"] = "1"
-os.environ["MUSICGEN_SKIP_AUTH"] = "1"
+os.environ["MUSICGEN_SKIP_REDIS"] = "1"
 os.environ["MUSICGEN_SKIP_MODEL_DOWNLOAD"] = "1"
 
 
@@ -33,12 +33,11 @@ class TestImports:
     def test_api_imports(self):
         """Test API module imports."""
         from musicgen import api
-        from musicgen.api import middleware, rest, streaming
+        from musicgen.api import middleware, rest
 
         assert api is not None
         assert middleware is not None
         assert rest is not None
-        assert streaming is not None
 
     def test_services_imports(self):
         """Test services module imports."""
@@ -51,11 +50,10 @@ class TestImports:
     def test_utils_imports(self):
         """Test utils module imports."""
         from musicgen import utils
-        from musicgen.utils import exceptions, helpers
+        from musicgen.utils import exceptions
 
         assert utils is not None
         assert exceptions is not None
-        assert helpers is not None
 
     def test_infrastructure_imports(self):
         """Test infrastructure module imports."""
@@ -147,22 +145,10 @@ class TestAPIDocs:
         assert app is not None
 
     def test_api_main_import(self):
-        """Test API main module."""
-        from musicgen.api import main
+        """Test API app module."""
+        from musicgen.api import app
 
-        assert main is not None
-
-
-class TestStreamingAPI:
-    """Test streaming API imports."""
-
-    def test_streaming_components(self):
-        """Test streaming components."""
-        from musicgen.api.streaming import list_sessions, streaming_manager, websocket_endpoint
-
-        assert websocket_endpoint is not None
-        assert list_sessions is not None
-        assert streaming_manager is not None
+        assert app is not None
 
 
 class TestExceptionClasses:

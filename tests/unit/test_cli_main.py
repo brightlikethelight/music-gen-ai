@@ -258,9 +258,11 @@ class TestCLI:
 
     def test_info_command(self, runner):
         """Test info command."""
-        with patch("torch.cuda.is_available", return_value=True), patch(
-            "torch.cuda.get_device_name", return_value="NVIDIA GPU"
-        ), patch("torch.cuda.get_device_properties") as mock_props:
+        with (
+            patch("torch.cuda.is_available", return_value=True),
+            patch("torch.cuda.get_device_name", return_value="NVIDIA GPU"),
+            patch("torch.cuda.get_device_properties") as mock_props,
+        ):
             mock_props.return_value.total_memory = 8 * 1024**3  # 8GB
 
             result = runner.invoke(app, ["info"])

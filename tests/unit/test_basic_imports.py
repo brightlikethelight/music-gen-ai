@@ -70,12 +70,12 @@ class TestBasicImports:
         assert app is not None
 
     def test_api_main_import(self):
-        """Test API main module imports work."""
-        import musicgen.api.main
+        """Test API app module imports work."""
+        import musicgen.api.app
 
         # Test module has app export
-        assert hasattr(musicgen.api.main, "__all__")
-        assert "app" in musicgen.api.main.__all__
+        assert hasattr(musicgen.api.app, "__all__")
+        assert "app" in musicgen.api.app.__all__
 
 
 class TestLazyImports:

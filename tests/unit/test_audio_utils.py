@@ -215,7 +215,7 @@ class TestAudioProcessing:
         # Check overlap by comparing adjacent segments
         if len(segments) >= 2:
             overlap_samples = int(overlap * sample_rate)
-            step_samples = expected_samples - overlap_samples
+            _ = expected_samples - overlap_samples
 
             # The overlapped part should be identical
             seg1_end = segments[0][0, -overlap_samples:]

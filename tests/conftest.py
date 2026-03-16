@@ -25,10 +25,13 @@ def _ensure_torch():
     return torch
 
 
-# Set test environment variables globally before any imports
+# Set test environment variables globally before any imports.
+# These MUST be set before module-level imports in test files trigger
+# side effects (e.g., _ensure_imports() in generator.py, get_jwt_secret()).
 os.environ["MUSICGEN_SKIP_MODEL_DOWNLOAD"] = "1"
-os.environ["MUSICGEN_SKIP_AUTH"] = "1"
+os.environ["MUSICGEN_SKIP_REDIS"] = "1"
 os.environ["PYTEST_CURRENT_TEST"] = "1"
+os.environ["JWT_SECRET_KEY"] = "test-secret-key-for-testing-minimum-32-chars"
 
 # Make AudioQualityMetrics import optional to avoid librosa dependency in tests
 try:
@@ -46,43 +49,6 @@ try:
 except ImportError:
     ConditioningEncoder = None
     CONDITIONING_AVAILABLE = False
-
-# Mock auth modules for test authentication to avoid import hangs
-AUTH_AVAILABLE = False
-
-
-# Create mock auth classes for tests
-class MockUserRole:
-    """Mock UserRole for tests."""
-
-    USER = "user"
-    ADMIN = "admin"
-    RESEARCHER = "researcher"
-
-
-class MockAuthenticationMiddleware:
-    """Mock AuthenticationMiddleware for tests."""
-
-    def __init__(self):
-        self.redis_client = None
-
-    def create_access_token(self, user_id, email, username, roles, tier="free", is_verified=True):
-        return f"mock_token_{user_id}"
-
-    def verify_token(self, token):
-        # Return mock user claims
-        from unittest.mock import MagicMock
-
-        user = MagicMock()
-        user.user_id = "test_user"
-        user.email = "test@example.com"
-        user.username = "testuser"
-        user.roles = [MockUserRole.USER]
-        return user
-
-
-AuthenticationMiddleware = MockAuthenticationMiddleware
-UserRole = MockUserRole
 
 try:
     from musicgen.models.musicgen import create_musicgen_model
@@ -310,37 +276,31 @@ def pytest_addoption(parser):
 @pytest.fixture
 def auth_headers():
     """Create authentication headers for tests that require auth."""
-    if not AUTH_AVAILABLE:
+    try:
+        from musicgen.api.middleware.auth import UserRole, get_auth_middleware
+
+        auth = get_auth_middleware()
+        token = auth.create_access_token(
+            user_id="test_user_123",
+            email="test@example.com",
+            username="testuser",
+            roles=[UserRole.USER.value],
+        )
+        return {"Authorization": f"Bearer {token}"}
+    except Exception:
         return {}
 
-    # Create auth middleware instance
-    auth = AuthenticationMiddleware()
 
-    # Create test token
-    token = auth.create_access_token(
-        user_id="test_user_123",
-        email="test@example.com",
-        username="testuser",
-        roles=[UserRole.USER],
-    )
-
-    return {"Authorization": f"Bearer {token}"}
-
-
-@pytest.fixture(scope="session", autouse=True)
-def mock_model_downloads():
+@pytest.fixture
+def mock_ml_deps():
     """
-    Mock all model downloads and heavy ML operations globally for all tests.
-    This prevents multi-GB model downloads that cause 16+ minute timeouts.
+    Opt-in fixture providing mock ML objects for tests that need them.
+    Not autouse — tests must request this fixture explicitly.
     """
-    # Set environment variable to skip model downloads
-    os.environ["MUSICGEN_SKIP_MODEL_DOWNLOAD"] = "1"
-    os.environ["TRANSFORMERS_OFFLINE"] = "1"
-    os.environ["HF_DATASETS_OFFLINE"] = "1"
+    _ensure_torch()
 
     # Create mock processor and model instances
     processor_instance = MagicMock()
-    _ensure_torch()
     processor_instance.return_value = {
         "input_ids": torch.zeros((1, 10)),
         "attention_mask": torch.ones((1, 10)),
@@ -358,7 +318,6 @@ def mock_model_downloads():
     model_class = MagicMock()
     model_class.from_pretrained = MagicMock(return_value=model_instance)
 
-    # Return dictionary with all mocks for tests that need them
     return {
         "processor_class": processor_class,
         "model_class": model_class,
@@ -373,9 +332,10 @@ def mock_musicgen():
     Fixture to mock MusicGenerator for individual tests.
     Use this instead of global mocking to avoid conflicts.
     """
-    with patch("transformers.AutoProcessor") as mock_processor_class, patch(
-        "transformers.MusicgenForConditionalGeneration"
-    ) as mock_model_class:
+    with (
+        patch("transformers.AutoProcessor") as mock_processor_class,
+        patch("transformers.MusicgenForConditionalGeneration") as mock_model_class,
+    ):
 
         # Mock processor
         mock_processor = MagicMock()

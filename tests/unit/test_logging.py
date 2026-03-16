@@ -2,98 +2,16 @@
 Tests for musicgen.utils.logging module
 """
 
-import json
 import logging
-import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-import torch
 
 from musicgen.infrastructure.monitoring.logging import (
-    LoggerMixin,
     get_logger,
-    log_function_call,
-    log_gpu_memory,
     setup_logging,
 )
-
-
-class TestLoggerMixin:
-    """Test LoggerMixin class."""
-
-    def test_logger_mixin(self):
-        """Test LoggerMixin provides logger property."""
-
-        class TestClass(LoggerMixin):
-            pass
-
-        obj = TestClass()
-        logger = obj.logger
-        assert isinstance(logger, logging.Logger)
-        assert logger.name.endswith("TestClass")
-
-        # Should return same logger instance
-        assert obj.logger is logger
-
-
-class TestLogFunctionCall:
-    """Test log_function_call decorator."""
-
-    def test_log_function_call_success(self, caplog):
-        """Test function call logging decorator."""
-
-        @log_function_call
-        def test_function(x, y):
-            return x + y
-
-        with caplog.at_level(logging.DEBUG):
-            result = test_function(1, 2)
-
-        assert result == 3
-        assert "Calling test_function" in caplog.text
-        assert "completed in" in caplog.text
-
-    def test_log_function_call_error(self, caplog):
-        """Test function call logging on error."""
-
-        @log_function_call
-        def failing_function():
-            raise ValueError("Test error")
-
-        with caplog.at_level(logging.DEBUG):
-            with pytest.raises(ValueError):
-                failing_function()
-
-        assert "failed after" in caplog.text
-
-
-class TestLogGPUMemory:
-    """Test log_gpu_memory function."""
-
-    def test_log_gpu_memory_no_cuda(self, caplog):
-        """Test GPU memory logging when CUDA not available."""
-        logger = get_logger("test")
-
-        # This should not raise error even without CUDA
-        log_gpu_memory(logger, "test operation")
-
-        # Should be silent when no CUDA
-        assert len(caplog.records) == 0 or "GPU Memory" not in caplog.text
-
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
-    def test_log_gpu_memory_with_cuda(self, caplog):
-        """Test GPU memory logging with CUDA available."""
-        import torch
-
-        logger = get_logger("test")
-
-        with caplog.at_level(logging.DEBUG):
-            log_gpu_memory(logger, "test operation")
-
-        assert "GPU Memory test operation" in caplog.text
-        assert "GB allocated" in caplog.text
 
 
 class TestLoggingSetup:
@@ -101,11 +19,15 @@ class TestLoggingSetup:
 
     def test_setup_logging_default(self):
         """Test default logging setup."""
-        # Clear existing handlers
-        logger = logging.getLogger("music_gen")
+        # Clear existing handlers and reset level to avoid state leaking from other tests
+        logger = logging.getLogger("musicgen")
         logger.handlers = []
+        logger.setLevel(logging.WARNING)
 
-        setup_logging()
+        # Prevent config import from overriding level (config.LOG_LEVEL defaults to
+        # DEBUG in development, which would override the INFO we're testing for)
+        with patch.dict("sys.modules", {"musicgen.infrastructure.config.config": None}):
+            setup_logging(level="INFO")
 
         # Check logger is configured
         assert len(logger.handlers) > 0
@@ -114,7 +36,7 @@ class TestLoggingSetup:
     def test_setup_logging_custom_level(self):
         """Test logging setup with custom level."""
         # Clear existing handlers
-        logger = logging.getLogger("music_gen")
+        logger = logging.getLogger("musicgen")
         logger.handlers = []
 
         setup_logging(level="DEBUG")
@@ -127,7 +49,7 @@ class TestLoggingSetup:
         log_file = tmp_path / "test.log"
 
         # Clear existing handlers
-        logger = logging.getLogger("music_gen")
+        logger = logging.getLogger("musicgen")
         logger.handlers = []
 
         setup_logging(log_file=str(log_file))
@@ -218,7 +140,7 @@ class TestFileHandler:
         log_file = tmp_path / "test.log"
 
         # Clear existing handlers
-        logger = logging.getLogger("music_gen")
+        logger = logging.getLogger("musicgen")
         logger.handlers = []
 
         setup_logging(log_file=str(log_file))

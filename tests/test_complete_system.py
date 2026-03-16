@@ -19,6 +19,18 @@ API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 TEST_USER_PREFIX = f"testuser_{int(time.time())}"
 
 
+def _server_available() -> bool:
+    """Check if the API server is running."""
+    try:
+        httpx.get(f"{API_BASE_URL}/health", timeout=1)
+        return True
+    except Exception:
+        return False
+
+
+pytestmark = pytest.mark.skipif(not _server_available(), reason="Requires running API server")
+
+
 class APITestClient:
     """Test client for API interactions"""
 
@@ -470,7 +482,7 @@ class TestPerformance:
     async def test_response_times(self, test_client):
         """Test API response times"""
         start_time = time.time()
-        response = await test_client.client.get(f"{test_client.base_url}/health")
+        await test_client.client.get(f"{test_client.base_url}/health")
         end_time = time.time()
 
         response_time = end_time - start_time
@@ -478,7 +490,7 @@ class TestPerformance:
 
         # Test services health endpoint
         start_time = time.time()
-        response = await test_client.client.get(f"{test_client.base_url}/health/services")
+        await test_client.client.get(f"{test_client.base_url}/health/services")
         end_time = time.time()
 
         response_time = end_time - start_time

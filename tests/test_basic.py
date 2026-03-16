@@ -269,7 +269,7 @@ class TestBasicFunctionality:
             samples = int(duration * sample_rate)
 
             # Create dummy audio
-            dummy_audio = torch.randn(1, samples) * 0.1
+            torch.randn(1, samples) * 0.1
 
             # This would normally tokenize audio, but may fail without EnCodec
             # tokens = model.encode_audio(dummy_audio, sample_rate)

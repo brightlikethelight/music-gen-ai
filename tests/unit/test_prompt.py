@@ -1,12 +1,5 @@
 """Tests for the PromptEngineer module."""
 
-import os
-
-# Set test environment
-os.environ["JWT_SECRET_KEY"] = "test-key"
-os.environ["PYTEST_CURRENT_TEST"] = "1"
-os.environ["MUSICGEN_SKIP_MODEL_DOWNLOAD"] = "1"
-
 import pytest
 
 from musicgen.core.prompt import PromptEngineer

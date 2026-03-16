@@ -2,17 +2,13 @@
 Unit tests for CLI functionality.
 """
 
-import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import torch
 from typer.testing import CliRunner
-
-# Mock only the heavy transformers dependency to prevent model downloads
-sys.modules["transformers"] = MagicMock()
 
 # Import CLI modules - handle missing dependencies gracefully
 try:

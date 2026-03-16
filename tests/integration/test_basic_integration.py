@@ -33,24 +33,6 @@ class TestBasicIntegration:
         assert isinstance(config.API_HOST, str)
         assert isinstance(config.MODEL_NAME, str)
 
-    def test_helpers_integration(self):
-        """Test that helper functions work together correctly."""
-        from musicgen.utils.helpers import format_time, hash_text, validate_prompt_length
-
-        # Test a workflow using multiple helpers
-        prompt = "Generate a 30 second jazz piano piece"
-        duration = 30.0
-
-        # Validate and process prompt
-        validated_prompt = validate_prompt_length(prompt)
-        prompt_hash = hash_text(validated_prompt)
-        time_str = format_time(duration)
-
-        # Verify integration
-        assert len(prompt_hash) == 8
-        assert time_str == "30.0s"
-        assert validated_prompt == prompt  # Should not be truncated
-
     def test_file_operations_integration(self):
         """Test basic file operations work correctly."""
         # Create a temporary file and verify operations

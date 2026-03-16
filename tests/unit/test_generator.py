@@ -1,387 +1,220 @@
 """
 Unit tests for musicgen.core.generator module.
-Mocks heavy ML dependencies for CI compatibility.
+Tests both skip-mode (env var set) and mock-mode (mocks replacing transformers).
 """
 
 import os
-import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 import torch
 
-# Import will be handled by conftest.py global mocking
 from musicgen.core.generator import MusicGenerator
 
 
-class TestMusicGenerator:
-    """Test MusicGenerator class with mocked ML dependencies."""
+class TestMusicGeneratorSkipMode:
+    """Tests with MUSICGEN_SKIP_MODEL_DOWNLOAD set (no real model loading)."""
+
+    def test_init_skip_mode(self):
+        """Generator initializes with model=None when skip env is set."""
+        generator = MusicGenerator()
+        assert generator.model is None
+        assert generator.processor is None
+        assert generator.model_name == "facebook/musicgen-small"
+
+    def test_generate_returns_mock_audio(self):
+        """Generate returns random audio in skip mode."""
+        generator = MusicGenerator()
+        audio, sr = generator.generate("test music", duration=5.0)
+        assert isinstance(audio, np.ndarray)
+        assert sr == 32000
+        assert len(audio) == int(5.0 * 32000)
+
+    def test_generate_empty_prompt_raises(self):
+        """Empty prompts raise ValueError regardless of mode."""
+        generator = MusicGenerator()
+        with pytest.raises(ValueError, match="Prompt cannot be empty"):
+            generator.generate("")
+        with pytest.raises(ValueError, match="Prompt cannot be empty"):
+            generator.generate("   ")
+
+    def test_get_info_skip_mode(self):
+        """get_info returns basic info in skip mode."""
+        generator = MusicGenerator()
+        info = generator.get_info()
+        assert info["model"] == "facebook/musicgen-small"
+        assert info["sample_rate"] == 32000
+
+    def test_save_audio_wav(self, tmp_path):
+        """save_audio saves WAV files."""
+        generator = MusicGenerator()
+        audio = np.random.randn(32000).astype(np.float32)
+        with patch("musicgen.core.generator.sf") as mock_sf:
+            mock_sf.write = MagicMock()
+            path = generator.save_audio(audio, 32000, str(tmp_path / "test.wav"))
+            assert path.endswith(".wav")
+            mock_sf.write.assert_called_once()
+
+    def test_save_audio_mp3_with_pydub(self, tmp_path):
+        """save_audio converts to MP3 when pydub is available."""
+        generator = MusicGenerator()
+        audio = np.random.randn(32000).astype(np.float32)
+        with (
+            patch("musicgen.core.generator.PYDUB_AVAILABLE", True),
+            patch("musicgen.core.generator.AudioSegment") as mock_segment,
+            patch("musicgen.core.generator.sf") as mock_sf,
+            patch("os.remove"),
+        ):
+            mock_sf.write = MagicMock()
+            mock_audio_segment = MagicMock()
+            mock_segment.from_wav.return_value = mock_audio_segment
+            path = generator.save_audio(audio, 32000, str(tmp_path / "test.mp3"))
+            assert path.endswith(".mp3")
+
+    def test_save_audio_fallback_without_soundfile(self, tmp_path):
+        """save_audio falls back to scipy when soundfile unavailable."""
+        import musicgen.core.generator as gen_module
+
+        generator = MusicGenerator()
+        audio = np.random.randn(32000).astype(np.float32)
+        mock_wavfile = MagicMock()
+        with (
+            patch("musicgen.core.generator.SOUNDFILE_AVAILABLE", False),
+            patch.object(gen_module, "wavfile", mock_wavfile, create=True),
+        ):
+            generator.save_audio(audio, 32000, str(tmp_path / "test.wav"))
+            mock_wavfile.write.assert_called_once()
+
+
+class _MockBatchEncoding(dict):
+    """Dict subclass that supports .to() like HuggingFace BatchEncoding."""
+
+    def to(self, device):
+        return self
+
+
+class TestMusicGeneratorMockMode:
+    """Tests with mocked transformers (env var removed, mocks injected)."""
 
     @pytest.fixture(autouse=True)
-    def setup_mocks(self, mock_model_downloads, monkeypatch):
-        """Setup mocks for all tests."""
-        # Temporarily disable the skip environment variable for these tests
+    def setup_mocks(self, monkeypatch):
+        """Remove skip env var and inject mock transformers."""
         monkeypatch.delenv("MUSICGEN_SKIP_MODEL_DOWNLOAD", raising=False)
 
-        # Patch the transformers imports in the generator module
-        self.mock_processor_class = mock_model_downloads["processor_class"]
-        self.mock_model_class = mock_model_downloads["model_class"]
-        self.mock_processor_instance = mock_model_downloads["processor_instance"]
-        self.mock_model_instance = mock_model_downloads["model_instance"]
-
-        # Apply patches
-        monkeypatch.setattr("musicgen.core.generator.AutoProcessor", self.mock_processor_class)
-        monkeypatch.setattr(
-            "musicgen.core.generator.MusicgenForConditionalGeneration", self.mock_model_class
+        # Create mock processor that returns BatchEncoding-like object
+        self.mock_processor_instance = MagicMock()
+        self.mock_processor_instance.return_value = _MockBatchEncoding(
+            {
+                "input_ids": torch.tensor([[1, 2, 3]]),
+                "attention_mask": torch.tensor([[1, 1, 1]]),
+            }
         )
 
-        # Mock soundfile if not available
+        self.mock_model_instance = MagicMock()
+        self.mock_model_instance.to = MagicMock(return_value=self.mock_model_instance)
+        self.mock_model_instance.config.audio_encoder.sampling_rate = 32000
+        self.mock_model_instance.generate = MagicMock(return_value=torch.randn(1, 1, 32000))
+
+        # Create mock classes
+        self.mock_processor_class = MagicMock()
+        self.mock_processor_class.from_pretrained = MagicMock(
+            return_value=self.mock_processor_instance
+        )
+        self.mock_model_class = MagicMock()
+        self.mock_model_class.from_pretrained = MagicMock(return_value=self.mock_model_instance)
+
+        # Patch module globals
+        monkeypatch.setattr("musicgen.core.generator.AutoProcessor", self.mock_processor_class)
+        monkeypatch.setattr(
+            "musicgen.core.generator.MusicgenForConditionalGeneration",
+            self.mock_model_class,
+        )
+
+        # Mock soundfile
         mock_sf = MagicMock()
         mock_sf.write = MagicMock()
         monkeypatch.setattr("musicgen.core.generator.sf", mock_sf, raising=False)
         monkeypatch.setattr("musicgen.core.generator.SOUNDFILE_AVAILABLE", True)
 
-    @pytest.fixture
-    def mock_transformers(self):
-        """Provide mock objects for tests that need them."""
-        return (
-            self.mock_processor_class,
-            self.mock_model_class,
-            self.mock_processor_instance,
-            self.mock_model_instance,
-        )
+    def test_init_loads_model(self):
+        """Model and processor are loaded during init."""
+        MusicGenerator(model_name="facebook/musicgen-small")
+        self.mock_processor_class.from_pretrained.assert_called_once()
+        self.mock_model_class.from_pretrained.assert_called_once()
 
-    @pytest.fixture
-    def temp_cache_dir(self):
-        """Create temporary cache directory."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
-
-    def test_init_default_device(self, mock_transformers):
-        """Test initialization with default device selection."""
-        mock_processor, mock_model, _, _ = mock_transformers
-
-        with patch("torch.cuda.is_available", return_value=True):
-            generator = MusicGenerator()
-            assert generator.device.type == "cuda"
-
-        with patch("torch.cuda.is_available", return_value=False):
-            generator = MusicGenerator()
-            assert generator.device == torch.device("cpu")
-
-    def test_init_custom_device(self, mock_transformers):
-        """Test initialization with custom device."""
+    def test_init_custom_device(self):
+        """Custom device is used when specified."""
         generator = MusicGenerator(device="cpu")
         assert generator.device == torch.device("cpu")
 
-    def test_init_model_loading(self, mock_transformers):
-        """Test model loading during initialization."""
-        mock_processor, mock_model, _, _ = mock_transformers
-
-        generator = MusicGenerator(model_name="facebook/musicgen-small")
-
-        mock_processor.from_pretrained.assert_called_once()
-        mock_model.from_pretrained.assert_called_once()
-
-        # Check model name was passed
-        call_args = mock_model.from_pretrained.call_args
-        assert "facebook/musicgen-small" in str(call_args)
-
-    def test_init_optimization(self, mock_transformers):
-        """Test model optimization during initialization."""
-        _, _, _, mock_model_instance = mock_transformers
-
-        # Test with optimization enabled
-        with patch("torch.cuda.is_available", return_value=True):
-            generator = MusicGenerator(optimize=True)
-            mock_model_instance.to.assert_called()
-
-        # Test with optimization disabled
-        mock_model_instance.reset_mock()
-        generator = MusicGenerator(optimize=False)
-        mock_model_instance.to.assert_called()
-
-    def test_cleanup(self, mock_transformers):
-        """Test cleanup method."""
-        generator = MusicGenerator()
-        # The generator doesn't have a cleanup method in the current implementation
-        # Check that model and processor exist after initialization
-        assert generator.model is not None
-        assert generator.processor is not None
-
-    @patch("torch.cuda.empty_cache")
-    def test_cleanup_with_cuda(self, mock_empty_cache, mock_transformers):
-        """Test cleanup with CUDA cache clearing."""
-        with patch("torch.cuda.is_available", return_value=True):
+    def test_init_cuda_device(self):
+        """CUDA device selected when available."""
+        with (
+            patch("torch.cuda.is_available", return_value=True),
+            patch("torch.cuda.device_count", return_value=1),
+            patch("torch.cuda.set_device"),
+            patch("torch.cuda.mem_get_info", return_value=(8e9, 8e9)),
+        ):
             generator = MusicGenerator()
-            # The current implementation doesn't have explicit cleanup
-            assert generator.model is not None
+            assert generator.device.type == "cuda"
 
-    def test_context_manager(self, mock_transformers):
-        """Test context manager usage."""
-        # The current implementation doesn't have context manager support
+    def test_model_and_processor_set(self):
+        """Model and processor are not None after init."""
         generator = MusicGenerator()
         assert generator.model is not None
         assert generator.processor is not None
 
-    def test_generate_basic(self, mock_transformers, temp_cache_dir):
-        """Test basic music generation."""
-        _, _, mock_processor_instance, mock_model_instance = mock_transformers
-
-        # Mock processor return
-        mock_inputs = {
-            "input_ids": torch.tensor([[1, 2, 3]]),
-            "attention_mask": torch.tensor([[1, 1, 1]]),
-        }
-        mock_processor_instance.return_value = mock_inputs
-
-        # Mock model generation
-        mock_audio_values = torch.randn(1, 1, 32000)  # 1 second of audio
-        mock_model_instance.generate.return_value = mock_audio_values
-
+    def test_generate_basic(self):
+        """Basic generation returns audio array."""
         generator = MusicGenerator()
-        audio, sample_rate = generator.generate(prompt="test music", duration=1.0)
-
+        audio, sr = generator.generate("test music", duration=1.0)
         assert isinstance(audio, np.ndarray)
-        assert sample_rate == 32000
+        assert sr == 32000
         assert len(audio) > 0
 
-    def test_generate_with_parameters(self, mock_transformers):
-        """Test generation with custom parameters."""
-        _, _, mock_processor_instance, mock_model_instance = mock_transformers
-
-        # Mock returns
-        mock_processor_instance.return_value = {"input_ids": torch.tensor([[1]])}
-        mock_model_instance.generate.return_value = torch.randn(1, 1, 32000)
-
+    def test_generate_with_parameters(self):
+        """Custom parameters are passed to model.generate()."""
         generator = MusicGenerator()
-        audio, sample_rate = generator.generate(
-            prompt="test",
-            duration=10.0,
-            temperature=0.8,
-            guidance_scale=5.0,
-        )
+        generator.generate("test", duration=10.0, temperature=0.8, guidance_scale=5.0)
+        kwargs = self.mock_model_instance.generate.call_args[1]
+        assert kwargs["do_sample"] is True
+        assert kwargs["temperature"] == 0.8
+        assert kwargs["guidance_scale"] == 5.0
 
-        # Check model.generate was called with correct parameters
-        generate_call = mock_model_instance.generate.call_args
-        assert generate_call is not None
-        kwargs = generate_call[1]
-        assert kwargs.get("do_sample") is True
-        assert kwargs.get("temperature") == 0.8
-        assert kwargs.get("guidance_scale") == 5.0
-
-    def test_generate_duration_limits(self, mock_transformers):
-        """Test duration validation."""
+    def test_generate_with_progress_callback(self):
+        """Progress callback is invoked during generation."""
         generator = MusicGenerator()
+        callback_calls = []
 
-        # The generator doesn't have explicit duration validation in the current code
-        # but it handles extended generation for durations > 30s
-        # Let's test that extended generation is triggered
-        _, _, mock_processor_instance, mock_model_instance = mock_transformers
-        mock_processor_instance.return_value = {"input_ids": torch.tensor([[1]])}
-        mock_model_instance.generate.return_value = torch.randn(1, 1, 32000)
+        def on_progress(percent, message):
+            callback_calls.append((percent, message))
 
-        # Test short duration
-        audio, sr = generator.generate("test", duration=5.0)
-        assert isinstance(audio, np.ndarray)
+        generator.generate("test music", duration=1.0, progress_callback=on_progress)
+        assert len(callback_calls) > 0
+        percents = [c[0] for c in callback_calls]
+        assert 0 in percents
+        assert 100 in percents
 
-        # Test long duration (should trigger extended generation)
-        audio, sr = generator.generate("test", duration=60.0)
-        assert isinstance(audio, np.ndarray)
-
-    def test_generate_empty_prompt(self, mock_transformers):
-        """Test generation with empty prompt."""
+    def test_generate_error_propagates(self):
+        """Model errors propagate to caller."""
+        self.mock_model_instance.generate.side_effect = RuntimeError("CUDA out of memory")
         generator = MusicGenerator()
-
-        with pytest.raises(ValueError, match="Prompt cannot be empty"):
-            generator.generate("")
-
-        with pytest.raises(ValueError, match="Prompt cannot be empty"):
-            generator.generate("   ")
-
-    def test_generate_callback(self, mock_transformers):
-        """Test generation with progress callback."""
-        _, _, mock_processor_instance, mock_model_instance = mock_transformers
-
-        mock_processor_instance.return_value = {"input_ids": torch.tensor([[1]])}
-        mock_model_instance.generate.return_value = torch.randn(1, 1, 32000)
-
-        generator = MusicGenerator()
-
-        callback_called = False
-
-        def progress_callback(step, total):
-            nonlocal callback_called
-            callback_called = True
-            assert step >= 0
-            assert total > 0
-
-        with patch("musicgen.core.generator.sf.write"):
-            generator.generate("test music", duration=1.0, callback=progress_callback)
-
-        assert callback_called
-
-    def test_generate_error_handling(self, mock_transformers):
-        """Test error handling during generation."""
-        _, _, mock_processor_instance, mock_model_instance = mock_transformers
-
-        # Mock generation failure
-        mock_processor_instance.return_value = {"input_ids": torch.tensor([[1]])}
-        mock_model_instance.generate.side_effect = RuntimeError("CUDA out of memory")
-
-        generator = MusicGenerator()
-
         with pytest.raises(RuntimeError, match="CUDA out of memory"):
             generator.generate("test music")
 
-    def test_save_audio_formats(self, mock_transformers, temp_cache_dir):
-        """Test saving audio in different formats."""
+    def test_generate_empty_prompt_raises(self):
+        """Empty prompt raises ValueError."""
         generator = MusicGenerator()
+        with pytest.raises(ValueError, match="Prompt cannot be empty"):
+            generator.generate("")
 
-        # Mock audio data
-        audio = np.random.randn(32000).astype(np.float32)
-        sample_rate = 32000
-
-        # Test WAV format
-        with patch("musicgen.core.generator.sf.write") as mock_write:
-            wav_path = generator._save_audio(audio, sample_rate, str(temp_cache_dir / "test.wav"))
-            mock_write.assert_called_once()
-            assert wav_path.endswith(".wav")
-
-        # Test MP3 format (with pydub)
-        with patch("musicgen.core.generator.PYDUB_AVAILABLE", True), patch(
-            "musicgen.core.generator.AudioSegment"
-        ) as mock_segment:
-
-            mock_audio_segment = MagicMock()
-            mock_segment.from_wav.return_value = mock_audio_segment
-
-            mp3_path = generator._save_audio(audio, sample_rate, str(temp_cache_dir / "test.mp3"))
-
-            mock_audio_segment.export.assert_called_once()
-            assert mp3_path.endswith(".mp3")
-
-    def test_save_audio_fallback(self, mock_transformers, temp_cache_dir):
-        """Test audio saving fallback when soundfile not available."""
+    def test_generate_extended_triggered(self):
+        """Duration > 30s triggers extended generation."""
         generator = MusicGenerator()
-
-        audio = np.random.randn(32000).astype(np.float32)
-        sample_rate = 32000
-
-        with patch("musicgen.core.generator.SOUNDFILE_AVAILABLE", False), patch(
-            "musicgen.core.generator.wavfile.write"
-        ) as mock_wavwrite:
-
-            wav_path = generator._save_audio(audio, sample_rate, str(temp_cache_dir / "test.wav"))
-
-            mock_wavwrite.assert_called_once()
-
-    def test_load_model_caching(self, mock_transformers, temp_cache_dir):
-        """Test model caching behavior."""
-        mock_processor, mock_model, _, _ = mock_transformers
-
-        with patch.dict(os.environ, {"MUSICGEN_CACHE_DIR": str(temp_cache_dir)}):
-            generator = MusicGenerator()
-
-            # Check cache dir was used
-            processor_call = mock_processor.from_pretrained.call_args
-            model_call = mock_model.from_pretrained.call_args
-
-            assert "cache_dir" in processor_call[1]
-            assert "cache_dir" in model_call[1]
-
-    def test_device_map_for_large_models(self, mock_transformers):
-        """Test device mapping for large models."""
-        mock_processor, mock_model, _, _ = mock_transformers
-
-        # Test large model
-        generator = MusicGenerator(model_name="facebook/musicgen-large")
-
-        model_call = mock_model.from_pretrained.call_args
-        assert "device_map" in model_call[1]
-        assert model_call[1]["device_map"] == "auto"
-
-    def test_prompt_enhancement(self, mock_transformers):
-        """Test prompt enhancement functionality."""
-        _, _, mock_processor_instance, mock_model_instance = mock_transformers
-
-        mock_processor_instance.return_value = {"input_ids": torch.tensor([[1]])}
-        mock_model_instance.generate.return_value = torch.randn(1, 1, 32000)
-
-        generator = MusicGenerator()
-
-        # Mock prompt engineer
-        with patch.object(generator, "prompt_engineer") as mock_engineer:
-            mock_engineer.enhance_prompt.return_value = "enhanced prompt"
-
-            with patch("musicgen.core.generator.sf.write"):
-                generator.generate("simple prompt", enhance_prompt=True)
-
-            mock_engineer.enhance_prompt.assert_called_once_with("simple prompt")
-
-    def test_multi_generation(self, mock_transformers, temp_cache_dir):
-        """Test generating multiple outputs."""
-        _, _, mock_processor_instance, mock_model_instance = mock_transformers
-
-        mock_processor_instance.return_value = {"input_ids": torch.tensor([[1]])}
-        # Return different audio for each generation
-        mock_model_instance.generate.side_effect = [
-            torch.randn(1, 1, 32000),
-            torch.randn(1, 1, 32000),
-            torch.randn(1, 1, 32000),
-        ]
-
-        generator = MusicGenerator()
-
-        with patch("musicgen.core.generator.sf.write"):
-            outputs = generator.generate_multiple(
-                "test music", num_outputs=3, output_dir=str(temp_cache_dir)
-            )
-
-        assert len(outputs) == 3
-        assert all(Path(p).name.startswith("test_music_") for p in outputs)
-
-    def test_streaming_generation(self, mock_transformers):
-        """Test streaming generation capability."""
-        _, _, mock_processor_instance, mock_model_instance = mock_transformers
-
-        mock_processor_instance.return_value = {"input_ids": torch.tensor([[1]])}
-
-        # Mock streaming output
-        chunks = [torch.randn(1, 1, 16000) for _ in range(4)]  # 4 chunks
-        mock_model_instance.generate.return_value = chunks
-
-        generator = MusicGenerator()
-
-        if hasattr(generator, "generate_stream"):
-            chunk_count = 0
-            for chunk in generator.generate_stream("test music", duration=2.0):
-                chunk_count += 1
-                assert isinstance(chunk, (np.ndarray, torch.Tensor))
-
-            assert chunk_count == 4
-
-    def test_batch_generation(self, mock_transformers):
-        """Test batch generation efficiency."""
-        _, _, mock_processor_instance, mock_model_instance = mock_transformers
-
-        # Mock batch processing
-        batch_size = 4
-        mock_processor_instance.return_value = {
-            "input_ids": torch.randn(batch_size, 10),
-            "attention_mask": torch.ones(batch_size, 10),
-        }
-        mock_model_instance.generate.return_value = torch.randn(batch_size, 1, 32000)
-
-        generator = MusicGenerator()
-
-        prompts = ["prompt 1", "prompt 2", "prompt 3", "prompt 4"]
-
-        if hasattr(generator, "generate_batch"):
-            with patch("musicgen.core.generator.sf.write"):
-                outputs = generator.generate_batch(prompts, duration=1.0)
-
-            assert len(outputs) == batch_size
+        self.mock_model_instance.generate.return_value = torch.randn(1, 1, 32000 * 25)
+        audio, sr = generator.generate("test", duration=60.0)
+        assert isinstance(audio, np.ndarray)
+        assert self.mock_model_instance.generate.call_count >= 2
