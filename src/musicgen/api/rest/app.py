@@ -12,13 +12,12 @@ import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel, Field
 
 from musicgen.api.cors_config import cors_config
 from musicgen.api.middleware.auth import (
@@ -28,6 +27,14 @@ from musicgen.api.middleware.auth import (
     require_auth,
 )
 from musicgen.api.rest.middleware.rate_limiting import RateLimitMiddleware
+from musicgen.api.rest.models import (
+    BatchGenerationRequest,
+    GenerationRequest,
+    GenerationResponse,
+    PlaylistCreate,
+    UserRegistration,
+)
+from musicgen.api.rest.state import JobStatus, state
 from musicgen.infrastructure.config.config import config
 from musicgen.infrastructure.monitoring.logging import setup_logging
 from musicgen.infrastructure.monitoring.metrics import metrics
@@ -42,111 +49,42 @@ from musicgen.utils.exceptions import MusicGenError
 setup_logging()
 logger = logging.getLogger(__name__)
 
-# Global model storage
-_model_cache: dict[str, Any] = {}
-
-
-class GenerationRequest(BaseModel):
-    """Request model for music generation."""
-
-    prompt: str = Field(..., description="Text description of the music to generate")
-    duration: float = Field(default=30.0, ge=1.0, le=600.0, description="Duration in seconds")
-    model: str = Field(default="facebook/musicgen-small", description="Model to use")
-    temperature: float = Field(default=1.0, ge=0.1, le=2.0, description="Sampling temperature")
-    top_k: int = Field(default=250, ge=1, le=1000, description="Top-k sampling")
-    top_p: float = Field(default=0.0, ge=0.0, le=1.0, description="Top-p sampling")
-    cfg_coef: float = Field(
-        default=3.0, ge=0.0, le=10.0, description="Classifier-free guidance coefficient"
-    )
-
-
-class GenerationResponse(BaseModel):
-    """Response model for music generation."""
-
-    job_id: str
-    status: str
-    message: str
-    audio_url: Optional[str] = None
-    duration: Optional[float] = None
-    model_used: Optional[str] = None
-
-
-class JobStatus(BaseModel):
-    """Job status response."""
-
-    job_id: str
-    status: str  # "queued", "processing", "completed", "failed"
-    progress: float = 0.0
-    message: str = ""
-    audio_url: Optional[str] = None
-    error: Optional[str] = None
-
-
-# Auth models
-class UserRegistration(BaseModel):
-    """User registration request."""
-
-    username: str = Field(..., min_length=3, max_length=50)
-    email: str = Field(..., pattern=r"^[^@]+@[^@]+\.[^@]+$")
-    password: str = Field(..., min_length=8)
-    full_name: Optional[str] = None
-
-
-class UserResponse(BaseModel):
-    """User response model."""
-
-    user_id: str
-    username: str
-    email: str
-    roles: list[str]
-    tier: str
-    is_verified: bool
-
-
-class TokenResponse(BaseModel):
-    """Token response model."""
-
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-
-
-# Background task storage
-_jobs: dict[str, JobStatus] = {}
-
-# Simple user storage for demo (for educational purposes only)
-_users: dict[str, dict] = {}
-_playlists: dict[str, dict] = {}
+# Backward-compatible aliases — tests import these directly from this module
+_model_cache = state.model_cache
+_jobs = state.jobs
+_users = state.users
+_playlists = state.playlists
 
 
 async def load_model(model_name: str) -> dict[str, Any]:
     """Load MusicGen model with caching using transformers library."""
-    if model_name not in _model_cache:
-        try:
-            logger.info("Loading model: %s", model_name)
-            # Import here to avoid startup issues
-            import torch
-            from transformers import AutoProcessor, MusicgenForConditionalGeneration
+    cached = await state.get_model(model_name)
+    if cached is not None:
+        return cached
 
-            # Determine device
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+    try:
+        logger.info("Loading model: %s", model_name)
+        import torch
+        from transformers import AutoProcessor, MusicgenForConditionalGeneration
 
-            # Load processor and model
-            processor = AutoProcessor.from_pretrained(model_name)
-            model = MusicgenForConditionalGeneration.from_pretrained(
-                model_name, torch_dtype=torch.float16 if device == "cuda" else torch.float32
-            )
-            model.to(device)
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        processor = AutoProcessor.from_pretrained(model_name)
+        model = MusicgenForConditionalGeneration.from_pretrained(
+            model_name, torch_dtype=torch.float16 if device == "cuda" else torch.float32
+        )
+        model.to(device)
 
-            # Cache both processor and model
-            _model_cache[model_name] = {"model": model, "processor": processor, "device": device}
-            logger.info("Model loaded successfully: %s on %s", model_name, device)
-        except Exception as e:
-            logger.error("Failed to load model %s: %s", model_name, e)
-            raise MusicGenError(f"Failed to load model: {e}")
-
-    result: dict[str, Any] = _model_cache[model_name]
-    return result
+        model_data: dict[str, Any] = {
+            "model": model,
+            "processor": processor,
+            "device": device,
+        }
+        await state.set_model(model_name, model_data)
+        logger.info("Model loaded successfully: %s on %s", model_name, device)
+        return model_data
+    except Exception as e:
+        logger.error("Failed to load model %s: %s", model_name, e)
+        raise MusicGenError(f"Failed to load model: {e}")
 
 
 def _generate_music_sync(
@@ -155,13 +93,9 @@ def _generate_music_sync(
     """Synchronous music generation function for executor."""
     import torch
 
-    # Process prompt
     inputs = processor(text=[request.prompt], padding=True, return_tensors="pt").to(device)
-
-    # Calculate tokens for duration (256 tokens ≈ 5 seconds)
     max_new_tokens = int(256 * request.duration / 5)
 
-    # Generate audio with transformers
     with torch.no_grad():
         audio_values = model.generate(
             **inputs,
@@ -173,7 +107,6 @@ def _generate_music_sync(
             guidance_scale=request.cfg_coef,
         )
 
-    # Extract audio as numpy array
     audio = audio_values[0, 0].cpu().numpy()
     return audio
 
@@ -181,67 +114,58 @@ def _generate_music_sync(
 async def generate_music_task(job_id: str, request: GenerationRequest) -> None:
     """Background task for music generation."""
     try:
-        # Update job status
-        _jobs[job_id].status = "processing"
-        _jobs[job_id].progress = 0.1
-        _jobs[job_id].message = "Loading model..."
+        await state.update_job(
+            job_id, status="processing", progress=0.1, message="Loading model..."
+        )
 
-        # Load model components
         model_cache = await load_model(request.model)
         model = model_cache["model"]
         processor = model_cache["processor"]
         device = model_cache["device"]
 
-        _jobs[job_id].progress = 0.3
-        _jobs[job_id].message = "Generating music..."
+        await state.update_job(job_id, progress=0.3, message="Generating music...")
 
-        # Generate music using transformers approach
         logger.info("Generating music for job %s with prompt: %s", job_id, request.prompt)
 
-        # Run in executor to avoid blocking
         loop = asyncio.get_event_loop()
         audio_data = await loop.run_in_executor(
             None, lambda: _generate_music_sync(processor, model, device, request)
         )
 
-        _jobs[job_id].progress = 0.8
-        _jobs[job_id].message = "Saving audio..."
+        await state.update_job(job_id, progress=0.8, message="Saving audio...")
 
-        # Save audio file
         output_dir = config.OUTPUT_DIR
         if not output_dir.startswith("/app/"):
-            # Local environment
             output_dir = os.path.join(os.getcwd(), "outputs")
 
         output_path = os.path.join(output_dir, f"{job_id}.wav")
 
-        # Import here to avoid startup issues
         import torch
         import torchaudio
 
-        # Save the audio (audio_data is already numpy array)
-        audio_tensor = torch.from_numpy(audio_data).unsqueeze(0)  # Add batch dimension
+        audio_tensor = torch.from_numpy(audio_data).unsqueeze(0)
         sample_rate = model.config.audio_encoder.sampling_rate
         torchaudio.save(output_path, audio_tensor, sample_rate)
 
-        # Update job status
-        _jobs[job_id].status = "completed"
-        _jobs[job_id].progress = 1.0
-        _jobs[job_id].message = "Generation completed successfully"
-        _jobs[job_id].audio_url = f"/audio/{job_id}.wav"
+        await state.update_job(
+            job_id,
+            status="completed",
+            progress=1.0,
+            message="Generation completed successfully",
+            audio_url=f"/audio/{job_id}.wav",
+        )
 
         logger.info("Music generation completed for job %s", job_id)
-
-        # Update metrics
         metrics.record_generation_request(request.model, "completed")
 
     except Exception as e:
         logger.error("Music generation failed for job %s: %s", job_id, e)
-        _jobs[job_id].status = "failed"
-        _jobs[job_id].error = "Music generation failed"
-        _jobs[job_id].message = "Generation failed"
-
-        # Update metrics
+        await state.update_job(
+            job_id,
+            status="failed",
+            error="Music generation failed",
+            message="Generation failed",
+        )
         metrics.record_generation_request(request.model, "failed")
 
 
@@ -250,19 +174,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan management."""
     logger.info("Starting MusicGen API")
 
-    # Create output directory using config
     output_dir = config.OUTPUT_DIR
-    if output_dir.startswith("/app/"):
-        # Docker environment
-        output_dir = output_dir
-    else:
-        # Local environment
+    if not output_dir.startswith("/app/"):
         output_dir = os.path.join(os.getcwd(), "outputs")
 
     os.makedirs(output_dir, exist_ok=True)
     logger.info("Output directory: %s", output_dir)
 
-    # Pre-load default model if configured
     if config.MODEL_NAME:
         try:
             await load_model(config.MODEL_NAME)
@@ -282,139 +200,25 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Add security middleware
-app.add_middleware(RateLimitMiddleware)
-
-# Add CORS middleware using validated CORSConfig
+# Middleware order: FastAPI executes in reverse order of addition.
+# Add CORS first so rate limiting runs before CORS (preflight OPTIONS
+# requests are rate-limited, preventing abuse).
 cors_options = cors_config.get_cors_options()
 app.add_middleware(CORSMiddleware, **cors_options)
+app.add_middleware(RateLimitMiddleware)
+
+
+# ── Health & Info ────────────────────────────────────────────────────────────
 
 
 @app.get("/health", status_code=status.HTTP_200_OK)
 async def health_check() -> dict[str, Any]:
     """Health check endpoint."""
-    import time
-
     return {
         "status": "healthy",
-        "service": "api-gateway",  # Tests expect this name
+        "service": "api-gateway",
         "version": "1.0.0",
         "timestamp": time.time(),
-    }
-
-
-@app.post("/generate", response_model=GenerationResponse)
-async def generate_music(
-    request: GenerationRequest,
-    background_tasks: BackgroundTasks,
-    current_user: UserClaims = Depends(require_auth),
-) -> GenerationResponse:
-    """Generate music from text prompt."""
-    try:
-        # Create job ID
-        job_id = str(uuid.uuid4())
-
-        # Initialize job status
-        _jobs[job_id] = JobStatus(
-            job_id=job_id, status="queued", message="Job queued for processing"
-        )
-
-        # Add background task
-        background_tasks.add_task(generate_music_task, job_id, request)
-
-        logger.info("Music generation job %s queued", job_id)
-
-        # Update metrics
-        metrics.record_generation_request(request.model, "queued")
-
-        return GenerationResponse(
-            job_id=job_id, status="queued", message="Music generation job queued successfully"
-        )
-
-    except Exception as e:
-        logger.error("Failed to queue music generation: %s", e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to queue generation",
-        )
-
-
-@app.get("/status/{job_id}", response_model=JobStatus)
-async def get_job_status(job_id: str) -> JobStatus:
-    """Get job status."""
-    if job_id not in _jobs:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
-
-    return _jobs[job_id]
-
-
-@app.get("/audio/{filename}")
-async def get_audio(filename: str) -> FileResponse:
-    """Serve generated audio files."""
-    output_dir_str = config.OUTPUT_DIR
-    if not output_dir_str.startswith("/app/"):
-        # Local environment
-        output_dir = Path.cwd() / "outputs"
-    else:
-        output_dir = Path(output_dir_str)
-
-    # Prevent directory traversal attacks
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Safely construct the file path
-    safe_filename = Path(filename).name  # Removes any directory components
-    file_path = output_dir / safe_filename
-
-    # Verify the resolved path is within our output directory
-    try:
-        file_path = file_path.resolve(strict=False)
-        output_dir = output_dir.resolve(strict=False)
-        if not file_path.is_relative_to(output_dir):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-    except (ValueError, RuntimeError):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid filename")
-
-    if not file_path.exists():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audio file not found")
-
-    return FileResponse(str(file_path), media_type="audio/wav", filename=safe_filename)
-
-
-@app.get("/models")
-async def list_models() -> dict[str, Any]:
-    """List available models."""
-    return {
-        "models": [
-            {
-                "name": "facebook/musicgen-small",
-                "description": "Small model (300M parameters) - Fast generation",
-                "memory_usage": "2GB",
-                "quality": "Good",
-            },
-            {
-                "name": "facebook/musicgen-medium",
-                "description": "Medium model (1.5B parameters) - Balanced performance",
-                "memory_usage": "6GB",
-                "quality": "Very Good",
-            },
-            {
-                "name": "facebook/musicgen-large",
-                "description": "Large model (3.3B parameters) - Best quality",
-                "memory_usage": "12GB",
-                "quality": "Excellent",
-            },
-        ]
-    }
-
-
-@app.get("/metrics")
-async def get_metrics() -> dict[str, Any]:
-    """Get API metrics."""
-    metrics_summary = metrics.get_metrics_summary()
-    return {
-        **metrics_summary,
-        "active_jobs": len([j for j in _jobs.values() if j.status == "processing"]),
-        "total_jobs": len(_jobs),
     }
 
 
@@ -453,7 +257,6 @@ async def health_services() -> dict[str, Any]:
         },
     }
 
-    # Calculate overall status
     statuses = [s["status"] for s in services_health.values()]
     if all(s == "healthy" for s in statuses):
         overall_status = "healthy"
@@ -465,15 +268,94 @@ async def health_services() -> dict[str, Any]:
     return {"services": services_health, "overall_status": overall_status, "timestamp": time.time()}
 
 
-# Add alias for job status endpoint (tests expect this path)
+@app.get("/models")
+async def list_models() -> dict[str, Any]:
+    """List available models."""
+    return {
+        "models": [
+            {
+                "name": "facebook/musicgen-small",
+                "description": "Small model (300M parameters) - Fast generation",
+                "memory_usage": "2GB",
+                "quality": "Good",
+            },
+            {
+                "name": "facebook/musicgen-medium",
+                "description": "Medium model (1.5B parameters) - Balanced performance",
+                "memory_usage": "6GB",
+                "quality": "Very Good",
+            },
+            {
+                "name": "facebook/musicgen-large",
+                "description": "Large model (3.3B parameters) - Best quality",
+                "memory_usage": "12GB",
+                "quality": "Excellent",
+            },
+        ]
+    }
+
+
+@app.get("/metrics")
+async def get_metrics() -> dict[str, Any]:
+    """Get API metrics."""
+    all_jobs = await state.get_all_jobs()
+    metrics_summary = metrics.get_metrics_summary()
+    return {
+        **metrics_summary,
+        "active_jobs": len([j for j in all_jobs.values() if j.status == "processing"]),
+        "total_jobs": len(all_jobs),
+    }
+
+
+# ── Generation ───────────────────────────────────────────────────────────────
+
+
+@app.post("/generate", response_model=GenerationResponse)
+async def generate_music(
+    request: GenerationRequest,
+    background_tasks: BackgroundTasks,
+    current_user: UserClaims = Depends(require_auth),
+) -> GenerationResponse:
+    """Generate music from text prompt."""
+    try:
+        job_id = str(uuid.uuid4())
+        job = JobStatus(job_id=job_id, status="queued", message="Job queued for processing")
+        await state.add_job(job_id, job)
+
+        background_tasks.add_task(generate_music_task, job_id, request)
+
+        logger.info("Music generation job %s queued", job_id)
+        metrics.record_generation_request(request.model, "queued")
+
+        return GenerationResponse(
+            job_id=job_id, status="queued", message="Music generation job queued successfully"
+        )
+
+    except Exception as e:
+        logger.error("Failed to queue music generation: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to queue generation",
+        )
+
+
+@app.get("/status/{job_id}", response_model=JobStatus)
+async def get_job_status(job_id: str) -> JobStatus:
+    """Get job status."""
+    job = await state.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    return job
+
+
 @app.get("/generate/job/{job_id}")
 async def get_generation_job_status(job_id: str) -> dict[str, Any]:
     """Get status of a music generation job (alias for /status/{job_id})."""
-    if job_id not in _jobs:
+    job = await state.get_job(job_id)
+    if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found")
 
-    job = _jobs[job_id]
-    response = {
+    response: dict[str, Any] = {
         "job_id": job.job_id,
         "status": job.status,
         "progress": job.progress,
@@ -486,14 +368,6 @@ async def get_generation_job_status(job_id: str) -> dict[str, Any]:
         response["error"] = job.error
 
     return response
-
-
-# Batch generation endpoint
-class BatchGenerationRequest(BaseModel):
-    """Batch generation request model."""
-
-    requests: list[GenerationRequest]
-    sequential: bool = False
 
 
 @app.post("/generate/batch")
@@ -514,10 +388,10 @@ async def generate_music_batch(
 
     for request in requests:
         job_id = str(uuid.uuid4())
-        _jobs[job_id] = JobStatus(
+        job = JobStatus(
             job_id=job_id, status="queued", message=f"Batch {batch_id}: Job queued for processing"
         )
-
+        await state.add_job(job_id, job)
         background_tasks.add_task(generate_music_task, job_id, request)
         job_ids.append(job_id)
 
@@ -525,237 +399,48 @@ async def generate_music_batch(
 
     return {
         "batch_id": batch_id,
-        "jobs": job_ids,  # Use 'jobs' as expected by tests
+        "jobs": job_ids,
         "status": "processing",
         "total_jobs": len(job_ids),
     }
 
 
-# Authentication endpoints
-@app.post("/auth/register")
-async def register_user(user_data: UserRegistration) -> dict[str, Any]:
-    """Register a new user."""
+# ── Audio ────────────────────────────────────────────────────────────────────
+
+
+@app.get("/audio/{filename}")
+async def get_audio(filename: str) -> FileResponse:
+    """Serve generated audio files."""
+    output_dir_str = config.OUTPUT_DIR
+    if not output_dir_str.startswith("/app/"):
+        output_dir = Path.cwd() / "outputs"
+    else:
+        output_dir = Path(output_dir_str)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    safe_filename = Path(filename).name
+    file_path = output_dir / safe_filename
+
     try:
-        # Check if user already exists
-        if any(u.get("email") == user_data.email for u in _users.values()):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Registration failed. The provided details may already be in use.",
-            )
+        file_path = file_path.resolve(strict=False)
+        output_dir = output_dir.resolve(strict=False)
+        if not file_path.is_relative_to(output_dir):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    except (ValueError, RuntimeError):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid filename")
 
-        if any(u.get("username") == user_data.username for u in _users.values()):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Registration failed. The provided details may already be in use.",
-            )
+    if not file_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audio file not found")
 
-        # Create new user
-        user_id = str(uuid.uuid4())
-        user = {
-            "user_id": user_id,
-            "username": user_data.username,
-            "email": user_data.email,
-            "password_hash": hash_password(user_data.password),  # SECURE: bcrypt hash
-            "roles": [UserRole.USER.value],
-            "tier": "free",
-            "is_verified": True,
-            "tracks_generated": 0,
-            "playlists_count": 0,
-        }
-
-        _users[user_id] = user
-        logger.info("User registered: %s (%s)", user_data.username, user_data.email)
-
-        # Create tokens for auto-login
-        access_token = get_auth_middleware().create_access_token(
-            user_id=user_id,
-            email=user_data.email,
-            username=user_data.username,
-            roles=[UserRole.USER.value],
-            tier="free",
-            is_verified=True,
-        )
-
-        refresh_token = get_auth_middleware().create_refresh_token(user_id)
-
-        # Return registration response with tokens and user info
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer",
-            "user": {
-                "id": user_id,  # Add 'id' field as expected by tests
-                "user_id": user_id,
-                "username": user_data.username,
-                "email": user_data.email,
-                "roles": [UserRole.USER.value],
-                "tier": "free",
-                "is_verified": True,
-                "tracks_generated": 0,
-                "playlists_count": 0,
-            },
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Registration error: %s", e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Registration failed"
-        )
+    return FileResponse(str(file_path), media_type="audio/wav", filename=safe_filename)
 
 
-@app.post("/auth/login")
-async def login_user(
-    request: Request, form_data: OAuth2PasswordRequestForm = Depends()
-) -> dict[str, Any]:
-    """Login user and return JWT tokens."""
-    try:
-        # Find user by email (username field contains email)
-        user = None
-        for u in _users.values():
-            if u.get("email") == form_data.username:
-                user = u
-                break
-
-        # SECURE: Use constant-time password verification
-        password_hash: str = (user.get("password_hash") or "") if user else ""
-        if not user or not verify_password(form_data.password, password_hash):
-            log_login_attempt(
-                request=request,
-                email=form_data.username,
-                success=False,
-                failure_reason="Invalid credentials",
-            )
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid credentials",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        # Create tokens
-        access_token = get_auth_middleware().create_access_token(
-            user_id=user["user_id"],
-            email=user["email"],
-            username=user["username"],
-            roles=user["roles"],
-            tier=user["tier"],
-            is_verified=user["is_verified"],
-        )
-
-        refresh_token = get_auth_middleware().create_refresh_token(user["user_id"])
-
-        log_login_attempt(
-            request=request,
-            email=user["email"],
-            success=True,
-            user_id=user["user_id"],
-        )
-
-        logger.info("User logged in: %s", user["username"])
-
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer",
-            "user": {
-                "id": user["user_id"],  # Add 'id' field as expected by tests
-                "user_id": user["user_id"],
-                "username": user["username"],
-                "email": user["email"],
-                "roles": user["roles"],
-                "tier": user["tier"],
-                "is_verified": user["is_verified"],
-                "tracks_generated": user.get("tracks_generated", 0),
-                "playlists_count": user.get("playlists_count", 0),
-            },
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Login error: %s", e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Login failed"
-        )
-
-
-@app.get("/auth/me")
-async def get_current_user_info(current_user: UserClaims = Depends(require_auth)) -> dict[str, Any]:
-    """Get current user information."""
-    # Get user from storage to include tracks_generated and playlists_count
-    user_data = _users.get(current_user.user_id, {})
-
-    return {
-        "user_id": current_user.user_id,
-        "username": current_user.username,
-        "email": current_user.email,
-        "roles": [role.value for role in current_user.roles],
-        "tier": current_user.tier,
-        "is_verified": current_user.is_verified,
-        "tracks_generated": user_data.get("tracks_generated", 0),
-        "playlists_count": user_data.get("playlists_count", 0),
-    }
-
-
-# Playlist models
-class PlaylistCreate(BaseModel):
-    """Playlist creation request."""
-
-    name: str = Field(..., description="Playlist name")
-    description: str = Field(default="", description="Playlist description")
-    is_public: bool = Field(default=True, description="Whether playlist is public")
-
-
-# Playlist Management endpoints
-@app.post("/playlists")
-async def create_playlist(
-    playlist_data: PlaylistCreate, current_user: UserClaims = Depends(require_auth)
-) -> dict[str, Any]:
-    """Create a new playlist."""
-    playlist_id = str(uuid.uuid4())
-    playlist = {
-        "id": playlist_id,
-        "name": playlist_data.name,
-        "description": playlist_data.description,
-        "is_public": playlist_data.is_public,
-        "user_id": current_user.user_id,  # Use user_id as expected by tests
-        "tracks": [],
-        "created_at": time.time(),
-        "updated_at": time.time(),
-    }
-
-    # Save to in-memory storage (educational demo only)
-    _playlists[playlist_id] = playlist
-    logger.info("Playlist created: %s by user %s", playlist_id, current_user.user_id)
-
-    # Update user's playlist count
-    if current_user.user_id in _users:
-        _users[current_user.user_id]["playlists_count"] = (
-            _users[current_user.user_id].get("playlists_count", 0) + 1
-        )
-
-    return playlist
-
-
-@app.get("/playlists")
-async def get_playlists(current_user: UserClaims = Depends(require_auth)) -> dict[str, Any]:
-    """Get user's playlists."""
-    # Get playlists for current user from storage
-    user_playlists = [
-        playlist for playlist in _playlists.values() if playlist["user_id"] == current_user.user_id
-    ]
-
-    return {"playlists": user_playlists, "total": len(user_playlists)}
-
-
-# Audio Processing endpoints
 @app.post("/audio/analyze")
 async def analyze_audio(
     request: dict[str, Any], current_user: UserClaims = Depends(require_auth)
 ) -> dict[str, Any]:
     """Analyze audio file and return metadata."""
-    # Educational demo - would download and analyze audio in real implementation
     audio_url = request.get("audio_url")
     return {
         "audio_url": audio_url,
@@ -782,7 +467,6 @@ async def generate_waveform(
     current_user: UserClaims = Depends(require_auth),
 ) -> dict[str, Any]:
     """Generate waveform visualization for audio file."""
-    # Educational demo - would generate actual waveform in real implementation
     waveform_id = str(uuid.uuid4())
     return {
         "waveform_url": f"/static/waveforms/{waveform_id}.png",
@@ -792,49 +476,241 @@ async def generate_waveform(
     }
 
 
-# Dashboard endpoint
+# ── Auth ─────────────────────────────────────────────────────────────────────
+
+
+@app.post("/auth/register")
+async def register_user(user_data: UserRegistration) -> dict[str, Any]:
+    """Register a new user."""
+    try:
+        if await state.find_user_by_email(user_data.email):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Registration failed. The provided details may already be in use.",
+            )
+
+        if await state.find_user_by_username(user_data.username):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Registration failed. The provided details may already be in use.",
+            )
+
+        user_id = str(uuid.uuid4())
+        user = {
+            "user_id": user_id,
+            "username": user_data.username,
+            "email": user_data.email,
+            "password_hash": hash_password(user_data.password),
+            "roles": [UserRole.USER.value],
+            "tier": "free",
+            "is_verified": True,
+            "tracks_generated": 0,
+            "playlists_count": 0,
+        }
+
+        await state.add_user(user_id, user)
+        logger.info("User registered: %s (%s)", user_data.username, user_data.email)
+
+        access_token = get_auth_middleware().create_access_token(
+            user_id=user_id,
+            email=user_data.email,
+            username=user_data.username,
+            roles=[UserRole.USER.value],
+            tier="free",
+            is_verified=True,
+        )
+
+        refresh_token = get_auth_middleware().create_refresh_token(user_id)
+
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "user": {
+                "id": user_id,
+                "user_id": user_id,
+                "username": user_data.username,
+                "email": user_data.email,
+                "roles": [UserRole.USER.value],
+                "tier": "free",
+                "is_verified": True,
+                "tracks_generated": 0,
+                "playlists_count": 0,
+            },
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Registration error: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Registration failed"
+        )
+
+
+@app.post("/auth/login")
+async def login_user(
+    request: Request, form_data: OAuth2PasswordRequestForm = Depends()
+) -> dict[str, Any]:
+    """Login user and return JWT tokens."""
+    try:
+        user = await state.find_user_by_email(form_data.username)
+
+        password_hash: str = (user.get("password_hash") or "") if user else ""
+        if not user or not verify_password(form_data.password, password_hash):
+            log_login_attempt(
+                request=request,
+                email=form_data.username,
+                success=False,
+                failure_reason="Invalid credentials",
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        access_token = get_auth_middleware().create_access_token(
+            user_id=user["user_id"],
+            email=user["email"],
+            username=user["username"],
+            roles=user["roles"],
+            tier=user["tier"],
+            is_verified=user["is_verified"],
+        )
+
+        refresh_token = get_auth_middleware().create_refresh_token(user["user_id"])
+
+        log_login_attempt(
+            request=request,
+            email=user["email"],
+            success=True,
+            user_id=user["user_id"],
+        )
+
+        logger.info("User logged in: %s", user["username"])
+
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "user": {
+                "id": user["user_id"],
+                "user_id": user["user_id"],
+                "username": user["username"],
+                "email": user["email"],
+                "roles": user["roles"],
+                "tier": user["tier"],
+                "is_verified": user["is_verified"],
+                "tracks_generated": user.get("tracks_generated", 0),
+                "playlists_count": user.get("playlists_count", 0),
+            },
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Login error: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Login failed"
+        )
+
+
+@app.get("/auth/me")
+async def get_current_user_info(
+    current_user: UserClaims = Depends(require_auth),
+) -> dict[str, Any]:
+    """Get current user information."""
+    user_data = await state.get_user(current_user.user_id) or {}
+
+    return {
+        "user_id": current_user.user_id,
+        "username": current_user.username,
+        "email": current_user.email,
+        "roles": [role.value for role in current_user.roles],
+        "tier": current_user.tier,
+        "is_verified": current_user.is_verified,
+        "tracks_generated": user_data.get("tracks_generated", 0),
+        "playlists_count": user_data.get("playlists_count", 0),
+    }
+
+
+# ── Social ───────────────────────────────────────────────────────────────────
+
+
+@app.post("/playlists")
+async def create_playlist(
+    playlist_data: PlaylistCreate, current_user: UserClaims = Depends(require_auth)
+) -> dict[str, Any]:
+    """Create a new playlist."""
+    playlist_id = str(uuid.uuid4())
+    playlist = {
+        "id": playlist_id,
+        "name": playlist_data.name,
+        "description": playlist_data.description,
+        "is_public": playlist_data.is_public,
+        "user_id": current_user.user_id,
+        "tracks": [],
+        "created_at": time.time(),
+        "updated_at": time.time(),
+    }
+
+    await state.add_playlist(playlist_id, playlist)
+    logger.info("Playlist created: %s by user %s", playlist_id, current_user.user_id)
+
+    user_data = await state.get_user(current_user.user_id)
+    if user_data:
+        await state.update_user(
+            current_user.user_id,
+            playlists_count=user_data.get("playlists_count", 0) + 1,
+        )
+
+    return playlist
+
+
+@app.get("/playlists")
+async def get_playlists(current_user: UserClaims = Depends(require_auth)) -> dict[str, Any]:
+    """Get user's playlists."""
+    user_playlists = await state.get_playlists_for_user(current_user.user_id)
+    return {"playlists": user_playlists, "total": len(user_playlists)}
+
+
 @app.get("/dashboard")
 async def get_dashboard_data(current_user: UserClaims = Depends(require_auth)) -> dict[str, Any]:
     """Get dashboard data for current user."""
-    user_data = _users.get(current_user.user_id, {})
+    user_data = await state.get_user(current_user.user_id) or {}
+    all_jobs = await state.get_all_jobs()
+    all_users = await state.get_all_users()
+    user_playlists = await state.get_playlists_for_user(current_user.user_id)
 
     return {
         "user_stats": {
             "tracks_generated": user_data.get("tracks_generated", 0),
             "playlists_count": user_data.get("playlists_count", 0),
-            "total_duration": user_data.get("tracks_generated", 0) * 30.0,  # Assuming 30s per track
+            "total_duration": user_data.get("tracks_generated", 0) * 30.0,
             "favorite_genres": ["Electronic", "Ambient", "Classical"],
         },
         "recent_activity": {"last_generation": time.time() - 3600, "last_login": time.time()},
         "system_stats": {
-            "total_users": len(_users),
-            "total_generations": len(_jobs),
-            "active_jobs": len([j for j in _jobs.values() if j.status == "processing"]),
+            "total_users": len(all_users),
+            "total_generations": len(all_jobs),
+            "active_jobs": len([j for j in all_jobs.values() if j.status == "processing"]),
         },
         "user_profile": {
             "username": current_user.username,
             "email": current_user.email,
             "tier": current_user.tier,
-            "member_since": time.time() - 86400,  # Mock member since yesterday
+            "member_since": time.time() - 86400,
         },
         "social_profile": {
             "followers": 0,
             "following": 0,
-            "public_playlists": len(
-                [
-                    p
-                    for p in _playlists.values()
-                    if p["user_id"] == current_user.user_id and p["is_public"]
-                ]
-            ),
+            "public_playlists": len([p for p in user_playlists if p["is_public"]]),
         },
-        "playlists": [p for p in _playlists.values() if p["user_id"] == current_user.user_id][
-            :5
-        ],  # Show first 5 playlists
+        "playlists": user_playlists[:5],
     }
 
 
-# Search endpoint
 @app.get("/search")
 async def search(
     query: str = Query(..., description="Search query"),
@@ -842,7 +718,6 @@ async def search(
     current_user: UserClaims = Depends(require_auth),
 ) -> dict[str, Any]:
     """Search for tracks, playlists, or users."""
-    # Educational demo - would search database in real implementation
     results = {
         "query": query,
         "type": type,

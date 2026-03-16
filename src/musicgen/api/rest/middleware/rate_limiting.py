@@ -25,11 +25,18 @@ if _raw:
 
 
 class RateLimiter:
-    """In-memory rate limiter with sliding window."""
+    """In-memory rate limiter with sliding window.
+
+    Uses a threading.Lock for thread safety since this runs in sync
+    middleware context (not async).
+    """
 
     def __init__(self) -> None:
+        import threading
+
         self.requests: Dict[str, deque[float]] = defaultdict(deque)  # IP -> deque of timestamps
         self.last_cleanup = time.time()
+        self._lock = threading.Lock()
 
         # Rate limits (requests per time window)
         self.limits = {
@@ -118,41 +125,42 @@ class RateLimiter:
         if self._is_exempt_ip(client_ip):
             return True, {}
 
-        current_time = time.time()
-        self._cleanup_old_requests()
+        with self._lock:
+            current_time = time.time()
+            self._cleanup_old_requests()
 
-        # Add current request timestamp
-        self.requests[client_ip].append(current_time)
+            # Add current request timestamp
+            self.requests[client_ip].append(current_time)
 
-        # Check each time window
-        limits_info = {}
-        for window_name, window_seconds in self.windows.items():
-            cutoff = current_time - window_seconds
+            # Check each time window
+            limits_info = {}
+            for window_name, window_seconds in self.windows.items():
+                cutoff = current_time - window_seconds
 
-            # Count requests in this window
-            count = sum(1 for ts in self.requests[client_ip] if ts >= cutoff)
-            limit = self.limits[window_name]
+                # Count requests in this window
+                count = sum(1 for ts in self.requests[client_ip] if ts >= cutoff)
+                limit = self.limits[window_name]
 
-            limits_info[window_name] = {
-                "count": count,
-                "limit": limit,
-                "remaining": max(0, limit - count),
-                "reset_time": int(current_time + window_seconds),
-            }
-
-            # If any window is exceeded, deny request
-            if count > limit:
-                # Remove the request we just added since it's denied
-                self.requests[client_ip].pop()
-
-                return False, {
-                    "error": "Rate limit exceeded",
-                    "window": window_name,
+                limits_info[window_name] = {
+                    "count": count,
                     "limit": limit,
-                    "retry_after": int(cutoff + window_seconds - current_time + 1),
+                    "remaining": max(0, limit - count),
+                    "reset_time": int(current_time + window_seconds),
                 }
 
-        return True, limits_info
+                # If any window is exceeded, deny request
+                if count > limit:
+                    # Remove the request we just added since it's denied
+                    self.requests[client_ip].pop()
+
+                    return False, {
+                        "error": "Rate limit exceeded",
+                        "window": window_name,
+                        "limit": limit,
+                        "retry_after": int(cutoff + window_seconds - current_time + 1),
+                    }
+
+            return True, limits_info
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):

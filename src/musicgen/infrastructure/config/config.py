@@ -65,7 +65,9 @@ class Config:
         self.API_KEY: Optional[str] = os.environ.get("API_KEY", None)
 
         # CORS settings
-        self.CORS_ORIGINS: list = os.environ.get("CORS_ORIGINS", "*").split(",")
+        self.CORS_ORIGINS: list = (
+            os.environ.get("CORS_ORIGINS", "").split(",") if os.environ.get("CORS_ORIGINS") else []
+        )
         self.CORS_CREDENTIALS: bool = _parse_bool(os.environ.get("CORS_CREDENTIALS", "true"), True)
 
         # Rate limiting

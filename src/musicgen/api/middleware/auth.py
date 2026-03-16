@@ -245,13 +245,32 @@ class AuthenticationMiddleware:
             raise AuthenticationError("Token verification failed")
 
     def _is_token_blacklisted(self, jti: str) -> bool:
-        """Check if a token JTI is blacklisted."""
-        if not self.redis_client or not jti:
+        """Check if a token JTI is blacklisted.
+
+        Fail policy is configurable via TOKEN_BLACKLIST_FAIL_POLICY env var:
+        - "closed" (default): reject token when Redis is unreachable
+        - "open": accept token when Redis is unreachable
+        """
+        if not jti:
+            return False
+
+        # No Redis client — use fail policy
+        if not self.redis_client:
+            fail_closed = os.getenv("TOKEN_BLACKLIST_FAIL_POLICY", "closed") != "open"
+            if fail_closed:
+                logger.warning("Redis unavailable, rejecting token (fail-closed policy)")
+                return True
             return False
 
         try:
             return cast(bool, self.redis_client.exists(f"blacklist:{jti}") == 1)
         except Exception:
+            fail_closed = os.getenv("TOKEN_BLACKLIST_FAIL_POLICY", "closed") != "open"
+            if fail_closed:
+                logger.warning(
+                    "Redis blacklist check failed for JTI %s, rejecting token (fail-closed)", jti
+                )
+                return True
             logger.warning("Redis blacklist check failed for JTI %s, failing open", jti)
             return False
 
