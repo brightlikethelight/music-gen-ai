@@ -47,10 +47,10 @@ jobs:
       run: isort --check-only --profile black src tests
 
     - name: Linting (flake8)
-      run: flake8 src tests --max-line-length=100 --extend-ignore=E203,W503,F401,E722,E712,F811,W293,W605,E402,E501,F403,F405 --per-file-ignores=__init__.py:F401
+      run: flake8 src tests --max-line-length=100 --extend-ignore=E203,W503,E722,E712,F811,W293,W605,E402,E501,F403,F405 --per-file-ignores=__init__.py:F401
 
     - name: Type checking (mypy)
-      run: mypy src --ignore-missing-imports --no-strict-optional --python-version=3.10
+      run: mypy src --ignore-missing-imports --python-version=3.10
 
   unit-tests:
     name: Unit Tests

@@ -2,11 +2,10 @@
 Tests for rate limiting middleware.
 """
 
-import time
 from unittest.mock import Mock
 
 import pytest
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 try:

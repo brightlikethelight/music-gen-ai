@@ -7,8 +7,6 @@ Covers audit event logging, client info extraction, and convenience loggers.
 import logging
 from unittest.mock import MagicMock
 
-import pytest
-
 from musicgen.infrastructure.security.audit import (
     AuditEvent,
     AuditRecord,

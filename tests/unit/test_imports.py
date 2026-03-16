@@ -1,9 +1,6 @@
 """Test all module imports for coverage."""
 
 import os
-import sys
-
-import pytest
 
 # Set required environment variables for auth module
 os.environ["JWT_SECRET_KEY"] = "test-key"

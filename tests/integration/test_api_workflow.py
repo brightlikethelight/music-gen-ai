@@ -9,11 +9,9 @@ Tests the complete API workflow including:
 These tests use FastAPI TestClient and mock fixtures to avoid actual model downloads.
 """
 
-import os
-import time
 import uuid
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -21,7 +19,6 @@ from fastapi.testclient import TestClient
 # Import API modules - handle missing dependencies gracefully
 try:
     from musicgen.api.middleware.auth import (
-        AuthenticationMiddleware,
         TokenType,
         UserClaims,
         UserRole,

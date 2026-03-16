@@ -2,8 +2,6 @@
 Tests for multi-instrument functionality.
 """
 
-import pytest
-
 # Placeholder test file since multi_instrument endpoint is not implemented yet
 
 

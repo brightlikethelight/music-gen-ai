@@ -3,8 +3,6 @@
 import os
 from unittest.mock import patch
 
-import pytest
-
 from musicgen.api.cors_config import CORSConfig
 
 

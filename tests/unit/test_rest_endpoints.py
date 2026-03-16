@@ -4,7 +4,6 @@ Covers registration, login, generation, audio serving, search, models,
 health services, and batch generation endpoints.
 """
 
-import os
 import uuid
 from unittest.mock import patch
 

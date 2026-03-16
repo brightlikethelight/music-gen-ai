@@ -3,9 +3,6 @@ Unit tests for musicgen.core.generator module.
 Tests both skip-mode (env var set) and mock-mode (mocks replacing transformers).
 """
 
-import os
-import tempfile
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np

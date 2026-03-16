@@ -6,16 +6,12 @@ Clean implementation focused on what works.
 import logging
 import os
 import time
-from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple
+from typing import Any, Callable, Optional, Tuple
 
 # Lazy imports for heavy ML libraries — typed as Any to satisfy mypy
 # while allowing runtime lazy-loading via _ensure_imports().
-if TYPE_CHECKING:
-    import numpy as np
-    import torch
-else:
-    np: Any = None
-    torch: Any = None
+np: Any = None
+torch: Any = None
 
 AutoProcessor: Any = None
 MusicgenForConditionalGeneration: Any = None
@@ -40,6 +36,7 @@ def _ensure_imports() -> None:
         MusicgenForConditionalGeneration = MFCG
 
 
+console: Optional[Any] = None
 try:
     from rich.console import Console
     from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
@@ -48,7 +45,6 @@ try:
     console = Console()
 except ImportError:
     RICH_AVAILABLE = False
-    console = None
 
 try:
     import soundfile as sf
@@ -257,7 +253,7 @@ class MusicGenerator:
 
         # Generate with optimizations
         with torch.inference_mode():
-            with torch.cuda.amp.autocast(enabled=self.optimize):
+            with torch.amp.autocast("cuda", enabled=self.optimize):
                 audio_values = self.model.generate(
                     **inputs,
                     max_new_tokens=max_new_tokens,

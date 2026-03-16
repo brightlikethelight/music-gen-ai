@@ -6,8 +6,6 @@ os.environ["JWT_SECRET_KEY"] = "test-key"
 os.environ["PYTEST_CURRENT_TEST"] = "1"
 os.environ["MUSICGEN_SKIP_MODEL_DOWNLOAD"] = "1"
 
-import pytest
-
 
 def test_batch_module_coverage():
     """Test batch module imports and functions."""
@@ -91,7 +89,7 @@ def test_config_edge_cases():
     if hasattr(config, "validate"):
         try:
             config.validate()
-        except:
+        except Exception:
             pass  # May fail in test environment
 
 

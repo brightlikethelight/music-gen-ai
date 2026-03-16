@@ -2,8 +2,6 @@
 
 from unittest.mock import patch
 
-import pytest
-
 from musicgen.infrastructure.monitoring.metrics import MetricsCollector
 
 

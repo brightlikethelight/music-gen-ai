@@ -4,8 +4,6 @@ Test app factory and entry point modules.
 These tests provide coverage for simple modules with minimal dependencies.
 """
 
-import pytest
-
 
 class TestAppFactory:
     """Test application factory functionality."""

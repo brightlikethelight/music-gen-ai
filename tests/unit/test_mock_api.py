@@ -18,7 +18,6 @@ from pydantic import BaseModel, Field
 
 from musicgen.infrastructure.config.config import config
 from musicgen.infrastructure.monitoring.logging import setup_logging
-from musicgen.infrastructure.monitoring.metrics import metrics
 
 # Setup logging
 setup_logging()

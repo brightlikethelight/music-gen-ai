@@ -3,10 +3,7 @@ Tests for musicgen.utils.logging module
 """
 
 import logging
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from musicgen.infrastructure.monitoring.logging import (
     get_logger,

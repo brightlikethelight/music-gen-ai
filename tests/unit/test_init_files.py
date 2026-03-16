@@ -4,8 +4,6 @@ Test all __init__.py files - these are easy wins for coverage.
 
 import os
 
-import pytest
-
 # Set environment variables before imports
 os.environ["JWT_SECRET_KEY"] = "test-key"
 os.environ["MUSICGEN_SKIP_REDIS"] = "1"

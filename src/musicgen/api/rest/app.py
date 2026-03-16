@@ -619,7 +619,7 @@ async def login_user(
                 break
 
         # SECURE: Use constant-time password verification
-        password_hash = user.get("password_hash") if user else ""
+        password_hash: str = (user.get("password_hash") or "") if user else ""
         if not user or not verify_password(form_data.password, password_hash):
             log_login_attempt(
                 request=request,
