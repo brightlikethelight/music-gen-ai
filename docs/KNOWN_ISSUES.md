@@ -1,101 +1,46 @@
 # Known Issues and Technical Debt
 
-> **⚠️ ACADEMIC PROJECT**: This document provides transparency about current technical issues in this Harvard CS 109B academic project.
+> **Academic Project**: Harvard CS 109B — AI Music Generation
 
-## 🚨 Critical Issues
+## Current Status (March 2026)
 
-### CI/CD Pipeline Failures
-**Status**: ❌ BROKEN (100% failure rate)  
-**Last Working**: Never fully functional  
-**Impact**: Cannot validate code changes automatically
+### CI/CD Pipeline
+**Status**: Defined, all checks pass locally (first remote run pending push)
+- Code quality: black, isort, flake8, mypy — all clean
+- Test gate: `ci-pass` job gates on all checks
+- Matrix: Python 3.10, 3.11, 3.12
 
-#### Root Causes:
-1. **Black Formatting Violations** - Fixed in latest commit
-2. **Test Authentication Issues** - Tests expect 422 but get 401 errors
-3. **Missing System Dependencies** - ffmpeg not installed in CI environment
-4. **Test Timeouts** - ML model downloads during test execution
-5. **Dependency Conflicts** - Multiple requirements files with conflicts
+### Test Suite
+- **370 tests passing**, 0 failing, 49 skipped (model-dependent)
+- **82.24% coverage** (threshold: 75%)
+- Skipped tests require GPU or real model weights
 
-#### Failed Workflows:
-- `CI Pipeline` - Code quality and unit tests
-- `Comprehensive Test Suite` - Full test battery
+### Remaining Limitations
 
-### Test Infrastructure
-**Unit Tests**: 65 skipped, 1-2 failing  
-**Integration Tests**: 20/20 passing ✅  
-**Coverage**: ~13% (target: 60%+)
+| Area | Status | Notes |
+|------|--------|-------|
+| State persistence | In-memory only | All data lost on restart; no database backend |
+| Stub endpoints | `/audio/analyze`, `/audio/waveform`, `/search` | Return hardcoded data |
+| `/health/services` | Fabricated response times | Not actually probing services |
+| WebSocket streaming | Not implemented | Clients must poll `/status/{job_id}` |
+| Rate limiting | IP-only | Per-user rate limiting not connected to auth tiers |
+| Redis auth | Sync client | Blocks event loop; needs `redis.asyncio` |
 
-#### Issues:
-- Most unit tests skip due to missing auth module imports
-- Test expectations don't match actual API behavior
-- Mocking infrastructure incomplete
-- Heavy ML dependencies cause timeouts
+### Security Notes
+- JWT auth fully implemented with refresh tokens
+- CORS restricted to configured origins (fail-closed in production)
+- Symlink protection on audio file serving
+- Short JWT keys rejected in production
+- Prompt validation on generation endpoints
 
-### Code Quality
-**Linting Violations**: 225+ issues
-- Line length (E501): 203 instances
-- Unused imports (F401): 17 instances
-- Type annotation issues: 40+ MyPy errors
+## Technical Debt
 
-### Documentation vs Reality Gaps
-| Feature | Documentation Claims | Actual State |
-|---------|---------------------|--------------|
-| Test Coverage | "6.2%" → Actually ~13% | Misleading |
-| Failing Tests | "50+ failing" → Actually 65 skipped | Inaccurate |
-| Docker Image | Uses wrong project image | Broken |
-| PyPI Package | Shows badge but doesn't exist | False |
-
-## ⚠️ Technical Debt
-
-### Architecture Issues
-- **Authentication**: Middleware expects tokens but tests don't provide them
-- **Configuration**: Multiple overlapping config systems
-- **Dependencies**: requirements.txt vs pyproject.toml conflicts
-- **Imports**: Circular dependencies in some modules
-
-### Deployment Concerns
-- Docker references incorrect base image (`ashleykza/tts-webui`)
-- Kubernetes configs are untested examples only
-- Environment variables not properly documented
-- SSL/TLS configuration missing
-
-### Security Considerations
-- Hardcoded JWT secrets in test files
-- No rate limiting on authentication endpoints
-- CORS configuration may be too permissive
-- No input validation on some endpoints
-
-## 🔧 Recommended Fixes
-
-### Immediate (Critical)
-1. Fix test authentication mocking
-2. Mock ML model loading in tests
-3. Consolidate requirements files
-4. Add ffmpeg to CI environment
-
-### Short-term (Important)
-1. Increase test coverage to 60%+
-2. Fix all linting violations
-3. Update Docker base image
-4. Document environment variables
-
-### Long-term (Nice to Have)
-1. Implement proper monitoring
-2. Add comprehensive security audit
-3. Create integration test suite
-4. Implement proper CI/CD pipeline
-
-## 📝 Notes for Contributors
-
-This is an academic project created for learning purposes. The issues documented here are part of the learning process and demonstrate real-world software engineering challenges. Contributors should:
-
-1. Focus on educational value over perfection
-2. Document any new issues discovered
-3. Prioritize learning objectives
-4. Be transparent about limitations
+- `GenerationResponse` model has `duration` and `model_used` fields that are never populated
+- Performance-tests CI job uses `|| true` (no real benchmarks)
+- No request ID middleware for tracing
+- No security headers middleware (X-Content-Type-Options, etc.)
 
 ---
 
-*Last Updated: January 2025*  
-*Course: Harvard CS 109B - Advanced Data Science*  
-*Instructor Notification: This project intentionally includes technical debt for educational discussion*
+*Last Updated: March 2026*
+*Course: Harvard CS 109B — Advanced Data Science*

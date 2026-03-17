@@ -6,7 +6,6 @@ Educational demonstration of async endpoints with background tasks.
 
 import asyncio
 import logging
-import os
 import time
 import uuid
 from collections.abc import AsyncIterator
@@ -131,11 +130,11 @@ async def generate_music_task(job_id: str, request: GenerationRequest) -> None:
 
         await state.update_job(job_id, progress=0.8, message="Saving audio...")
 
-        output_dir = config.OUTPUT_DIR
-        if not output_dir.startswith("/app/"):
-            output_dir = os.path.join(os.getcwd(), "outputs")
+        output_dir = Path(config.OUTPUT_DIR)
+        if not output_dir.is_absolute():
+            output_dir = Path.cwd() / "outputs"
 
-        output_path = os.path.join(output_dir, f"{job_id}.wav")
+        output_path = str(output_dir / f"{job_id}.wav")
 
         import torch
         import torchaudio
@@ -171,11 +170,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan management."""
     logger.info("Starting MusicGen API")
 
-    output_dir = config.OUTPUT_DIR
-    if not output_dir.startswith("/app/"):
-        output_dir = os.path.join(os.getcwd(), "outputs")
+    output_dir = Path(config.OUTPUT_DIR)
+    if not output_dir.is_absolute():
+        output_dir = Path.cwd() / "outputs"
 
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
     logger.info("Output directory: %s", output_dir)
 
     if config.MODEL_NAME:
@@ -418,11 +417,9 @@ async def generate_music_batch(
 @app.get("/audio/{filename}")
 async def get_audio(filename: str) -> FileResponse:
     """Serve generated audio files."""
-    output_dir_str = config.OUTPUT_DIR
-    if not output_dir_str.startswith("/app/"):
+    output_dir = Path(config.OUTPUT_DIR)
+    if not output_dir.is_absolute():
         output_dir = Path.cwd() / "outputs"
-    else:
-        output_dir = Path(output_dir_str)
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -494,13 +491,10 @@ async def generate_waveform(
 async def register_user(user_data: UserRegistration) -> dict[str, Any]:
     """Register a new user."""
     try:
-        if await state.find_user_by_email(user_data.email):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Registration failed. The provided details may already be in use.",
-            )
+        existing_email = await state.find_user_by_email(user_data.email)
+        existing_username = await state.find_user_by_username(user_data.username)
 
-        if await state.find_user_by_username(user_data.username):
+        if existing_email or existing_username:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Registration failed. The provided details may already be in use.",

@@ -14,6 +14,7 @@ from typing import Any, Callable, Dict, List, Optional
 import pandas as pd
 
 from ..core.generator import MusicGenerator
+from ..infrastructure.security.validation import validate_safe_path
 
 logger = logging.getLogger(__name__)
 
@@ -93,9 +94,16 @@ class BatchProcessor:
                 logger.warning("Row %s: Invalid duration, using 10s", idx)
                 job["duration"] = 10.0
 
-            # Ensure output path
-            if not os.path.isabs(job["output_file"]):
-                job["output_file"] = str(self.output_dir / job["output_file"])
+            # Validate output path against output_dir
+            try:
+                validated = validate_safe_path(
+                    job["output_file"], self.output_dir, allow_creation=True
+                )
+                job["output_file"] = str(validated)
+            except Exception:
+                safe_name = Path(job["output_file"]).name or f"output_{idx:04d}.wav"
+                job["output_file"] = str(self.output_dir / safe_name)
+                logger.warning("Row %s: unsafe output path, using %s", idx, job["output_file"])
 
             jobs.append(job)
 

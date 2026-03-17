@@ -230,9 +230,6 @@ class TestConfig:
         # Rate limiting should be enabled by default
         assert config.RATE_LIMIT_ENABLED is True
 
-        # API key is optional but should be None or string
-        assert config.API_KEY is None or isinstance(config.API_KEY, str)
-
         # CORS is handled by CORSConfig (not Config)
 
     def test_logging_configuration(self):

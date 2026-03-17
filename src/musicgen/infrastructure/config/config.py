@@ -62,8 +62,6 @@ class Config:
         self.API_HOST: str = os.environ.get("API_HOST", "127.0.0.1")
         self.API_PORT: int = _parse_int(os.environ.get("API_PORT", "8000"), 8000)
         self.API_WORKERS: int = _parse_int(os.environ.get("API_WORKERS", "1"), 1)
-        self.API_KEY: Optional[str] = os.environ.get("API_KEY", None)
-
         # Rate limiting
         self.RATE_LIMIT_ENABLED: bool = _parse_bool(
             os.environ.get("RATE_LIMIT_ENABLED", "true"), True
@@ -139,9 +137,6 @@ class Config:
 
         if self.MAX_DURATION > 600:
             errors.append("MAX_DURATION should not exceed 600 seconds")
-
-        if self.API_KEY and len(self.API_KEY) < 16:
-            errors.append("API_KEY should be at least 16 characters")
 
         if len(self.SECRET_KEY) < 32:
             errors.append("SECRET_KEY should be at least 32 characters for security")

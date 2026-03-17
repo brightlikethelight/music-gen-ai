@@ -1,73 +1,58 @@
 # Known Limitations and Current Status
 
-This document provides an honest assessment of the current state of the MusicGen Unified project.
-
-## Current Status (January 2026)
+## Current Status (March 2026)
 
 ### Test Coverage and Quality
-- **Test Coverage**: ~49% (target: 50%+)
-- **Passing Tests**: 283 tests passing
-- **Failing Tests**: 28 tests failing (mostly due to complex ML mocking requirements)
-- **Skipped Tests**: 60 (missing dependencies or complex setup)
-- **Code Formatting**: Fully formatted with black + isort
+- **Test Coverage**: 82.24% (threshold: 75%)
+- **Passing Tests**: 370
+- **Failing Tests**: 0
+- **Skipped Tests**: 49 (model-dependent — require GPU or real weights)
+- **Code Formatting**: black + isort clean
+- **Linting**: flake8 + mypy clean
 
 ### What Works
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Music Generation API | ✅ | FastAPI-based REST endpoints |
-| JWT Authentication | ✅ | Full implementation with refresh tokens |
-| Rate Limiting | ✅ | Middleware-based implementation |
-| CLI Interface | ✅ | Typer-based commands |
-| Configuration | ✅ | Environment-aware config system |
-| Basic Logging | ✅ | Structured logging configured |
+| Music Generation API | Working | FastAPI REST endpoints with background tasks |
+| JWT Authentication | Working | Access + refresh tokens, role-based auth |
+| Rate Limiting | Working | IP-based middleware with per-minute/hour limits |
+| CLI Interface | Working | Typer-based commands |
+| Configuration | Working | Environment-aware with validation |
+| Structured Logging | Working | Per-environment log levels |
+| Batch Processing | Working | CSV-driven with parallel execution |
+| Docker Deployment | Working | Compose with Redis, pinned images |
 
 ### Known Limitations
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| GPU Optimization | ⚠️ | Requires manual setup |
-| Prometheus Metrics | ⚠️ | Basic implementation, not production-ready |
-| Kubernetes Deployment | ⚠️ | Example configs only, not tested |
-| WebSocket Streaming | ⚠️ | Implementation exists but limited testing |
-
-## Test Failures Analysis
-
-The 28 failing tests fall into these categories:
-
-1. **Generator Tests (11 tests)**: Require complex ML model mocking that's difficult to set up without actual model files
-2. **Hybrid App Tests (8 tests)**: HTTP client setup issues
-3. **Memory Management Tests (4 tests)**: GPU-specific tests that skip on CPU-only machines
-4. **Other (5 tests)**: Various mock setup issues
-
-These tests represent edge cases and complex scenarios. The core functionality is tested and working.
+| State Persistence | In-memory | No database; all state lost on restart |
+| GPU Optimization | Manual setup | Requires CUDA-capable hardware |
+| Prometheus Metrics | Basic | In-memory counters, not production-grade |
+| WebSocket Streaming | Not implemented | Polling only via `/status/{job_id}` |
+| Stub Endpoints | Hardcoded | `/audio/analyze`, `/audio/waveform`, `/search` return fake data |
 
 ## Development Environment
 
 ### Supported Configurations
-- **Python**: 3.10, 3.11 (3.12 not fully supported due to ML deps)
+- **Python**: 3.10, 3.11, 3.12
 - **PyTorch**: 2.2.0+
 - **Platform**: macOS, Linux (Windows not tested)
 
 ### Dependencies
 - All dependencies managed via `pyproject.toml`
-- No TensorFlow required (PyTorch only)
+- PyTorch only (no TensorFlow)
 - HuggingFace Transformers for model loading
 
 ## Educational Context
 
-This is an academic project for Harvard CS 109B. While functional for learning and experimentation, consider these points:
+This is an academic project for Harvard CS 109B. While functional for learning and experimentation:
 
 1. **Not Production-Ready**: Use Meta's AudioCraft for production needs
-2. **Limited Support**: No active maintenance planned
-3. **Security**: Basic implementation; review before any deployment
-
-## Getting Help
-
-- **Documentation**: See `docs/` directory
-- **Issues**: Check GitHub Issues for known problems
-- **Contact**: brightliu@college.harvard.edu (academic inquiries only)
+2. **No Active Maintenance**: Semester project scope
+3. **Security**: Review before any real deployment
 
 ---
 
-*Last updated: January 2026*
+*Last Updated: March 2026*
