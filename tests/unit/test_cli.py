@@ -2,9 +2,16 @@
 Unit tests for CLI functionality.
 """
 
+import re
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
+
+
+def _strip_ansi(text: str) -> str:
+    """Remove ANSI escape sequences from text."""
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
+
 
 import pytest
 import torch
@@ -80,25 +87,28 @@ class TestCLI:
         """Test generate command help."""
         result = runner.invoke(app, ["generate", "--help"])
         assert result.exit_code == 0
-        assert "Generate music from text description" in result.stdout
-        assert "--duration" in result.stdout
-        assert "--model" in result.stdout
+        out = _strip_ansi(result.stdout)
+        assert "Generate music from text description" in out
+        assert "--duration" in out
+        assert "--model" in out
 
     def test_prompt_command_help(self, runner):
         """Test prompt command help."""
         result = runner.invoke(app, ["prompt", "--help"])
         assert result.exit_code == 0
-        assert "Improve prompts for better results" in result.stdout
-        assert "--examples" in result.stdout
-        assert "--validate" in result.stdout
+        out = _strip_ansi(result.stdout)
+        assert "Improve prompts for better results" in out
+        assert "--examples" in out
+        assert "--validate" in out
 
     def test_batch_command_help(self, runner):
         """Test batch command help."""
         result = runner.invoke(app, ["batch", "--help"])
         assert result.exit_code == 0
-        assert "Process multiple generations from CSV file" in result.stdout
-        assert "--output-dir" in result.stdout
-        assert "--workers" in result.stdout
+        out = _strip_ansi(result.stdout)
+        assert "Process multiple generations from CSV file" in out
+        assert "--output-dir" in out
+        assert "--workers" in out
 
     def test_info_command(self, runner):
         """Test info command."""
@@ -123,17 +133,19 @@ class TestCLI:
         """Test serve command help."""
         result = runner.invoke(app, ["serve", "--help"])
         assert result.exit_code == 0
-        assert "Start web interface" in result.stdout
-        assert "--port" in result.stdout
-        assert "--host" in result.stdout
+        out = _strip_ansi(result.stdout)
+        assert "Start web interface" in out
+        assert "--port" in out
+        assert "--host" in out
 
     def test_api_command_help(self, runner):
         """Test api command help."""
         result = runner.invoke(app, ["api", "--help"])
         assert result.exit_code == 0
-        assert "Start REST API server" in result.stdout
-        assert "--port" in result.stdout
-        assert "--workers" in result.stdout
+        out = _strip_ansi(result.stdout)
+        assert "Start REST API server" in out
+        assert "--port" in out
+        assert "--workers" in out
 
 
 @pytest.mark.unit

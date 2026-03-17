@@ -280,7 +280,7 @@ class AuthenticationMiddleware:
             return False
 
         try:
-            return cast(bool, self.redis_client.exists(f"blacklist:{jti}") == 1)
+            return bool(self.redis_client.exists(f"blacklist:{jti}") == 1)
         except Exception:
             fail_closed = os.getenv("TOKEN_BLACKLIST_FAIL_POLICY", "closed") != "open"
             if fail_closed:

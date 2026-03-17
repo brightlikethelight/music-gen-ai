@@ -199,7 +199,8 @@ class MetricsCollector:
         """Get metrics in Prometheus format."""
         if not self.enabled:
             return ""
-        return generate_latest(self.registry).decode("utf-8")
+        result: str = generate_latest(self.registry).decode("utf-8")
+        return result
 
     def get_metrics_summary(self) -> Dict[str, Any]:
         """Get a summary of metrics as a dictionary."""
