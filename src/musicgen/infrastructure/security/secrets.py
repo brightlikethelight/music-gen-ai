@@ -69,12 +69,18 @@ def get_jwt_secret() -> str:
     if secret:
         # Validate minimum length (32 chars = 256 bits)
         if len(secret) < 32:
-            logger.warning(
-                "JWT_SECRET_KEY is too short (%d chars). "
-                "Use at least 32 characters. "
-                "Generate with: openssl rand -hex 32",
-                len(secret),
-            )
+            if _is_development_environment() or _is_test_environment():
+                logger.warning(
+                    "JWT_SECRET_KEY is too short (%d chars). "
+                    "Use at least 32 characters. "
+                    "Generate with: openssl rand -hex 32",
+                    len(secret),
+                )
+            else:
+                raise SecretKeyError(
+                    "JWT_SECRET_KEY must be at least 32 characters in production. "
+                    "Generate with: openssl rand -hex 32"
+                )
         return secret
 
     # Only allow fallback in genuine test environments

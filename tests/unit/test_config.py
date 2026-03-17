@@ -43,10 +43,6 @@ class TestConfig:
         assert config.API_PORT > 0
         assert config.API_WORKERS >= 1
 
-        # CORS settings
-        assert isinstance(config.CORS_ORIGINS, list)
-        assert config.CORS_CREDENTIALS in [True, False]
-
         # Rate limiting
         assert config.RATE_LIMIT_ENABLED in [True, False]
         assert config.RATE_LIMIT_PER_MINUTE > 0
@@ -122,7 +118,6 @@ class TestConfig:
                 "MAX_DURATION": "120.5",
                 "DEBUG": "false",
                 "RATE_LIMIT_ENABLED": "true",
-                "CORS_CREDENTIALS": "False",
                 "API_WORKERS": "4",
             },
         ):
@@ -135,33 +130,8 @@ class TestConfig:
             assert config.DEBUG is False
             assert isinstance(config.RATE_LIMIT_ENABLED, bool)
             assert config.RATE_LIMIT_ENABLED is True
-            assert isinstance(config.CORS_CREDENTIALS, bool)
-            assert config.CORS_CREDENTIALS is False
             assert isinstance(config.API_WORKERS, int)
             assert config.API_WORKERS == 4
-
-    def test_cors_origins_parsing(self):
-        """Test CORS origins parsing."""
-        # Single origin
-        with patch.dict(os.environ, {"CORS_ORIGINS": "http://localhost:3000"}):
-            config = Config()
-            assert config.CORS_ORIGINS == ["http://localhost:3000"]
-
-        # Multiple origins
-        with patch.dict(
-            os.environ,
-            {"CORS_ORIGINS": "http://localhost:3000,http://example.com,https://app.example.com"},
-        ):
-            config = Config()
-            assert len(config.CORS_ORIGINS) == 3
-            assert "http://localhost:3000" in config.CORS_ORIGINS
-            assert "http://example.com" in config.CORS_ORIGINS
-            assert "https://app.example.com" in config.CORS_ORIGINS
-
-        # Wildcard
-        with patch.dict(os.environ, {"CORS_ORIGINS": "*"}):
-            config = Config()
-            assert config.CORS_ORIGINS == ["*"]
 
     def test_model_cache_dir_expansion(self):
         """Test model cache directory path expansion."""
@@ -263,10 +233,7 @@ class TestConfig:
         # API key is optional but should be None or string
         assert config.API_KEY is None or isinstance(config.API_KEY, str)
 
-        # CORS should have sensible defaults
-        if config.ENVIRONMENT == "production":
-            # Production should not use wildcard
-            assert config.CORS_ORIGINS != ["*"] or config.CORS_CREDENTIALS is False
+        # CORS is handled by CORSConfig (not Config)
 
     def test_logging_configuration(self):
         """Test logging configuration."""

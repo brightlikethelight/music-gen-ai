@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordRequestForm
 
+from musicgen import __version__
 from musicgen.api.cors_config import cors_config
 from musicgen.api.middleware.auth import (
     UserClaims,
@@ -43,7 +44,8 @@ from musicgen.infrastructure.security import (
     log_login_attempt,
     verify_password,
 )
-from musicgen.utils.exceptions import MusicGenError
+from musicgen.infrastructure.security.validation import validate_prompt
+from musicgen.utils.exceptions import MusicGenError, ValidationError
 
 # Setup logging
 setup_logging()
@@ -57,30 +59,23 @@ _playlists = state.playlists
 
 
 async def load_model(model_name: str) -> dict[str, Any]:
-    """Load MusicGen model with caching using transformers library."""
+    """Load MusicGen model with caching, delegating to MusicGenerator."""
     cached = await state.get_model(model_name)
     if cached is not None:
         return cached
 
     try:
         logger.info("Loading model: %s", model_name)
-        import torch
-        from transformers import AutoProcessor, MusicgenForConditionalGeneration
+        from musicgen.core.generator import MusicGenerator
 
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        processor = AutoProcessor.from_pretrained(model_name)
-        model = MusicgenForConditionalGeneration.from_pretrained(
-            model_name, torch_dtype=torch.float16 if device == "cuda" else torch.float32
-        )
-        model.to(device)
-
+        gen = MusicGenerator(model_name=model_name)
         model_data: dict[str, Any] = {
-            "model": model,
-            "processor": processor,
-            "device": device,
+            "model": gen.model,
+            "processor": gen.processor,
+            "device": str(gen.device),
         }
         await state.set_model(model_name, model_data)
-        logger.info("Model loaded successfully: %s on %s", model_name, device)
+        logger.info("Model loaded successfully: %s on %s", model_name, model_data["device"])
         return model_data
     except Exception as e:
         logger.error("Failed to load model %s: %s", model_name, e)
@@ -96,16 +91,18 @@ def _generate_music_sync(
     inputs = processor(text=[request.prompt], padding=True, return_tensors="pt").to(device)
     max_new_tokens = int(256 * request.duration / 5)
 
-    with torch.no_grad():
-        audio_values = model.generate(
-            **inputs,
-            max_new_tokens=max_new_tokens,
-            do_sample=True,
-            temperature=request.temperature,
-            top_k=request.top_k,
-            top_p=request.top_p if request.top_p > 0 else None,
-            guidance_scale=request.cfg_coef,
-        )
+    use_amp = device != "cpu"
+    with torch.inference_mode():
+        with torch.amp.autocast("cuda", enabled=use_amp):
+            audio_values = model.generate(
+                **inputs,
+                max_new_tokens=max_new_tokens,
+                do_sample=True,
+                temperature=request.temperature,
+                top_k=request.top_k,
+                top_p=request.top_p if request.top_p > 0 else None,
+                guidance_scale=request.cfg_coef,
+            )
 
     audio = audio_values[0, 0].cpu().numpy()
     return audio
@@ -127,7 +124,7 @@ async def generate_music_task(job_id: str, request: GenerationRequest) -> None:
 
         logger.info("Generating music for job %s with prompt: %s", job_id, request.prompt)
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         audio_data = await loop.run_in_executor(
             None, lambda: _generate_music_sync(processor, model, device, request)
         )
@@ -196,7 +193,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(
     title="MusicGen API",
     description="Educational AI music generation API (Harvard CS 109B project)",
-    version="2.0.1",
+    version=__version__,
     lifespan=lifespan,
 )
 
@@ -217,13 +214,15 @@ async def health_check() -> dict[str, Any]:
     return {
         "status": "healthy",
         "service": "api-gateway",
-        "version": "1.0.0",
+        "version": __version__,
         "timestamp": time.time(),
     }
 
 
 @app.get("/health/services")
-async def health_services() -> dict[str, Any]:
+async def health_services(
+    current_user: UserClaims = Depends(require_auth),
+) -> dict[str, Any]:
     """Check health of all microservices."""
     services_health: dict[str, dict[str, Any]] = {
         "generation": {
@@ -296,7 +295,9 @@ async def list_models() -> dict[str, Any]:
 
 
 @app.get("/metrics")
-async def get_metrics() -> dict[str, Any]:
+async def get_metrics(
+    current_user: UserClaims = Depends(require_auth),
+) -> dict[str, Any]:
     """Get API metrics."""
     all_jobs = await state.get_all_jobs()
     metrics_summary = metrics.get_metrics_summary()
@@ -318,6 +319,7 @@ async def generate_music(
 ) -> GenerationResponse:
     """Generate music from text prompt."""
     try:
+        validate_prompt(request.prompt)
         job_id = str(uuid.uuid4())
         job = JobStatus(job_id=job_id, status="queued", message="Job queued for processing")
         await state.add_job(job_id, job)
@@ -331,6 +333,11 @@ async def generate_music(
             job_id=job_id, status="queued", message="Music generation job queued successfully"
         )
 
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
     except Exception as e:
         logger.error("Failed to queue music generation: %s", e)
         raise HTTPException(
@@ -421,6 +428,10 @@ async def get_audio(filename: str) -> FileResponse:
 
     safe_filename = Path(filename).name
     file_path = output_dir / safe_filename
+
+    # Check for symlinks before resolving (resolve follows symlinks, hiding them)
+    if file_path.is_symlink():
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     try:
         file_path = file_path.resolve(strict=False)
@@ -520,7 +531,14 @@ async def register_user(user_data: UserRegistration) -> dict[str, Any]:
             is_verified=True,
         )
 
-        refresh_token = get_auth_middleware().create_refresh_token(user_id)
+        refresh_token = get_auth_middleware().create_refresh_token(
+            user_id=user_id,
+            email=user_data.email,
+            username=user_data.username,
+            roles=[UserRole.USER.value],
+            tier="free",
+            is_verified=True,
+        )
 
         return {
             "access_token": access_token,
@@ -579,7 +597,14 @@ async def login_user(
             is_verified=user["is_verified"],
         )
 
-        refresh_token = get_auth_middleware().create_refresh_token(user["user_id"])
+        refresh_token = get_auth_middleware().create_refresh_token(
+            user_id=user["user_id"],
+            email=user["email"],
+            username=user["username"],
+            roles=user["roles"],
+            tier=user["tier"],
+            is_verified=user["is_verified"],
+        )
 
         log_login_attempt(
             request=request,

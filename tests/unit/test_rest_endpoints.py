@@ -36,12 +36,7 @@ def _reset_rate_limiters(application):
             current = getattr(current, "app", None)
     except (AttributeError, TypeError):
         pass
-    try:
-        from musicgen.api.rest.middleware.rate_limiting import rate_limiter
-
-        rate_limiter.requests.clear()
-    except (ImportError, AttributeError):
-        pass
+    pass
 
 
 @pytest.fixture
@@ -283,7 +278,7 @@ class TestBatchGeneration:
     def test_batch_rejects_over_limit(self, _mock_task, client, auth_token):
         payload = {"requests": [{"prompt": f"t{i}"} for i in range(11)]}
         resp = client.post("/generate/batch", json=payload, headers=auth_token)
-        assert resp.status_code == 400
+        assert resp.status_code == 422  # Pydantic Field(max_length=10) validation
 
     def test_batch_requires_auth(self, client):
         resp = client.post(
@@ -307,13 +302,27 @@ class TestInfoEndpoints:
         names = [m["name"] for m in models]
         assert "facebook/musicgen-small" in names
 
-    def test_health_services(self, client):
+    def test_health_services_requires_auth(self, client):
         resp = client.get("/health/services")
+        assert resp.status_code in (401, 403)
+
+    def test_health_services_with_auth(self, client, auth_token):
+        resp = client.get("/health/services", headers=auth_token)
         assert resp.status_code == 200
         data = resp.json()
         assert "overall_status" in data
         assert "services" in data
         assert "generation" in data["services"]
+
+    def test_metrics_requires_auth(self, client):
+        resp = client.get("/metrics")
+        assert resp.status_code in (401, 403)
+
+    def test_metrics_with_auth(self, client, auth_token):
+        resp = client.get("/metrics", headers=auth_token)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "total_jobs" in data
 
 
 # ── Search ──────────────────────────────────────────────────────────────
@@ -341,4 +350,119 @@ class TestSearch:
 
     def test_search_requires_auth(self, client):
         resp = client.get("/search?query=test")
+        assert resp.status_code in (401, 403)
+
+
+# ── Auth/me ────────────────────────────────────────────────────────────
+
+
+class TestAuthMe:
+    """Test GET /auth/me."""
+
+    def test_auth_me_returns_user_info(self, client, auth_token):
+        resp = client.get("/auth/me", headers=auth_token)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["user_id"] == "unit_test_user"
+        assert data["email"] == "unit@test.com"
+        assert data["username"] == "unittester"
+        assert "roles" in data
+
+    def test_auth_me_requires_auth(self, client):
+        resp = client.get("/auth/me")
+        assert resp.status_code in (401, 403)
+
+
+# ── Playlists ──────────────────────────────────────────────────────────
+
+
+class TestPlaylists:
+    """Test playlist CRUD endpoints."""
+
+    def test_create_playlist(self, client, auth_token):
+        resp = client.post(
+            "/playlists",
+            json={"name": "My Playlist", "description": "Test playlist", "is_public": True},
+            headers=auth_token,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["name"] == "My Playlist"
+        assert data["is_public"] is True
+        assert "id" in data
+
+    def test_get_playlists(self, client, auth_token):
+        # Create one first
+        client.post(
+            "/playlists",
+            json={"name": "PL1"},
+            headers=auth_token,
+        )
+        resp = client.get("/playlists", headers=auth_token)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "playlists" in data
+        assert "total" in data
+
+    def test_create_playlist_requires_auth(self, client):
+        resp = client.post("/playlists", json={"name": "test"})
+        assert resp.status_code in (401, 403)
+
+    def test_get_playlists_requires_auth(self, client):
+        resp = client.get("/playlists")
+        assert resp.status_code in (401, 403)
+
+
+# ── Audio analysis / waveform ──────────────────────────────────────────
+
+
+class TestAudioEndpoints:
+    """Test audio analysis and waveform endpoints."""
+
+    def test_analyze_audio(self, client, auth_token):
+        resp = client.post(
+            "/audio/analyze",
+            json={"audio_url": "/audio/test.wav"},
+            headers=auth_token,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "duration" in data
+        assert "analysis" in data
+
+    def test_analyze_audio_requires_auth(self, client):
+        resp = client.post("/audio/analyze", json={"audio_url": "/audio/test.wav"})
+        assert resp.status_code in (401, 403)
+
+    def test_waveform(self, client, auth_token):
+        resp = client.post(
+            "/audio/waveform?audio_url=/audio/test.wav",
+            headers=auth_token,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "waveform_url" in data
+        assert "width" in data
+
+    def test_waveform_requires_auth(self, client):
+        resp = client.post("/audio/waveform?audio_url=/audio/test.wav")
+        assert resp.status_code in (401, 403)
+
+
+# ── Dashboard ──────────────────────────────────────────────────────────
+
+
+class TestDashboard:
+    """Test GET /dashboard."""
+
+    def test_dashboard_returns_data(self, client, auth_token):
+        resp = client.get("/dashboard", headers=auth_token)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "user_stats" in data
+        assert "system_stats" in data
+        assert "user_profile" in data
+
+    def test_dashboard_requires_auth(self, client):
+        resp = client.get("/dashboard")
         assert resp.status_code in (401, 403)

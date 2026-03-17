@@ -9,6 +9,8 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from musicgen import __version__
+
 # Get static directory
 STATIC_DIR = Path(__file__).parent.parent / "static"
 if not STATIC_DIR.exists():
@@ -21,7 +23,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="MusicGen Web UI",
         description="Simple web interface for music generation",
-        version="2.0.0",
+        version=__version__,
     )
 
     # Mount static files

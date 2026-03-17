@@ -123,7 +123,7 @@ def validate_safe_path(user_path: str, base_dir: Path, allow_creation: bool = Fa
     return full_path
 
 
-def validate_prompt(prompt: str, max_length: int = 1000) -> str:
+def validate_prompt(prompt: str, max_length: int = 500) -> str:
     """
     Validate and sanitize a music generation prompt.
 

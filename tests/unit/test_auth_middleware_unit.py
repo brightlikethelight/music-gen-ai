@@ -192,6 +192,38 @@ class TestBlacklist:
         future = datetime.now(timezone.utc) + timedelta(hours=1)
         assert auth.blacklist_token("jti-x", future) is False
 
+    def test_blacklist_fail_closed_rejects_when_no_redis(self, auth, monkeypatch):
+        """Fail-closed policy: reject token when Redis is unavailable."""
+        auth.redis_client = None
+        monkeypatch.setenv("TOKEN_BLACKLIST_FAIL_POLICY", "closed")
+        assert auth._is_token_blacklisted("some-jti") is True
+
+    def test_blacklist_fail_open_accepts_when_no_redis(self, auth, monkeypatch):
+        """Fail-open policy: accept token when Redis is unavailable."""
+        auth.redis_client = None
+        monkeypatch.setenv("TOKEN_BLACKLIST_FAIL_POLICY", "open")
+        assert auth._is_token_blacklisted("some-jti") is False
+
+    def test_blacklist_fail_closed_rejects_on_redis_error(self, auth, monkeypatch):
+        """Fail-closed policy: reject token when Redis raises an error."""
+        mock_redis = MagicMock()
+        mock_redis.exists.side_effect = Exception("Connection refused")
+        auth.redis_client = mock_redis
+        monkeypatch.setenv("TOKEN_BLACKLIST_FAIL_POLICY", "closed")
+        assert auth._is_token_blacklisted("jti-err") is True
+
+    def test_blacklist_fail_open_accepts_on_redis_error(self, auth, monkeypatch):
+        """Fail-open policy: accept token when Redis raises an error."""
+        mock_redis = MagicMock()
+        mock_redis.exists.side_effect = Exception("Connection refused")
+        auth.redis_client = mock_redis
+        monkeypatch.setenv("TOKEN_BLACKLIST_FAIL_POLICY", "open")
+        assert auth._is_token_blacklisted("jti-err") is False
+
+    def test_blacklist_empty_jti_returns_false(self, auth):
+        """Empty JTI should never be blacklisted."""
+        assert auth._is_token_blacklisted("") is False
+
     def test_blacklisted_token_rejected(self, auth):
         mock_redis = MagicMock()
         mock_redis.exists.return_value = 1
@@ -235,6 +267,46 @@ class TestRefreshFlow:
         )
         with pytest.raises(AuthenticationError, match="refresh failed"):
             auth.refresh_access_token(access)
+
+    def test_refresh_preserves_admin_roles(self, auth):
+        """Verify that refreshing an admin token doesn't demote to USER."""
+        refresh = auth.create_refresh_token(
+            user_id="admin1",
+            email="admin@test.com",
+            username="admin_user",
+            roles=[UserRole.ADMIN.value, UserRole.RESEARCHER.value],
+            tier="research",
+            is_verified=True,
+        )
+        new_access, _ = auth.refresh_access_token(refresh)
+        claims = auth.verify_token(new_access)
+        assert claims.user_id == "admin1"
+        assert UserRole.ADMIN in claims.roles
+        assert UserRole.RESEARCHER in claims.roles
+        assert claims.tier == "research"
+        assert claims.email == "admin@test.com"
+        assert claims.username == "admin_user"
+
+    def test_refresh_preserves_user_claims(self, auth):
+        """Verify all user claims survive a refresh cycle."""
+        refresh = auth.create_refresh_token(
+            user_id="u5",
+            email="pro@test.com",
+            username="prouser",
+            roles=[UserRole.USER.value],
+            tier="pro",
+            is_verified=True,
+        )
+        new_access, new_refresh = auth.refresh_access_token(refresh)
+        claims = auth.verify_token(new_access)
+        assert claims.tier == "pro"
+        assert claims.email == "pro@test.com"
+        assert claims.username == "prouser"
+        # Verify chained refresh also preserves claims
+        new_access2, _ = auth.refresh_access_token(new_refresh)
+        claims2 = auth.verify_token(new_access2)
+        assert claims2.tier == "pro"
+        assert claims2.email == "pro@test.com"
 
 
 # ── Factory functions ────────────────────────────────────────────────

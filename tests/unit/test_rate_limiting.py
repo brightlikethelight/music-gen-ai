@@ -58,12 +58,12 @@ class TestRateLimiter:
         ip = limiter._get_client_ip(request)
         assert ip == "10.0.0.1"  # Proxy headers ignored without trusted proxies
 
-        # With trusted proxy configured, forwarded header is used
+        # With trusted proxy configured, forwarded header is used (first IP per RFC 7239)
         original = rate_limiting._trusted_proxy_ips
         try:
             rate_limiting._trusted_proxy_ips = {"10.0.0.1"}
             ip = limiter._get_client_ip(request)
-            assert ip == "192.168.1.1"  # Now trusted
+            assert ip == "203.0.113.1"  # First IP in X-Forwarded-For chain
         finally:
             rate_limiting._trusted_proxy_ips = original
 
@@ -191,10 +191,3 @@ class TestRateLimitMiddleware:
         assert response3.status_code == 429
         assert "Rate limit exceeded" in response3.json()["error"]
         assert "Retry-After" in response3.headers
-
-
-def test_rate_limiting_import_graceful_failure():
-    """Test that missing rate limiting doesn't break imports."""
-    # This test just ensures the import structure works
-    # even when rate limiting components are missing
-    assert True  # If we get here, imports worked

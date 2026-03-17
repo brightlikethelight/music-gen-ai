@@ -21,6 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Multimedia :: Sound/Audio :: Sound Synthesis",
     "Topic :: Education",
@@ -33,7 +34,7 @@ keywords = [
 ]
 dependencies = [
     # Numerical computing
-    "numpy>=1.26.0,<2.0.0",
+    "numpy>=1.26.0,<3.0.0",
     "scipy>=1.14.0,<2.0.0",
 
     # Machine Learning
@@ -105,7 +106,7 @@ dev = [
     "line-profiler>=4.0.0",
 
     # Security scanning
-    "safety>=2.3.0",
+    "safety>=2.3.0,<3.0.0",
     "bandit>=1.7.0",
 
     # Type stubs
@@ -209,11 +210,10 @@ omit = [
     "*/tests/*",
     "*/test_*",
     "setup.py",
-    "*/__init__.py",
 ]
 
 [tool.coverage.report]
-fail_under = 35
+fail_under = 75
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",

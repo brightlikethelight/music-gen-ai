@@ -15,7 +15,7 @@ WORKDIR /app
 # Copy requirements and install Python dependencies
 COPY pyproject.toml .
 COPY src/ src/
-RUN pip install --no-cache-dir -e .[deployment]
+RUN pip install --no-cache-dir .[deployment]
 
 # Production stage
 FROM python:3.11-slim as production

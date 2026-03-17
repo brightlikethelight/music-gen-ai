@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   musicgen-api:
     build:
@@ -7,6 +5,12 @@ services:
       dockerfile: deployment/docker/Dockerfile
     ports:
       - "8000:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
     environment:
       - MUSICGEN_ENV=production
       - REDIS_URL=redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD}@redis:6379/0
@@ -27,32 +31,17 @@ services:
       retries: 3
       start_period: 30s
 
-  musicgen-worker:
-    build:
-      context: ../..
-      dockerfile: deployment/docker/Dockerfile.worker
-    environment:
-      - MUSICGEN_ENV=production
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-    depends_on:
-      redis:
-        condition: service_healthy
-    volumes:
-      - musicgen-models:/app/models
-    restart: unless-stopped
-    deploy:
-      replicas: 2
-
   redis:
     image: redis:7.2-alpine
     command: redis-server --requirepass ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?Set REDIS_PASSWORD}
     # No ports exposed — only accessible within the Docker network
     volumes:
       - redis-data:/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "REDISCLI_AUTH=$REDIS_PASSWORD redis-cli ping"]
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping"]
       interval: 30s
       timeout: 10s
       retries: 3

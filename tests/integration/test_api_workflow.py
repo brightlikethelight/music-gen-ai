@@ -82,13 +82,7 @@ def _reset_rate_limiters(application):
     except (AttributeError, TypeError):
         pass
 
-    # Also clear the global rate limiter module instance
-    try:
-        from musicgen.api.rest.middleware.rate_limiting import rate_limiter
-
-        rate_limiter.requests.clear()
-    except (ImportError, AttributeError):
-        pass
+    pass
 
 
 @pytest.fixture
@@ -367,8 +361,8 @@ class TestGenerationWorkflow:
                 json=batch_request,
                 headers={"Authorization": f"Bearer {registered_user['access_token']}"},
             )
-            assert response.status_code == 400
-            assert "Maximum 10 tracks" in response.json()["detail"]
+            # Pydantic Field(max_length=10) now enforces the limit at the model level
+            assert response.status_code == 422
         finally:
             app.dependency_overrides.pop(require_auth, None)
 
@@ -688,9 +682,14 @@ class TestHealthAndMetrics:
         assert "service" in data
         assert "version" in data
 
-    def test_services_health(self, client):
-        """Test microservices health aggregation."""
+    def test_services_health_requires_auth(self, client):
+        """Test microservices health endpoint requires auth."""
         response = client.get("/health/services")
+        assert response.status_code in (401, 403)
+
+    def test_services_health(self, client, auth_headers):
+        """Test microservices health aggregation."""
+        response = client.get("/health/services", headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()
@@ -702,9 +701,14 @@ class TestHealthAndMetrics:
         for service in expected_services:
             assert service in data["services"]
 
-    def test_metrics_endpoint(self, client):
-        """Test metrics endpoint returns proper data."""
+    def test_metrics_requires_auth(self, client):
+        """Test metrics endpoint requires auth."""
         response = client.get("/metrics")
+        assert response.status_code in (401, 403)
+
+    def test_metrics_endpoint(self, client, auth_headers):
+        """Test metrics endpoint returns proper data."""
+        response = client.get("/metrics", headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()

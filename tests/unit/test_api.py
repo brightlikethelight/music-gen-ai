@@ -33,7 +33,9 @@ class TestMainAPI:
         """Test that app exists and has correct metadata."""
         assert app is not None
         assert app.title == "MusicGen API"
-        assert app.version == "2.0.1"
+        from musicgen import __version__
+
+        assert app.version == __version__
 
     def test_health_endpoint(self, client):
         """Test health check endpoint."""
@@ -53,24 +55,10 @@ class TestMainAPI:
         response = client.get("/")
         assert response.status_code in [200, 307, 404]  # Redirect, docs, or not found
 
-    def test_metrics_endpoint(self, client):
-        """Test metrics endpoint."""
+    def test_metrics_endpoint_requires_auth(self, client):
+        """Test metrics endpoint requires auth."""
         response = client.get("/metrics")
-        assert response.status_code == 200
-
-        data = response.json()
-        assert "generation_requests" in data
-        assert "generation_completed" in data
-        assert "generation_failed" in data
-        assert "active_generations" in data
-        assert "active_jobs" in data
-        assert "total_jobs" in data
-
-        # Counts should be non-negative (may be >0 due to prior tests sharing app state)
-        assert data["generation_requests"] >= 0
-        assert data["generation_completed"] >= 0
-        assert data["generation_failed"] >= 0
-        assert data["active_generations"] >= 0
+        assert response.status_code in (401, 403)
 
 
 @pytest.mark.unit

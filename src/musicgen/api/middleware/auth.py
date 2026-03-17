@@ -173,9 +173,16 @@ class AuthenticationMiddleware:
             raise AuthenticationError("Failed to create access token")
 
     def create_refresh_token(
-        self, user_id: str, expires_delta: Optional[Union[int, timedelta]] = None
+        self,
+        user_id: str,
+        email: str = "",
+        username: str = "",
+        roles: Optional[Union[List[str], List[UserRole]]] = None,
+        tier: str = "free",
+        is_verified: bool = True,
+        expires_delta: Optional[Union[int, timedelta]] = None,
     ) -> str:
-        """Create a JWT refresh token."""
+        """Create a JWT refresh token with user claims for stateless refresh."""
         now = datetime.now(timezone.utc)
 
         # Handle expires_delta as int (days) or timedelta
@@ -183,10 +190,20 @@ class AuthenticationMiddleware:
             expires_delta = timedelta(days=expires_delta)
         expire = now + (expires_delta or timedelta(days=JWT_REFRESH_TOKEN_EXPIRE_DAYS))
 
+        # Convert roles to string values
+        role_values: List[str] = []
+        if roles:
+            role_values = [role.value if isinstance(role, UserRole) else role for role in roles]
+
         jti = os.urandom(16).hex()
 
         payload = {
             "sub": user_id,
+            "email": email,
+            "username": username,
+            "roles": role_values,
+            "tier": tier,
+            "is_verified": is_verified,
             "token_type": TokenType.REFRESH.value,
             "iat": now.timestamp(),
             "exp": expire.timestamp(),
@@ -325,7 +342,14 @@ class AuthenticationMiddleware:
                 is_verified=is_verified,
             )
 
-            new_refresh_token = self.create_refresh_token(user_id)
+            new_refresh_token = self.create_refresh_token(
+                user_id=user_id,
+                email=email,
+                username=username,
+                roles=roles,
+                tier=tier,
+                is_verified=is_verified,
+            )
 
             # Blacklist old refresh token
             if claims.jti:

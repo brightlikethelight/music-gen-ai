@@ -6,13 +6,21 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+PROMPT_MAX_LENGTH = 500
+
 
 class GenerationRequest(BaseModel):
     """Request model for music generation."""
 
-    prompt: str = Field(..., description="Text description of the music to generate")
+    prompt: str = Field(
+        ..., max_length=PROMPT_MAX_LENGTH, description="Text description of the music to generate"
+    )
     duration: float = Field(default=30.0, ge=1.0, le=600.0, description="Duration in seconds")
-    model: str = Field(default="facebook/musicgen-small", description="Model to use")
+    model: str = Field(
+        default="facebook/musicgen-small",
+        pattern=r"^facebook/musicgen-(small|medium|large)$",
+        description="Model to use (facebook/musicgen-small, -medium, or -large)",
+    )
     temperature: float = Field(default=1.0, ge=0.1, le=2.0, description="Sampling temperature")
     top_k: int = Field(default=250, ge=1, le=1000, description="Top-k sampling")
     top_p: float = Field(default=0.0, ge=0.0, le=1.0, description="Top-p sampling")
@@ -52,5 +60,5 @@ class PlaylistCreate(BaseModel):
 class BatchGenerationRequest(BaseModel):
     """Batch generation request model."""
 
-    requests: list[GenerationRequest]
+    requests: list[GenerationRequest] = Field(..., max_length=10)
     sequential: bool = False

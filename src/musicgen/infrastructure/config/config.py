@@ -64,12 +64,6 @@ class Config:
         self.API_WORKERS: int = _parse_int(os.environ.get("API_WORKERS", "1"), 1)
         self.API_KEY: Optional[str] = os.environ.get("API_KEY", None)
 
-        # CORS settings
-        self.CORS_ORIGINS: list = (
-            os.environ.get("CORS_ORIGINS", "").split(",") if os.environ.get("CORS_ORIGINS") else []
-        )
-        self.CORS_CREDENTIALS: bool = _parse_bool(os.environ.get("CORS_CREDENTIALS", "true"), True)
-
         # Rate limiting
         self.RATE_LIMIT_ENABLED: bool = _parse_bool(
             os.environ.get("RATE_LIMIT_ENABLED", "true"), True
@@ -125,9 +119,6 @@ class Config:
             "API_HOST": self.API_HOST,
             "API_PORT": self.API_PORT,
             "API_WORKERS": self.API_WORKERS,
-            "API_KEY": self.API_KEY,
-            "CORS_ORIGINS": self.CORS_ORIGINS,
-            "CORS_CREDENTIALS": self.CORS_CREDENTIALS,
             "RATE_LIMIT_ENABLED": self.RATE_LIMIT_ENABLED,
             "RATE_LIMIT_PER_MINUTE": self.RATE_LIMIT_PER_MINUTE,
             "RATE_LIMIT_PER_HOUR": self.RATE_LIMIT_PER_HOUR,
@@ -175,7 +166,6 @@ class Config:
             "host": self.API_HOST,
             "port": self.API_PORT,
             "workers": self.API_WORKERS,
-            "cors_origins": self.CORS_ORIGINS,
             "rate_limit_enabled": self.RATE_LIMIT_ENABLED,
         }
 

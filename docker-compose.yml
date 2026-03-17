@@ -1,8 +1,6 @@
 # Academic project — educational example only
 # Docker Compose for local development (Harvard CS 109B)
 
-version: '3.8'
-
 services:
   musicgen-api:
     build:

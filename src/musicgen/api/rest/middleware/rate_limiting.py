@@ -24,6 +24,9 @@ if _raw:
     _trusted_proxy_ips = {ip.strip() for ip in _raw.split(",") if ip.strip()}
 
 
+MAX_TRACKED_IPS = 100_000
+
+
 class RateLimiter:
     """In-memory rate limiter with sliding window.
 
@@ -49,7 +52,7 @@ class RateLimiter:
         self.windows = {"per_minute": 60, "per_hour": 3600, "per_day": 86400}
 
     def _cleanup_old_requests(self) -> None:
-        """Remove expired request timestamps."""
+        """Remove expired request timestamps and cap total tracked IPs."""
         current_time = time.time()
 
         # Only cleanup every 60 seconds to avoid overhead
@@ -70,6 +73,16 @@ class RateLimiter:
             if not self.requests[ip]:
                 del self.requests[ip]
 
+        # Cap total tracked IPs to prevent memory exhaustion
+        if len(self.requests) > MAX_TRACKED_IPS:
+            # Sort by oldest request and drop the oldest entries
+            sorted_ips = sorted(
+                self.requests.keys(),
+                key=lambda ip: self.requests[ip][0] if self.requests[ip] else 0,
+            )
+            for ip in sorted_ips[: len(self.requests) - MAX_TRACKED_IPS]:
+                del self.requests[ip]
+
     def _get_client_ip(self, request: Request) -> str:
         """Extract client IP, only trusting proxy headers from known proxies."""
         client_host = request.client.host if request.client else "127.0.0.1"
@@ -84,7 +97,7 @@ class RateLimiter:
 
             for header_value in forwarded_ips:
                 if header_value:
-                    ip = header_value.split(",")[-1].strip()
+                    ip = header_value.split(",")[0].strip()
                     if self._is_valid_ip(ip):
                         return ip
 
@@ -214,7 +227,3 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             response.headers["X-RateLimit-Reset"] = str(minute_info["reset_time"])
 
         return response
-
-
-# Rate limiter instance for sharing across the application
-rate_limiter = RateLimiter()

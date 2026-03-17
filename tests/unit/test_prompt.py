@@ -170,3 +170,18 @@ class TestPromptEngineer:
         prompt = "Jazz music with piano"
         improved = engineer.improve_prompt(prompt)
         assert len(improved) > 0
+
+    def test_suggest_variations_empty(self, engineer):
+        """Test variations with empty prompt."""
+        variations = engineer.suggest_variations("", count=1)
+        assert len(variations) == 1
+
+    def test_suggest_variations_default_count(self, engineer):
+        """Test variations with default count."""
+        variations = engineer.suggest_variations("test")
+        assert len(variations) > 0
+
+    def test_improve_prompt_long(self, engineer):
+        """Test improvement with long input."""
+        improved = engineer.improve_prompt("a" * 100)
+        assert isinstance(improved, str)
