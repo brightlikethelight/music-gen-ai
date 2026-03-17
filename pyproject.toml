@@ -40,7 +40,7 @@ dependencies = [
     # Machine Learning
     "torch>=2.2.0,<3.0.0",
     "torchaudio>=2.2.0,<3.0.0",
-    "transformers[torch]>=4.43.0,<5.0.0",
+    "transformers>=4.43.0,<5.0.0",
 
     # Audio processing
     "soundfile>=0.12.0",
@@ -66,16 +66,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [
-    # Jupyter and visualization
-    "jupyter>=1.0.0",
-    "ipywidgets>=8.0.0",
-    "matplotlib>=3.6.0",
-    "seaborn>=0.12.0",
-    "plotly>=5.0.0",
-    "tensorboard>=2.13.0",
-
-    # Testing
+test = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "pytest-asyncio>=0.21.0",
@@ -84,35 +75,44 @@ dev = [
     "pytest-benchmark>=4.0.0",
     "coverage>=7.0.0",
     "httpx>=0.25.0",
-
-    # Development tools
+]
+lint = [
     "black>=23.0.0",
     "isort>=5.12.0",
     "flake8>=6.0.0",
     "mypy>=1.0.0",
-    "pre-commit>=3.0.0",
-
-    # Documentation
-    "sphinx>=6.0.0",
-    "sphinx-rtd-theme>=1.2.0",
-    "sphinx-autodoc-typehints>=1.22.0",
-
-    # Debugging
-    "ipdb>=0.13.0",
-    "pudb>=2022.0.0",
-
-    # Performance monitoring
-    "memory-profiler>=0.60.0",
-    "line-profiler>=4.0.0",
-
-    # Security scanning
-    "safety>=2.3.0,<3.0.0",
-    "bandit>=1.7.0",
-
-    # Type stubs
     "types-PyYAML>=6.0.0",
     "types-passlib>=1.7.0",
     "types-redis>=4.5.0",
+]
+security = [
+    "safety>=2.3.0,<3.0.0",
+    "bandit==1.7.10",
+]
+docs = [
+    "sphinx>=6.0.0",
+    "sphinx-rtd-theme>=1.2.0",
+    "sphinx-autodoc-typehints>=1.22.0",
+]
+viz = [
+    "matplotlib>=3.6.0",
+    "seaborn>=0.12.0",
+    "plotly>=5.0.0",
+    "tensorboard>=2.13.0",
+]
+notebook = [
+    "jupyter>=1.0.0",
+    "ipywidgets>=8.0.0",
+]
+debug = [
+    "ipdb>=0.13.0",
+    "pudb>=2022.0.0",
+    "memory-profiler>=0.60.0",
+    "line-profiler>=4.0.0",
+    "pre-commit>=3.0.0",
+]
+dev = [
+    "musicgen-unified[test,lint,security,docs,viz,notebook,debug]",
 ]
 deployment = [
     "prometheus-client>=0.17.0",
