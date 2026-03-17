@@ -27,6 +27,8 @@ from musicgen.api.middleware.auth import (
     require_auth,
 )
 from musicgen.api.rest.middleware.rate_limiting import RateLimitMiddleware
+from musicgen.api.rest.middleware.request_id import RequestIDMiddleware
+from musicgen.api.rest.middleware.security_headers import SecurityHeadersMiddleware
 from musicgen.api.rest.models import (
     BatchGenerationRequest,
     GenerationRequest,
@@ -41,6 +43,7 @@ from musicgen.infrastructure.monitoring.metrics import metrics
 from musicgen.infrastructure.security import (
     hash_password,
     log_login_attempt,
+    log_registration,
     verify_password,
 )
 from musicgen.infrastructure.security.validation import validate_prompt
@@ -197,11 +200,13 @@ app = FastAPI(
 )
 
 # Middleware order: FastAPI executes in reverse order of addition.
-# Add CORS first so rate limiting runs before CORS (preflight OPTIONS
-# requests are rate-limited, preventing abuse).
+# Last added = first to run. Order of execution:
+#   RequestID -> SecurityHeaders -> RateLimit -> CORS -> route handler
 cors_options = cors_config.get_cors_options()
 app.add_middleware(CORSMiddleware, **cors_options)
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RequestIDMiddleware)
 
 
 # ── Health & Info ────────────────────────────────────────────────────────────
@@ -346,7 +351,9 @@ async def generate_music(
 
 
 @app.get("/status/{job_id}", response_model=JobStatus)
-async def get_job_status(job_id: str) -> JobStatus:
+async def get_job_status(
+    job_id: str, current_user: UserClaims = Depends(require_auth)
+) -> JobStatus:
     """Get job status."""
     job = await state.get_job(job_id)
     if job is None:
@@ -355,11 +362,13 @@ async def get_job_status(job_id: str) -> JobStatus:
 
 
 @app.get("/generate/job/{job_id}")
-async def get_generation_job_status(job_id: str) -> dict[str, Any]:
+async def get_generation_job_status(
+    job_id: str, current_user: UserClaims = Depends(require_auth)
+) -> dict[str, Any]:
     """Get status of a music generation job (alias for /status/{job_id})."""
     job = await state.get_job(job_id)
     if job is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
     response: dict[str, Any] = {
         "job_id": job.job_id,
@@ -488,7 +497,7 @@ async def generate_waveform(
 
 
 @app.post("/auth/register")
-async def register_user(user_data: UserRegistration) -> dict[str, Any]:
+async def register_user(request: Request, user_data: UserRegistration) -> dict[str, Any]:
     """Register a new user."""
     try:
         existing_email = await state.find_user_by_email(user_data.email)
@@ -514,6 +523,9 @@ async def register_user(user_data: UserRegistration) -> dict[str, Any]:
         }
 
         await state.add_user(user_id, user)
+        log_registration(
+            request=request, user_id=user_id, email=user_data.email, username=user_data.username
+        )
         logger.info("User registered: %s (%s)", user_data.username, user_data.email)
 
         access_token = get_auth_middleware().create_access_token(
@@ -698,11 +710,9 @@ async def get_playlists(current_user: UserClaims = Depends(require_auth)) -> dic
 async def get_dashboard_data(current_user: UserClaims = Depends(require_auth)) -> dict[str, Any]:
     """Get dashboard data for current user."""
     user_data = await state.get_user(current_user.user_id) or {}
-    all_jobs = await state.get_all_jobs()
-    all_users = await state.get_all_users()
     user_playlists = await state.get_playlists_for_user(current_user.user_id)
 
-    return {
+    data: dict[str, Any] = {
         "user_stats": {
             "tracks_generated": user_data.get("tracks_generated", 0),
             "playlists_count": user_data.get("playlists_count", 0),
@@ -710,11 +720,6 @@ async def get_dashboard_data(current_user: UserClaims = Depends(require_auth)) -
             "favorite_genres": ["Electronic", "Ambient", "Classical"],
         },
         "recent_activity": {"last_generation": time.time() - 3600, "last_login": time.time()},
-        "system_stats": {
-            "total_users": len(all_users),
-            "total_generations": len(all_jobs),
-            "active_jobs": len([j for j in all_jobs.values() if j.status == "processing"]),
-        },
         "user_profile": {
             "username": current_user.username,
             "email": current_user.email,
@@ -728,6 +733,17 @@ async def get_dashboard_data(current_user: UserClaims = Depends(require_auth)) -
         },
         "playlists": user_playlists[:5],
     }
+
+    if UserRole.ADMIN in current_user.roles:
+        all_jobs = await state.get_all_jobs()
+        all_users = await state.get_all_users()
+        data["system_stats"] = {
+            "total_users": len(all_users),
+            "total_generations": len(all_jobs),
+            "active_jobs": len([j for j in all_jobs.values() if j.status == "processing"]),
+        }
+
+    return data
 
 
 @app.get("/search")

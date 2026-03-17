@@ -278,6 +278,13 @@ class TestConfig:
         assert config.JOB_RETENTION_HOURS > 0
         assert config.JOB_RETENTION_HOURS <= 168  # Max 1 week
 
+    def test_production_debug_validation_fails(self):
+        """Test that DEBUG=true in production fails validation."""
+        with patch.dict(os.environ, {"ENVIRONMENT": "production", "DEBUG": "true"}):
+            config = Config()
+            with pytest.raises(ValueError, match="DEBUG must be disabled in production"):
+                config.validate()
+
     def test_device_configuration(self):
         """Test device configuration for model loading."""
         # Test auto device

@@ -202,25 +202,33 @@ class TestGeneration:
     def test_job_status_found(self, _mock_task, client, auth_token):
         resp = client.post("/generate", json={"prompt": "test"}, headers=auth_token)
         job_id = resp.json()["job_id"]
-        status_resp = client.get(f"/status/{job_id}")
+        status_resp = client.get(f"/status/{job_id}", headers=auth_token)
         assert status_resp.status_code == 200
         assert status_resp.json()["job_id"] == job_id
 
-    def test_job_status_not_found(self, client):
-        resp = client.get(f"/status/{uuid.uuid4()}")
+    def test_job_status_not_found(self, client, auth_token):
+        resp = client.get(f"/status/{uuid.uuid4()}", headers=auth_token)
         assert resp.status_code == 404
+
+    def test_job_status_requires_auth(self, client):
+        resp = client.get(f"/status/{uuid.uuid4()}")
+        assert resp.status_code in (401, 403)
 
     @patch("musicgen.api.rest.app.generate_music_task")
     def test_job_alias_endpoint(self, _mock_task, client, auth_token):
         resp = client.post("/generate", json={"prompt": "test"}, headers=auth_token)
         job_id = resp.json()["job_id"]
-        alias_resp = client.get(f"/generate/job/{job_id}")
+        alias_resp = client.get(f"/generate/job/{job_id}", headers=auth_token)
         assert alias_resp.status_code == 200
         assert alias_resp.json()["job_id"] == job_id
 
-    def test_job_alias_not_found(self, client):
-        resp = client.get(f"/generate/job/{uuid.uuid4()}")
+    def test_job_alias_not_found(self, client, auth_token):
+        resp = client.get(f"/generate/job/{uuid.uuid4()}", headers=auth_token)
         assert resp.status_code == 404
+
+    def test_job_alias_requires_auth(self, client):
+        resp = client.get(f"/generate/job/{uuid.uuid4()}")
+        assert resp.status_code in (401, 403)
 
 
 # ── Audio serving ───────────────────────────────────────────────────────
@@ -460,8 +468,23 @@ class TestDashboard:
         assert resp.status_code == 200
         data = resp.json()
         assert "user_stats" in data
-        assert "system_stats" in data
+        assert "system_stats" not in data  # non-admin should not see system stats
         assert "user_profile" in data
+
+    def test_dashboard_admin_sees_system_stats(self, client):
+        auth = get_auth_middleware()
+        token = auth.create_access_token(
+            user_id="admin_user",
+            email="admin@test.com",
+            username="admin",
+            roles=[UserRole.ADMIN.value],
+        )
+        headers = {"Authorization": f"Bearer {token}"}
+        resp = client.get("/dashboard", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "system_stats" in data
+        assert "total_users" in data["system_stats"]
 
     def test_dashboard_requires_auth(self, client):
         resp = client.get("/dashboard")

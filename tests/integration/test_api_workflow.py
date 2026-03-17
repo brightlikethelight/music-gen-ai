@@ -216,7 +216,10 @@ class TestGenerationWorkflow:
             job_id = result["job_id"]
 
             # Step 2: GET /status/{job_id} to check job status
-            status_response = client.get(f"/status/{job_id}")
+            status_response = client.get(
+                f"/status/{job_id}",
+                headers={"Authorization": f"Bearer {registered_user['access_token']}"},
+            )
             assert status_response.status_code == 200
 
             status_data = status_response.json()
@@ -250,7 +253,10 @@ class TestGenerationWorkflow:
             job_id = response.json()["job_id"]
 
             # Use the alias endpoint
-            status_response = client.get(f"/generate/job/{job_id}")
+            status_response = client.get(
+                f"/generate/job/{job_id}",
+                headers={"Authorization": f"Bearer {registered_user['access_token']}"},
+            )
             assert status_response.status_code == 200
 
             status_data = status_response.json()
@@ -292,7 +298,10 @@ class TestGenerationWorkflow:
 
             # Verify each job can be queried
             for job_id in result["jobs"]:
-                status_response = client.get(f"/status/{job_id}")
+                status_response = client.get(
+                    f"/status/{job_id}",
+                    headers={"Authorization": f"Bearer {registered_user['access_token']}"},
+                )
                 assert status_response.status_code == 200
         finally:
             app.dependency_overrides.pop(require_auth, None)
@@ -329,11 +338,11 @@ class TestGenerationWorkflow:
         finally:
             app.dependency_overrides.pop(require_auth, None)
 
-    def test_job_not_found(self, client):
+    def test_job_not_found(self, client, auth_headers):
         """Test status check for non-existent job."""
         fake_job_id = str(uuid.uuid4())
 
-        response = client.get(f"/status/{fake_job_id}")
+        response = client.get(f"/status/{fake_job_id}", headers=auth_headers)
         assert response.status_code == 404
         assert "Job not found" in response.json()["detail"]
 
@@ -823,7 +832,7 @@ class TestDashboardWorkflow:
             # Check all expected sections are present
             assert "user_stats" in data
             assert "recent_activity" in data
-            assert "system_stats" in data
+            assert "system_stats" not in data  # non-admin users should not see system stats
             assert "user_profile" in data
             assert "social_profile" in data
             assert "playlists" in data

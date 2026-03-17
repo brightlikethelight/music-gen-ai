@@ -141,6 +141,9 @@ class Config:
         if len(self.SECRET_KEY) < 32:
             errors.append("SECRET_KEY should be at least 32 characters for security")
 
+        if self.ENVIRONMENT == "production" and self.DEBUG:
+            errors.append("DEBUG must be disabled in production")
+
         if errors:
             raise ValueError(f"Configuration errors: {'; '.join(errors)}")
 
