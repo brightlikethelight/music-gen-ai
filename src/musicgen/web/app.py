@@ -35,49 +35,23 @@ def create_app() -> FastAPI:
 
     app.mount("/api", api_app)
 
+    _FALLBACK_HTML = """\
+<!DOCTYPE html>
+<html>
+<head><title>MusicGen</title></head>
+<body>
+<h1>MusicGen Web UI</h1>
+<p>Static files not found. API available at <a href="/api/docs">/api/docs</a></p>
+</body>
+</html>"""
+
     @app.get("/", response_class=HTMLResponse)
     async def root() -> Response:
         """Serve main page."""
         index_path = STATIC_DIR / "index.html"
-
         if index_path.exists():
             return FileResponse(index_path)
-        else:
-            # Fallback HTML if static files not found
-            return HTMLResponse(
-                """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>MusicGen</title>
-                <style>
-                    body {
-                        font-family: Arial, sans-serif;
-                        max-width: 800px;
-                        margin: 50px auto;
-                        padding: 20px;
-                    }
-                    h1 { color: #333; }
-                    .error {
-                        background: #fee;
-                        border: 1px solid #fcc;
-                        padding: 20px;
-                        border-radius: 5px;
-                        color: #c00;
-                    }
-                </style>
-            </head>
-            <body>
-                <h1>MusicGen Web UI</h1>
-                <div class="error">
-                    <h2>Static files not found</h2>
-                    <p>The web UI files could not be loaded.</p>
-                    <p>API is still available at <a href="/api/docs">/api/docs</a></p>
-                </div>
-            </body>
-            </html>
-            """
-            )
+        return HTMLResponse(_FALLBACK_HTML)
 
     return app
 
