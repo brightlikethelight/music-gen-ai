@@ -92,6 +92,42 @@ class TestOriginValidation:
         assert cfg._validate_origin("https://example.com/path") is False
 
 
+class TestStagingDevOrigins:
+    """Test staging dev origins and subdomain wildcards."""
+
+    def test_staging_dev_origins_loaded(self):
+        env = {
+            "ENVIRONMENT": "staging",
+            "STAGING_DEV_ORIGINS": "http://localhost:4000,http://localhost:5000",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            cfg = CORSConfig()
+        assert "http://localhost:4000" in cfg.allowed_origins
+        assert "http://localhost:5000" in cfg.allowed_origins
+
+    def test_validate_origin_empty_returns_false(self):
+        cfg = CORSConfig()
+        assert cfg._validate_origin("") is False
+
+    def test_subdomain_wildcard_matching(self):
+        env = {
+            "ENVIRONMENT": "development",
+            "ALLOWED_ORIGINS": "https://*.example.edu",
+            "ALLOW_SUBDOMAIN_WILDCARDS": "true",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            cfg = CORSConfig()
+            assert cfg.is_origin_allowed("https://sub.example.edu") is True
+            assert cfg.is_origin_allowed("https://deep.sub.example.edu") is True
+            assert cfg.is_origin_allowed("https://evil.com") is False
+
+    def test_validate_origin_header_alias(self):
+        with patch.dict(os.environ, {"ENVIRONMENT": "development"}, clear=False):
+            cfg = CORSConfig()
+        assert cfg.validate_origin_header("http://localhost:3000") is True
+        assert cfg.validate_origin_header("https://evil.com") is False
+
+
 class TestCorsOptions:
     """Test get_cors_options return values."""
 

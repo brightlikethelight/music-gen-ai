@@ -13,7 +13,15 @@ from musicgen.api.middleware.auth import (
     UserClaims,
     UserRole,
     get_auth_middleware,
+    get_bearer_scheme,
     get_oauth2_scheme,
+    require_admin,
+    require_developer,
+    require_moderator,
+    require_pro_tier,
+    require_research_tier,
+    require_researcher,
+    require_user,
 )
 from musicgen.utils.exceptions import AuthenticationError, AuthorizationError
 
@@ -327,3 +335,61 @@ class TestFactories:
     def test_get_oauth2_scheme_returns_scheme(self):
         scheme = get_oauth2_scheme()
         assert scheme is not None
+
+    def test_get_bearer_scheme_returns_instance(self):
+        scheme = get_bearer_scheme()
+        assert scheme is not None
+
+    def test_create_access_token_with_int_expires(self, auth):
+        token = auth.create_access_token(
+            user_id="u1",
+            email="u1@test.com",
+            username="user1",
+            roles=["user"],
+            expires_delta=60,
+        )
+        claims = auth.verify_token(token)
+        assert claims.user_id == "u1"
+
+    def test_create_refresh_token_with_int_expires(self, auth):
+        token = auth.create_refresh_token(
+            user_id="u1",
+            expires_delta=7,
+        )
+        claims = auth.verify_token(token)
+        assert claims.user_id == "u1"
+        assert claims.token_type == TokenType.REFRESH
+
+    def test_parse_roles_from_single_string(self):
+        now = datetime.now(timezone.utc)
+        user = UserClaims(
+            user_id="u1",
+            email="u1@test.com",
+            username="user1",
+            roles="admin",
+            tier="free",
+            is_verified=True,
+            token_type=TokenType.ACCESS,
+            issued_at=now,
+            expires_at=now + timedelta(minutes=30),
+        )
+        assert user.roles == [UserRole.ADMIN]
+
+    def test_blacklist_token_redis_error(self, auth):
+        mock_redis = MagicMock()
+        mock_redis.setex.side_effect = Exception("Connection lost")
+        auth.redis_client = mock_redis
+        future = datetime.now(timezone.utc) + timedelta(hours=1)
+        result = auth.blacklist_token("jti-err", future)
+        assert result is False
+
+    def test_factory_functions_return_checkers(self):
+        assert isinstance(require_admin(), RoleChecker)
+        assert isinstance(require_user(), RoleChecker)
+        assert isinstance(require_researcher(), RoleChecker)
+        assert isinstance(require_moderator(), RoleChecker)
+        assert isinstance(require_developer(), RoleChecker)
+        from musicgen.api.middleware.auth import TierChecker
+
+        assert isinstance(require_pro_tier(), TierChecker)
+        assert isinstance(require_research_tier(), TierChecker)

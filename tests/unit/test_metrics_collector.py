@@ -94,3 +94,45 @@ class TestMetricsCollector:
         mc.record_generation_duration("small", 2.0)
         mc.record_audio_duration("small", 5.0)
         mc.record_model_load_time("small", 0.3)
+
+
+class TestMetricsPrometheusPath:
+    """Test MetricsCollector with prometheus enabled (real or mocked)."""
+
+    def _make_prometheus_collector(self):
+        """Create a MetricsCollector with prometheus enabled."""
+        with patch("musicgen.infrastructure.monitoring.metrics.PROMETHEUS_AVAILABLE", True):
+            return MetricsCollector()
+
+    def test_record_generation_queued(self):
+        mc = self._make_prometheus_collector()
+        mc.record_generation_request("small", "queued")
+        assert mc._prometheus_counts["generation_requests"] == 1
+
+    def test_record_generation_completed_and_failed(self):
+        mc = self._make_prometheus_collector()
+        mc.record_generation_request("small", "completed")
+        assert mc._prometheus_counts["generation_completed"] == 1
+        mc.record_generation_request("small", "failed")
+        assert mc._prometheus_counts["generation_failed"] == 1
+
+    def test_inc_dec_active_generations(self):
+        mc = self._make_prometheus_collector()
+        mc.inc_active_generations()
+        assert mc._prometheus_counts["active_generations"] == 1
+        mc.dec_active_generations()
+        assert mc._prometheus_counts["active_generations"] == 0
+
+    def test_get_metrics_prometheus_format(self):
+        mc = self._make_prometheus_collector()
+        result = mc.get_metrics()
+        assert isinstance(result, str)
+        # Should contain some prometheus metric text
+        assert "musicgen" in result or result == ""
+
+    def test_record_durations(self):
+        mc = self._make_prometheus_collector()
+        mc.record_generation_duration("small", 2.5)
+        mc.record_audio_duration("small", 10.0)
+        mc.record_model_load_time("small", 0.5)
+        # No assertion needed — just verify no exceptions

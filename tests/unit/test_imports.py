@@ -82,6 +82,28 @@ class TestImports:
         assert app is not None
 
 
+class TestLazyImports:
+    """Test __getattr__ lazy import paths in musicgen/__init__.py."""
+
+    def test_lazy_import_MusicGenerator(self):
+        import musicgen
+
+        cls = getattr(musicgen, "MusicGenerator")
+        assert cls.__name__ == "MusicGenerator"
+
+    def test_lazy_import_BatchProcessor(self):
+        import musicgen
+
+        cls = getattr(musicgen, "BatchProcessor")
+        assert cls.__name__ == "BatchProcessor"
+
+    def test_lazy_import_unknown_raises_AttributeError(self):
+        import musicgen
+
+        with pytest.raises(AttributeError, match="has no attribute"):
+            getattr(musicgen, "Nonexistent")
+
+
 class TestMainModule:
     """Test __main__ module functionality."""
 

@@ -174,6 +174,40 @@ class TestRateLimitMiddleware:
         assert "X-RateLimit-Remaining" in response.headers
         assert "X-RateLimit-Reset" in response.headers
 
+    def test_cleanup_removes_expired_entries(self):
+        """Cleanup purges timestamps older than 1 day."""
+        import time as _time
+
+        limiter = RateLimiter()
+        ip = "198.51.100.1"
+        # Inject stale timestamps (>86400s old)
+        stale_ts = _time.time() - 90_000
+        limiter.requests[ip].append(stale_ts)
+        # Force cleanup by setting last_cleanup far in the past
+        limiter.last_cleanup = _time.time() - 120
+        limiter._cleanup_old_requests()
+        # Stale entry should be gone
+        assert ip not in limiter.requests
+
+    def test_cleanup_caps_tracked_ips(self):
+        """Cleanup caps total tracked IPs to MAX_TRACKED_IPS."""
+        import time as _time
+        from musicgen.api.rest.middleware import rate_limiting
+
+        limiter = RateLimiter()
+        original = rate_limiting.MAX_TRACKED_IPS
+        try:
+            rate_limiting.MAX_TRACKED_IPS = 3
+            now = _time.time()
+            for i in range(5):
+                ip = f"198.51.100.{i + 10}"
+                limiter.requests[ip].append(now - (5 - i))
+            limiter.last_cleanup = now - 120
+            limiter._cleanup_old_requests()
+            assert len(limiter.requests) <= 3
+        finally:
+            rate_limiting.MAX_TRACKED_IPS = original
+
     def test_rate_limiting_blocks_excess_requests(self, client):
         """Test that rate limiting blocks excessive requests."""
         # Create a custom limiter with very low limits for testing

@@ -37,3 +37,30 @@ class TestWebApp:
         resp = client.get("/api/health")
         assert resp.status_code == 200
         assert resp.json()["status"] == "healthy"
+
+    def test_root_with_static_index_html(self, tmp_path):
+        """When index.html exists, root returns FileResponse."""
+        from unittest.mock import patch as _patch
+
+        index = tmp_path / "index.html"
+        index.write_text("<html><body>MusicGen Static</body></html>")
+        with _patch("musicgen.web.app.STATIC_DIR", tmp_path):
+            app = create_app()
+            client = TestClient(app)
+            resp = client.get("/")
+            assert resp.status_code == 200
+            assert "MusicGen Static" in resp.text
+
+    def test_run_server_callable(self):
+        """run_server and main are callable without actually starting."""
+        from unittest.mock import patch as _patch
+
+        from musicgen.web.app import main, run_server
+
+        with _patch("uvicorn.run") as mock_run:
+            run_server()
+            assert mock_run.called
+
+        with _patch("uvicorn.run") as mock_run:
+            main()
+            assert mock_run.called

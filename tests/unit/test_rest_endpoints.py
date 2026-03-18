@@ -589,3 +589,86 @@ class TestResponseContracts:
         assert resp.status_code == 200
         expected = {"batch_id", "jobs", "status", "total_jobs"}
         assert set(resp.json().keys()) == expected
+
+
+# ── Error path tests (coverage push) ─────────────────────────────────
+
+
+class TestErrorPaths:
+    """Test error/edge-case paths for coverage."""
+
+    @patch("musicgen.api.rest.app.validate_prompt", side_effect=Exception("boom"))
+    def test_generate_internal_error_returns_500(self, _mock, client, auth_token):
+        resp = client.post("/generate", json={"prompt": "test"}, headers=auth_token)
+        assert resp.status_code == 500
+
+    @patch("musicgen.api.rest.app.generate_music_task")
+    def test_job_alias_with_audio_url(self, _mock_task, client, auth_token):
+        from musicgen.api.rest.app import _jobs
+
+        resp = client.post("/generate", json={"prompt": "test"}, headers=auth_token)
+        job_id = resp.json()["job_id"]
+        _jobs[job_id].audio_url = "/audio/test.wav"
+        alias = client.get(f"/generate/job/{job_id}", headers=auth_token)
+        assert alias.json()["audio_url"] == "/audio/test.wav"
+
+    @patch("musicgen.api.rest.app.generate_music_task")
+    def test_job_alias_with_error_field(self, _mock_task, client, auth_token):
+        from musicgen.api.rest.app import _jobs
+
+        resp = client.post("/generate", json={"prompt": "test"}, headers=auth_token)
+        job_id = resp.json()["job_id"]
+        _jobs[job_id].error = "something failed"
+        alias = client.get(f"/generate/job/{job_id}", headers=auth_token)
+        assert alias.json()["error"] == "something failed"
+
+    def test_audio_symlink_rejected(self, client, tmp_path):
+        from pathlib import Path
+
+        outputs_dir = Path.cwd() / "outputs"
+        outputs_dir.mkdir(parents=True, exist_ok=True)
+        link = outputs_dir / "symlink_test.wav"
+        target = tmp_path / "secret.txt"
+        target.write_text("secret")
+        try:
+            link.symlink_to(target)
+            resp = client.get("/audio/symlink_test.wav")
+            assert resp.status_code == 403
+        finally:
+            link.unlink(missing_ok=True)
+
+    def test_audio_resolve_error(self, client):
+        with patch("musicgen.api.rest.app.Path.resolve", side_effect=RuntimeError("bad")):
+            resp = client.get("/audio/test.wav")
+            assert resp.status_code == 403
+
+    @patch("musicgen.api.rest.app.hash_password", side_effect=Exception("bcrypt error"))
+    def test_register_internal_error(self, _mock, client):
+        resp = _register(client)
+        assert resp.status_code == 500
+
+    @patch("musicgen.api.rest.app.verify_password", side_effect=Exception("bcrypt error"))
+    def test_login_internal_error(self, _mock, client):
+        _register(client)
+        resp = client.post(
+            "/auth/login",
+            data={"username": "alice@example.com", "password": "securepass1"},
+        )
+        assert resp.status_code == 500
+
+    def test_load_model_failure(self):
+        """load_model raises MusicGenError on import failure."""
+        import asyncio
+
+        from musicgen.api.rest.app import load_model
+        from musicgen.utils.exceptions import MusicGenError
+
+        with patch("musicgen.api.rest.app.state.get_model", return_value=None):
+            with patch(
+                "musicgen.core.generator.MusicGenerator",
+                side_effect=Exception("no GPU"),
+            ):
+                with pytest.raises(MusicGenError, match="Failed to load model"):
+                    asyncio.get_event_loop().run_until_complete(
+                        load_model("facebook/musicgen-small")
+                    )
