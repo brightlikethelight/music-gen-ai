@@ -1,37 +1,37 @@
 # Session State
 
 ## Current Focus
-Phase 15: Docker security, doc accuracy, task hardening, coverage push.
+Phase 15 complete. 10-agent audit done. CI fix shipped (passlib→bcrypt).
 
 ## Progress
-- Phase 14 complete — 5 commits pushed (`2c1e8b1`)
-- 444 tests passing, 0 failing, 49 skipped, 91% coverage
+- Phase 15: 5 commits pushed (`c1eeacb`→`7c30b13`)
+- 452 tests passing, 0 failing, 49 skipped, 92% coverage
 - All lint clean (black, isort, flake8, mypy)
-- Docker security hardened (Grafana pw, ports, non-root, healthcheck)
+- CI was RED for 9 runs due to passlib/bcrypt incompatibility — now fixed
 
 ## Key Decisions
+- Replaced abandoned passlib (last release 2020) with direct bcrypt calls
+- Removed passlib from all dependencies
+- Skip prometheus metrics tests when prometheus_client not available
 - Require GRAFANA_PASSWORD via env var (fail-fast, no weak default)
-- Remove public Redis/Prometheus port bindings (compose-internal only)
-- Run Dockerfile.academic as non-root user
-- Add nginx healthcheck
-- Sanitize ValidationError details in /generate (no internal info disclosure)
-- Require SECRET_KEY in production config (auto-generated key changes on restart)
+- Remove public Redis/Prometheus port bindings
+- Sanitize ValidationError details in /generate
 - Stale job reaper in /status endpoint (30min timeout)
 
 ## Blockers
-None
+- CI run pending (commit `7c30b13`) — should go green with passlib fix
+- PR #9 (GitHub Actions bump) has merge conflicts, needs rebase
 
-## Modified Files
-- docker-compose.yml (Grafana pw, Redis/Prometheus ports, nginx healthcheck)
-- Dockerfile.academic (non-root user)
-- CONTRIBUTING.md (deploy.sh, Dockerfile.dev, coverage target, Discord)
-- docs/technical/ARCHITECTURE.md (false directory tree)
-- CHANGELOG.md (Phase 14 entries)
-- src/musicgen/api/rest/app.py (ValidationError sanitization, stale job reaper)
-- src/musicgen/infrastructure/config/config.py (SECRET_KEY production validation)
-- tests/unit/test_security.py (+2 tests)
-- tests/unit/test_logging.py (+4 tests)
-- tests/unit/test_web_app.py (+2 tests)
+## Modified Files (Phase 15)
+- docker-compose.yml, Dockerfile.academic (Docker hardening)
+- CONTRIBUTING.md, docs/technical/ARCHITECTURE.md, CHANGELOG.md (docs)
+- src/musicgen/api/rest/app.py (ValidationError, stale jobs)
+- src/musicgen/api/rest/state.py (created_at field)
+- src/musicgen/infrastructure/config/config.py (SECRET_KEY prod check)
+- src/musicgen/infrastructure/security/password.py (passlib→bcrypt)
+- pyproject.toml (passlib→bcrypt dep swap)
+- tests/unit/test_security.py, test_logging.py, test_web_app.py (+8 tests)
+- tests/unit/test_metrics_collector.py (prometheus skip guard)
 
 ## Active Experiments
-None — this is infrastructure/documentation work.
+None — infrastructure/quality work.
