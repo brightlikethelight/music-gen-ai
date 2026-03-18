@@ -7,9 +7,10 @@ race conditions from concurrent async handlers.
 
 import asyncio
 import logging
+import time
 from typing import Any, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ class JobStatus(BaseModel):
     message: str = ""
     audio_url: Optional[str] = None
     error: Optional[str] = None
+    created_at: float = Field(default_factory=time.time)
 
 
 class StateManager:

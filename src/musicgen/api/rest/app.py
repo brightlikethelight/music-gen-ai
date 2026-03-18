@@ -345,9 +345,10 @@ async def generate_music(
         )
 
     except ValidationError as e:
+        logger.warning("Validation error on /generate: %s", e)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
+            detail="Invalid generation parameters. Check prompt, duration, and model values.",
         )
     except Exception as e:
         logger.error("Failed to queue music generation: %s", e)
@@ -357,14 +358,25 @@ async def generate_music(
         )
 
 
+_STALE_JOB_TIMEOUT_SECONDS = 30 * 60  # 30 minutes
+
+
 @app.get("/status/{job_id}", response_model=JobStatus)
 async def get_job_status(
     job_id: str, current_user: UserClaims = Depends(require_auth)
 ) -> JobStatus:
-    """Get job status."""
+    """Get job status. Auto-fails jobs stuck in processing for >30 minutes."""
     job = await state.get_job(job_id)
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
+    if job.status == "processing" and (time.time() - job.created_at) > _STALE_JOB_TIMEOUT_SECONDS:
+        logger.warning("Job %s stuck in processing for >30min, marking failed", job_id)
+        await state.update_job(
+            job_id, status="failed", error="Generation timed out", message="Generation timed out"
+        )
+        job = await state.get_job(job_id)
+
     return job
 
 

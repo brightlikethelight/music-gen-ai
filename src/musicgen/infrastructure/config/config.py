@@ -96,6 +96,7 @@ class Config:
 
         # Security
         self.SECRET_KEY: str = os.environ.get("SECRET_KEY", secrets.token_urlsafe(32))
+        self._secret_key_from_env: bool = "SECRET_KEY" in os.environ
         self.SECURE_HEADERS: bool = _parse_bool(os.environ.get("SECURE_HEADERS", "true"), True)
 
         # AWS (optional)
@@ -162,6 +163,12 @@ class Config:
             errors.append(
                 f"RATE_LIMIT_PER_HOUR ({self.RATE_LIMIT_PER_HOUR}) "
                 f"must exceed RATE_LIMIT_PER_MINUTE ({self.RATE_LIMIT_PER_MINUTE})"
+            )
+
+        if self.ENVIRONMENT == "production" and not self._secret_key_from_env:
+            errors.append(
+                "SECRET_KEY must be set via environment variable in production "
+                "(auto-generated keys change on restart, invalidating all tokens)"
             )
 
         if errors:
