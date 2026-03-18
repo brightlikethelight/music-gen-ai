@@ -192,6 +192,7 @@ class TestRateLimitMiddleware:
     def test_cleanup_caps_tracked_ips(self):
         """Cleanup caps total tracked IPs to MAX_TRACKED_IPS."""
         import time as _time
+
         from musicgen.api.rest.middleware import rate_limiting
 
         limiter = RateLimiter()

@@ -5,7 +5,7 @@ Phase 14: Documentation accuracy, CI hardening, security fixes, coverage push.
 
 ## Progress
 - Phase 13 complete — CI green (8/8 jobs pass, commit `1695691`)
-- 429 tests passing, 0 failing, 49 skipped, 89% coverage
+- 444 tests passing, 0 failing, 49 skipped, 91% coverage
 - All lint clean (black, isort, flake8, mypy)
 
 ## Key Decisions

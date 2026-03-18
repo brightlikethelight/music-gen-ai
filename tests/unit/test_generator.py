@@ -4,7 +4,7 @@ Tests both skip-mode (env var set) and mock-mode (mocks replacing transformers).
 """
 
 import logging
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest

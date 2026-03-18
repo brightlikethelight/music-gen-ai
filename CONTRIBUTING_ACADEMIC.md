@@ -19,8 +19,8 @@ Please read these documents first to understand the project's current state:
 - **README.md** - Updated project overview with realistic expectations
 
 ### Key Issues (As of last update)
-- **Test Coverage**: 89% (threshold: 75%)
-- **Passing Tests**: 429 passing, 0 failing, 49 skipped
+- **Test Coverage**: 91% (threshold: 75%)
+- **Passing Tests**: 444 passing, 0 failing, 49 skipped
 - **Code Quality**: All lint clean (black, isort, flake8, mypy)
 - **CI/CD**: 8/8 jobs green (Python 3.10, 3.11, 3.12)
 - **Documentation**: Some features documented but not implemented
@@ -123,9 +123,9 @@ git push origin fix/specific-issue-description
 ## 🧪 Testing Guidelines
 
 ### Current Test Status
-- **Unit tests**: ✅ 429 passing, 0 failing
+- **Unit tests**: ✅ 444 passing, 0 failing
 - **Skipped**: 49 (model-dependent — require GPU or real weights)
-- **Coverage**: ✅ 89% (threshold: 75%)
+- **Coverage**: ✅ 91% (threshold: 75%)
 
 ### Testing Priorities
 1. **Fix existing failing tests** before writing new ones

@@ -2,7 +2,7 @@
 
 ## Overview
 
-**⚠️ Academic Project**: This architecture documentation describes the design goals and patterns for an educational project developed for Harvard CS 109B. While the structure follows industry standards, the implementation is experimental and not production-ready (test coverage: 89%, 429 passing tests, 0 failing).
+**⚠️ Academic Project**: This architecture documentation describes the design goals and patterns for an educational project developed for Harvard CS 109B. While the structure follows industry standards, the implementation is experimental and not production-ready (test coverage: 91%, 444 passing tests, 0 failing).
 
 The architecture demonstrates educational concepts in ML application design, emphasizing separation of concerns, modularity, and maintainability for learning purposes.
 
@@ -220,7 +220,7 @@ This architecture provides an educational foundation for understanding ML/audio 
 
 ## Current Limitations
 
-- **Test Coverage**: 89% (429 passing, 0 failing, 49 skipped)
+- **Test Coverage**: 91% (444 passing, 0 failing, 49 skipped)
 - **Monitoring**: Placeholder implementations only
 - **Deployment**: Example configurations, not tested
 - **Scalability**: Theoretical design, not implemented
