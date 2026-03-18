@@ -688,12 +688,7 @@ async def create_playlist(
     await state.add_playlist(playlist_id, playlist)
     logger.info("Playlist created: %s by user %s", playlist_id, current_user.user_id)
 
-    user_data = await state.get_user(current_user.user_id)
-    if user_data:
-        await state.update_user(
-            current_user.user_id,
-            playlists_count=user_data.get("playlists_count", 0) + 1,
-        )
+    await state.increment_user_field(current_user.user_id, "playlists_count")
 
     return playlist
 

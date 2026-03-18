@@ -416,6 +416,18 @@ class TestPlaylists:
         resp = client.post("/playlists", json={"name": "test"})
         assert resp.status_code in (401, 403)
 
+    def test_create_playlist_increments_count(self, client, auth_token):
+        """Playlist creation atomically increments playlists_count."""
+        _register(client, username="counter_user", email="counter@example.com")
+        login = client.post(
+            "/auth/login", data={"username": "counter@example.com", "password": "securepass1"}
+        )
+        token = {"Authorization": f"Bearer {login.json()['access_token']}"}
+        client.post("/playlists", json={"name": "PL1"}, headers=token)
+        client.post("/playlists", json={"name": "PL2"}, headers=token)
+        me = client.get("/auth/me", headers=token)
+        assert me.json()["playlists_count"] == 2
+
     def test_get_playlists_requires_auth(self, client):
         resp = client.get("/playlists")
         assert resp.status_code in (401, 403)

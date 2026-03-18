@@ -91,6 +91,13 @@ class StateManager:
             if user_id in self._users:
                 self._users[user_id].update(kwargs)
 
+    async def increment_user_field(self, user_id: str, field: str, amount: int = 1) -> None:
+        """Atomically increment a numeric user field under lock."""
+        async with self._users_lock:
+            if user_id in self._users:
+                current = self._users[user_id].get(field, 0)
+                self._users[user_id][field] = current + amount
+
     async def get_all_users(self) -> dict[str, dict[str, Any]]:
         async with self._users_lock:
             return dict(self._users)
@@ -123,20 +130,35 @@ class StateManager:
     # Tests directly access _jobs, _users, _playlists; these properties
     # expose the underlying dicts. New code should use the async methods.
 
+    async def reset(self) -> None:
+        """Clear all state. For test fixtures — prefer over direct dict access."""
+        async with self._jobs_lock:
+            self._jobs.clear()
+        async with self._users_lock:
+            self._users.clear()
+        async with self._playlists_lock:
+            self._playlists.clear()
+        async with self._model_lock:
+            self._model_cache.clear()
+
     @property
     def jobs(self) -> dict[str, JobStatus]:
+        """Direct dict access — use async methods for new code."""
         return self._jobs
 
     @property
     def users(self) -> dict[str, dict[str, Any]]:
+        """Direct dict access — use async methods for new code."""
         return self._users
 
     @property
     def playlists(self) -> dict[str, dict[str, Any]]:
+        """Direct dict access — use async methods for new code."""
         return self._playlists
 
     @property
     def model_cache(self) -> dict[str, Any]:
+        """Direct dict access — use async methods for new code."""
         return self._model_cache
 
 
