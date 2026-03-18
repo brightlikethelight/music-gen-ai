@@ -149,6 +149,33 @@ class TestSecretsManagement:
         assert mask_secret("ab") == "**"
         assert mask_secret("abcd1234") == "********"
 
+    def test_production_short_secret_raises(self):
+        """In production, a short JWT_SECRET_KEY raises SecretKeyError."""
+        env = {
+            "JWT_SECRET_KEY": "short",
+            "MUSICGEN_ENV": "production",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            os.environ.pop("PYTEST_CURRENT_TEST", None)
+            try:
+                with pytest.raises(SecretKeyError, match="at least 32 characters"):
+                    get_jwt_secret()
+            finally:
+                os.environ["PYTEST_CURRENT_TEST"] = "1"
+
+    def test_dev_mode_generates_ephemeral_key(self, caplog):
+        """In dev mode without JWT_SECRET_KEY, generates ephemeral key with warning."""
+        with patch.dict(os.environ, {"MUSICGEN_ENV": "development"}, clear=False):
+            os.environ.pop("JWT_SECRET_KEY", None)
+            os.environ.pop("PYTEST_CURRENT_TEST", None)
+            try:
+                with caplog.at_level(logging.WARNING):
+                    result = get_jwt_secret()
+                    assert len(result) == 64  # token_hex(32) = 64 chars
+                    assert "ephemeral" in caplog.text.lower()
+            finally:
+                os.environ["PYTEST_CURRENT_TEST"] = "1"
+
 
 # --- validation.py tests ---
 

@@ -375,7 +375,9 @@ async def get_job_status(
         await state.update_job(
             job_id, status="failed", error="Generation timed out", message="Generation timed out"
         )
-        job = await state.get_job(job_id)
+        updated = await state.get_job(job_id)
+        if updated is not None:
+            job = updated
 
     return job
 

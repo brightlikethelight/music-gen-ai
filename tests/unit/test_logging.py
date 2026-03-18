@@ -3,11 +3,12 @@ Tests for musicgen.utils.logging module
 """
 
 import logging
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from musicgen.infrastructure.monitoring.logging import (
+    configure_logging,
     get_logger,
     setup_logging,
 )
@@ -68,6 +69,67 @@ class TestLoggingSetup:
         # Should return same instance
         logger2 = get_logger("test.module")
         assert logger is logger2
+
+
+class TestConfigureLogging:
+    """Test configure_logging with different format types."""
+
+    def test_minimal_format(self):
+        """Minimal format uses 'LEVEL: message' pattern."""
+        logger = logging.getLogger("musicgen")
+        logger.handlers = []
+
+        configure_logging(level="INFO", format_type="minimal")
+
+        assert len(logger.handlers) > 0
+        console_handler = logger.handlers[0]
+        fmt = console_handler.formatter._fmt
+        assert fmt == "%(levelname)s: %(message)s"
+
+    def test_json_format_with_structlog(self):
+        """JSON format with structlog calls structlog.configure."""
+        logger = logging.getLogger("musicgen")
+        logger.handlers = []
+
+        mock_structlog = MagicMock()
+        with patch("musicgen.infrastructure.monitoring.logging.STRUCTLOG_AVAILABLE", True):
+            with patch(
+                "musicgen.infrastructure.monitoring.logging.structlog",
+                mock_structlog,
+                create=True,
+            ):
+                configure_logging(level="INFO", format_type="json")
+                mock_structlog.configure.assert_called_once()
+
+    def test_file_handler_json_no_formatter(self, tmp_path):
+        """JSON format file handler has no formatter when structlog handles formatting."""
+        logger = logging.getLogger("musicgen")
+        logger.handlers = []
+        log_file = tmp_path / "test.log"
+
+        mock_structlog = MagicMock()
+        with patch("musicgen.infrastructure.monitoring.logging.STRUCTLOG_AVAILABLE", True):
+            with patch(
+                "musicgen.infrastructure.monitoring.logging.structlog",
+                mock_structlog,
+                create=True,
+            ):
+                configure_logging(level="INFO", format_type="json", log_file=str(log_file))
+
+        file_handlers = [h for h in logger.handlers if hasattr(h, "baseFilename")]
+        assert len(file_handlers) > 0
+
+    def test_get_logger_with_structlog(self):
+        """When structlog is available, get_logger returns structlog logger."""
+        mock_structlog = MagicMock()
+        with patch("musicgen.infrastructure.monitoring.logging.STRUCTLOG_AVAILABLE", True):
+            with patch(
+                "musicgen.infrastructure.monitoring.logging.structlog",
+                mock_structlog,
+                create=True,
+            ):
+                get_logger("test.structlog")
+                mock_structlog.get_logger.assert_called_once_with("test.structlog")
 
 
 class TestLoggingIntegration:

@@ -51,6 +51,30 @@ class TestWebApp:
             assert resp.status_code == 200
             assert "MusicGen Static" in resp.text
 
+    def test_root_fallback_html_no_index(self, tmp_path):
+        """When STATIC_DIR exists but no index.html, root returns fallback HTML."""
+        from unittest.mock import patch as _patch
+
+        # tmp_path exists but has no index.html
+        with _patch("musicgen.web.app.STATIC_DIR", tmp_path):
+            app = create_app()
+            client = TestClient(app)
+            resp = client.get("/")
+            assert resp.status_code == 200
+            assert "Static files not found" in resp.text
+
+    def test_static_dir_missing_no_mount(self, tmp_path):
+        """When STATIC_DIR doesn't exist, StaticFiles is not mounted."""
+        from unittest.mock import patch as _patch
+
+        fake_dir = tmp_path / "nonexistent"
+        with _patch("musicgen.web.app.STATIC_DIR", fake_dir):
+            app = create_app()
+            # StaticFiles should not be mounted, so /static should 404
+            client = TestClient(app)
+            resp = client.get("/static/foo.js")
+            assert resp.status_code == 404
+
     def test_run_server_callable(self):
         """run_server and main are callable without actually starting."""
         from unittest.mock import patch as _patch
