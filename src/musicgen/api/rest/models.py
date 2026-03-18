@@ -2,18 +2,14 @@
 Pydantic request/response models for MusicGen API.
 """
 
-from typing import Optional
-
 from pydantic import BaseModel, Field
-
-PROMPT_MAX_LENGTH = 500
 
 
 class GenerationRequest(BaseModel):
     """Request model for music generation."""
 
     prompt: str = Field(
-        ..., max_length=PROMPT_MAX_LENGTH, description="Text description of the music to generate"
+        ..., max_length=500, description="Text description of the music to generate"
     )
     duration: float = Field(default=30.0, ge=1.0, le=600.0, description="Duration in seconds")
     model: str = Field(
@@ -35,9 +31,7 @@ class GenerationResponse(BaseModel):
     job_id: str
     status: str
     message: str
-    audio_url: Optional[str] = None
-    duration: Optional[float] = None
-    model_used: Optional[str] = None
+    audio_url: str | None = None
 
 
 class UserRegistration(BaseModel):
@@ -46,7 +40,6 @@ class UserRegistration(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     email: str = Field(..., pattern=r"^[^@]+@[^@]+\.[^@]+$")
     password: str = Field(..., min_length=8)
-    full_name: Optional[str] = None
 
 
 class PlaylistCreate(BaseModel):
@@ -61,4 +54,3 @@ class BatchGenerationRequest(BaseModel):
     """Batch generation request model."""
 
     requests: list[GenerationRequest] = Field(..., max_length=10)
-    sequential: bool = False

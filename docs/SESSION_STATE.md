@@ -1,11 +1,11 @@
 # Session State
 
 ## Current Focus
-Phase 12: Correctness, memory safety, state hardening.
+Phase 13: Dead code, response models, coverage push.
 
 ## Progress
-- Phase 11 complete — CI green (8/8 jobs pass, commit `7513c4e`)
-- 381 tests passing, 0 failing, 49 skipped, 83% coverage
+- Phase 12 complete — CI green (8/8 jobs pass, commit `d4bb3b8`)
+- 389 tests passing, 0 failing, 49 skipped, 83% coverage
 - All lint clean (black, isort, flake8, mypy)
 
 ## Key Decisions

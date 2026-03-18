@@ -56,7 +56,7 @@ class Config:
         # Generation limits
         self.MAX_DURATION: float = _parse_float(os.environ.get("MAX_DURATION", "300"), 300.0)
         self.DEFAULT_DURATION: float = _parse_float(os.environ.get("DEFAULT_DURATION", "30"), 30.0)
-        self.MAX_PROMPT_LENGTH: int = _parse_int(os.environ.get("MAX_PROMPT_LENGTH", "256"), 256)
+        self.MAX_PROMPT_LENGTH: int = _parse_int(os.environ.get("MAX_PROMPT_LENGTH", "500"), 500)
 
         # API settings
         self.API_HOST: str = os.environ.get("API_HOST", "127.0.0.1")
