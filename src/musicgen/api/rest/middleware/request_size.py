@@ -6,7 +6,7 @@ from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10 MB
+MAX_CONTENT_LENGTH = 1 * 1024 * 1024  # 1 MB
 
 
 class ContentSizeLimitMiddleware(BaseHTTPMiddleware):

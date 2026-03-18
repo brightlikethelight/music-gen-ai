@@ -19,7 +19,7 @@ services:
       - DEVICE=cpu
       - MAX_DURATION=300
       - OUTPUT_DIR=/app/outputs
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-only-change-in-production-32chars}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env (min 32 chars)}
       - REDIS_URL=redis://redis:6379
     depends_on:
       - redis

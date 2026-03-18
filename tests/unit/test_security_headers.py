@@ -47,7 +47,7 @@ async def test_csp_contains_expected_directives() -> None:
 
 @pytest.mark.asyncio
 async def test_oversized_request_rejected() -> None:
-    """Requests with Content-Length over 10 MB get 413."""
+    """Requests with Content-Length over 1 MB get 413."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         resp = await client.post(
