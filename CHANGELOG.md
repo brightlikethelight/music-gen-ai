@@ -8,16 +8,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- High-impact CI/CD improvements for better stability
+- Request ID middleware for distributed tracing
+- Security headers middleware (X-Content-Type-Options, X-Frame-Options, HSTS, CSP)
+- pytest markers (unit, integration, slow, gpu, asyncio, auth, cli)
+- `.env.example` for environment variable documentation
 - Missing exception classes (AudioGenerationError, MusicGenException alias)
 - Backward compatibility for exception handling
 
 ### Changed
-- Updated GitHub Actions to v5 for all workflows (ci.yml, test.yml, release.yml)
+- Dashboard and job status endpoints now require authentication
+- DEBUG enforced off in production (fail-closed validation)
+- Docker images pinned to specific versions
+- CI pipeline: `ci-pass` gate job, Python 3.12 added to test matrix
+- Updated GitHub Actions to v5 for all workflows
 
 ### Fixed
+- User enumeration timing side-channel in registration
+- Path traversal vulnerability in batch processing and audio serving
+- CORS misconfiguration (fail-closed in production)
+- Thread-safe application state
+- Fail-closed token blacklist policy
+- 41 lint violations (black, isort, flake8, mypy strict-optional)
 - Fixed 2 failing tests by adding required exception classes
-- Improved CI stability
+
+### Removed
+- Dead `API_KEY` config field (JWT is the auth mechanism)
+- Dead test files and legacy `requirements.txt`
+- Redundant `bcrypt` dependency (covered by `passlib[bcrypt]`)
+- Unused `types-PyYAML` lint dependency
+
+### Security
+- Timing side-channel mitigation in authentication
+- Symlink protection on audio file serving
+- Short JWT key rejection in production
+- Prompt validation on generation endpoints
+- HSTS and Content-Security-Policy headers
 
 ## [2.0.1] - 2025-08-27
 

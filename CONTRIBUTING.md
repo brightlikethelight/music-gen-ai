@@ -46,7 +46,7 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 
 ### Prerequisites
 
-- Python 3.9, 3.10, or 3.11 (NOT 3.12 due to ML ecosystem incompatibility)
+- Python 3.10, 3.11, or 3.12
 - Docker Desktop (for containerized development)
 - Git
 

@@ -16,7 +16,7 @@ We take the security of MusicGen AI seriously. If you have discovered a security
 ### Reporting Process
 
 1. **DO NOT** create a public GitHub issue for security vulnerabilities
-2. Email your findings to `security@musicgen-ai.example.com` (replace with your actual security email)
+2. Email your findings to `brightliu@college.harvard.edu`
 3. Include the following information:
    - Type of vulnerability (e.g., XSS, SQL Injection, Authentication Bypass)
    - Full paths of source file(s) related to the vulnerability
@@ -84,7 +84,7 @@ pip-audit
 ## Contact
 
 For any security concerns, please contact:
-- Security Team: `security@musicgen-ai.example.com`
+- Security Team: `brightliu@college.harvard.edu`
 - Project Maintainer: `brightliu@college.harvard.edu`
 
 Thank you for helping keep MusicGen AI secure!

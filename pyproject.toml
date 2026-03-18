@@ -43,27 +43,26 @@ dependencies = [
     "transformers>=4.43.0,<5.0.0",
 
     # Audio processing
-    "soundfile>=0.12.0",
-    "pydub>=0.25.0",
+    "soundfile>=0.12.0,<1.0.0",
+    "pydub>=0.25.0,<1.0.0",
 
     # Data handling
-    "pandas>=2.0.0",
+    "pandas>=2.0.0,<3.0.0",
 
     # CLI and UI
-    "typer[all]>=0.9.0",
-    "rich>=13.0.0",
+    "typer[all]>=0.9.0,<1.0.0",
+    "rich>=13.0.0,<14.0.0",
 
     # API framework
-    "fastapi>=0.110.0",
-    "uvicorn[standard]>=0.29.0",
-    "pydantic>=2.0.0",
-    "python-multipart>=0.0.6",
+    "fastapi>=0.110.0,<1.0.0",
+    "uvicorn[standard]>=0.29.0,<1.0.0",
+    "pydantic>=2.0.0,<3.0.0",
+    "python-multipart>=0.0.6,<1.0.0",
 
     # Authentication and Security
-    "python-jose[cryptography]>=3.3.0",
-    "passlib[bcrypt]>=1.7.4",
-    "bcrypt>=4.0.0,<4.3.0",
-    "redis>=4.5.0",
+    "python-jose[cryptography]>=3.3.0,<4.0.0",
+    "passlib[bcrypt]>=1.7.4,<2.0.0",
+    "redis>=4.5.0,<6.0.0",
 ]
 
 [project.optional-dependencies]
@@ -82,7 +81,6 @@ lint = [
     "isort>=5.12.0",
     "flake8>=6.0.0",
     "mypy>=1.0.0",
-    "types-PyYAML>=6.0.0",
     "types-passlib>=1.7.0",
     "types-redis>=4.5.0",
 ]
@@ -138,7 +136,7 @@ musicgen = ["py.typed"]
 
 [tool.black]
 line-length = 100
-target-version = ['py310', 'py311']
+target-version = ['py310', 'py311', 'py312']
 include = '\.pyi?$'
 exclude = '''
 /(
@@ -165,7 +163,7 @@ use_parentheses = true
 ensure_newline_before_comments = true
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

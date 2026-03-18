@@ -3,8 +3,8 @@
 ## Current Status (March 2026)
 
 ### Test Coverage and Quality
-- **Test Coverage**: 82.24% (threshold: 75%)
-- **Passing Tests**: 370
+- **Test Coverage**: 83% (threshold: 75%)
+- **Passing Tests**: 374
 - **Failing Tests**: 0
 - **Skipped Tests**: 49 (model-dependent — require GPU or real weights)
 - **Code Formatting**: black + isort clean

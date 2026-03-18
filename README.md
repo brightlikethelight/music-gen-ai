@@ -2,7 +2,7 @@
 
 [![CI Pipeline](https://github.com/brightlikethelight/music-gen-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/brightlikethelight/music-gen-ai/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/brightlikethelight/music-gen-ai/graph/badge.svg)](https://codecov.io/gh/brightlikethelight/music-gen-ai)
-[![Python 3.10 | 3.11](https://img.shields.io/badge/python-3.10%20|%203.11-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10 | 3.11 | 3.12](https://img.shields.io/badge/python-3.10%20|%203.11%20|%203.12-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
@@ -12,7 +12,7 @@ An AI music generation system built on Facebook's MusicGen model. Developed as p
 
 ## Requirements
 
-- Python 3.10 or 3.11 (3.12 is incompatible with ML dependencies)
+- Python 3.10, 3.11, or 3.12
 - 8GB+ RAM (16GB+ recommended)
 - GPU with 8GB+ VRAM (optional, but recommended)
 
