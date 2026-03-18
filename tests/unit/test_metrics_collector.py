@@ -96,6 +96,15 @@ class TestMetricsCollector:
         mc.record_model_load_time("small", 0.3)
 
 
+try:
+    import prometheus_client  # noqa: F401
+
+    _HAS_PROMETHEUS = True
+except ImportError:
+    _HAS_PROMETHEUS = False
+
+
+@pytest.mark.skipif(not _HAS_PROMETHEUS, reason="prometheus_client not installed")
 class TestMetricsPrometheusPath:
     """Test MetricsCollector with prometheus enabled (real or mocked)."""
 

@@ -11,11 +11,10 @@ References:
 - CWE-256: Plaintext Storage of a Password
 """
 
-from passlib.context import CryptContext
+import bcrypt
 
-# Use bcrypt with automatic salt generation
 # Rounds=12 provides ~250ms hashing time - good balance of security/performance
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
+_BCRYPT_ROUNDS = 12
 
 
 def hash_password(password: str) -> str:
@@ -37,7 +36,8 @@ def hash_password(password: str) -> str:
         >>> hashed.startswith("$2b$")  # bcrypt prefix
         True
     """
-    return str(pwd_context.hash(password))
+    salt = bcrypt.gensalt(rounds=_BCRYPT_ROUNDS)
+    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -63,7 +63,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         False
     """
     try:
-        return bool(pwd_context.verify(plain_password, hashed_password))
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
     except Exception:
         # Invalid hash format or other error - return False safely
         return False
@@ -83,4 +83,12 @@ def needs_rehash(hashed_password: str) -> bool:
     Returns:
         True if the hash should be updated
     """
-    return bool(pwd_context.needs_update(hashed_password))
+    try:
+        # bcrypt format: $2b$<rounds>$<salt+hash>
+        parts = hashed_password.split("$")
+        if len(parts) >= 3:
+            current_rounds = int(parts[2])
+            return current_rounds < _BCRYPT_ROUNDS
+        return True
+    except (ValueError, IndexError):
+        return True
