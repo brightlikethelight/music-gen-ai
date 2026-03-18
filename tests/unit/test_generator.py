@@ -3,7 +3,8 @@ Unit tests for musicgen.core.generator module.
 Tests both skip-mode (env var set) and mock-mode (mocks replacing transformers).
 """
 
-from unittest.mock import MagicMock, patch
+import logging
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import numpy as np
 import pytest
@@ -217,3 +218,148 @@ class TestMusicGeneratorMockMode:
         audio, sr = generator.generate("test", duration=60.0)
         assert isinstance(audio, np.ndarray)
         assert self.mock_model_instance.generate.call_count >= 2
+
+
+class TestGeneratorGPUBranches:
+    """Tests for GPU-specific branches in MusicGenerator."""
+
+    @pytest.fixture(autouse=True)
+    def setup_mocks(self, monkeypatch):
+        """Remove skip env var and inject mock transformers."""
+        monkeypatch.delenv("MUSICGEN_SKIP_MODEL_DOWNLOAD", raising=False)
+
+        self.mock_processor_instance = MagicMock()
+        self.mock_processor_instance.return_value = _MockBatchEncoding(
+            {
+                "input_ids": torch.tensor([[1, 2, 3]]),
+                "attention_mask": torch.tensor([[1, 1, 1]]),
+            }
+        )
+
+        self.mock_model_instance = MagicMock()
+        self.mock_model_instance.to = MagicMock(return_value=self.mock_model_instance)
+        self.mock_model_instance.config.audio_encoder.sampling_rate = 32000
+        self.mock_model_instance.generate = MagicMock(return_value=torch.randn(1, 1, 32000))
+
+        self.mock_processor_class = MagicMock()
+        self.mock_processor_class.from_pretrained = MagicMock(
+            return_value=self.mock_processor_instance
+        )
+        self.mock_model_class = MagicMock()
+        self.mock_model_class.from_pretrained = MagicMock(return_value=self.mock_model_instance)
+
+        monkeypatch.setattr("musicgen.core.generator.AutoProcessor", self.mock_processor_class)
+        monkeypatch.setattr(
+            "musicgen.core.generator.MusicgenForConditionalGeneration",
+            self.mock_model_class,
+        )
+
+        mock_sf = MagicMock()
+        mock_sf.write = MagicMock()
+        monkeypatch.setattr("musicgen.core.generator.sf", mock_sf, raising=False)
+        monkeypatch.setattr("musicgen.core.generator.SOUNDFILE_AVAILABLE", True)
+
+    def test_setup_device_multi_gpu(self):
+        """Multi-GPU selects GPU with most free memory."""
+        with (
+            patch("torch.cuda.is_available", return_value=True),
+            patch("torch.cuda.device_count", return_value=2),
+            patch("torch.cuda.set_device"),
+            patch(
+                "torch.cuda.mem_get_info",
+                side_effect=[(4e9, 8e9), (6e9, 8e9)],
+            ),
+        ):
+            generator = MusicGenerator()
+            assert generator.device == torch.device("cuda:1")
+
+    def test_load_model_failure(self):
+        """OSError during model loading raises RuntimeError."""
+        self.mock_model_class.from_pretrained.side_effect = OSError("model not found")
+        with pytest.raises(RuntimeError, match="Model loading failed"):
+            MusicGenerator()
+
+    def test_apply_optimizations_compile_failure(self, monkeypatch, caplog):
+        """torch.compile failure logs warning and continues."""
+        monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+        with (
+            patch("torch.cuda.is_available", return_value=True),
+            patch("torch.cuda.device_count", return_value=1),
+            patch("torch.cuda.set_device"),
+            patch("torch.cuda.mem_get_info", return_value=(8e9, 8e9)),
+            patch("torch.compile", side_effect=RuntimeError("compile failed")),
+        ):
+            with caplog.at_level(logging.WARNING, logger="musicgen.core.generator"):
+                generator = MusicGenerator()
+            assert generator.model is not None
+            assert "Compilation failed" in caplog.text or "compile failed" in caplog.text
+
+    def test_apply_optimizations_flash_attention(self, monkeypatch):
+        """Flash attention enabled when model config supports it."""
+        monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+        self.mock_model_instance.config.use_flash_attention_2 = False
+        with (
+            patch("torch.cuda.is_available", return_value=True),
+            patch("torch.cuda.device_count", return_value=1),
+            patch("torch.cuda.set_device"),
+            patch("torch.cuda.mem_get_info", return_value=(8e9, 8e9)),
+            patch("torch.compile", return_value=self.mock_model_instance),
+        ):
+            generator = MusicGenerator()
+        assert generator.model.config.use_flash_attention_2 is True
+
+    def test_save_audio_mp3_failure_fallback(self, tmp_path, monkeypatch):
+        """MP3 conversion failure falls back to WAV."""
+        monkeypatch.setattr("musicgen.core.generator.PYDUB_AVAILABLE", True)
+        mock_segment = MagicMock()
+        mock_segment.from_wav.side_effect = Exception("pydub failed")
+        monkeypatch.setattr("musicgen.core.generator.AudioSegment", mock_segment, raising=False)
+
+        generator = MusicGenerator()
+        audio = np.random.randn(32000).astype(np.float32)
+        temp_wav = str(tmp_path / "test_temp.wav")
+        # Pre-create the temp wav so os.rename can succeed
+        with open(temp_wav, "w") as f:
+            f.write("")
+
+        path = generator.save_audio(audio, 32000, str(tmp_path / "test.mp3"))
+        assert path.endswith(".wav")
+
+    def test_get_info_gpu_memory_warning(self, monkeypatch):
+        """Low GPU memory triggers memory_warning in info."""
+        monkeypatch.setenv("MUSICGEN_SKIP_MODEL_DOWNLOAD", "1")
+        generator = MusicGenerator()
+
+        mock_props = MagicMock()
+        mock_props.total_memory = 8e9
+        with (
+            patch("torch.cuda.is_available", return_value=True),
+            patch("torch.cuda.get_device_name", return_value="Test GPU"),
+            patch("torch.cuda.get_device_properties", return_value=mock_props),
+            patch("torch.cuda.memory_allocated", return_value=0),
+            patch("torch.cuda.memory_reserved", return_value=7e9),
+        ):
+            info = generator.get_info()
+
+        assert "memory_warning" in info
+        assert "Low GPU memory" in info["memory_warning"]
+
+    def test_get_info_gpu_high_allocation(self, monkeypatch):
+        """High GPU allocation triggers empty_cache and recommendation."""
+        monkeypatch.setenv("MUSICGEN_SKIP_MODEL_DOWNLOAD", "1")
+        generator = MusicGenerator()
+
+        mock_props = MagicMock()
+        mock_props.total_memory = 10e9
+        with (
+            patch("torch.cuda.is_available", return_value=True),
+            patch("torch.cuda.get_device_name", return_value="Test GPU"),
+            patch("torch.cuda.get_device_properties", return_value=mock_props),
+            patch("torch.cuda.memory_allocated", return_value=9e9),
+            patch("torch.cuda.memory_reserved", return_value=1e9),
+            patch("torch.cuda.empty_cache") as mock_empty,
+        ):
+            info = generator.get_info()
+
+        assert "memory_recommendation" in info
+        mock_empty.assert_called_once()

@@ -68,3 +68,16 @@ async def test_hsts_includes_subdomains() -> None:
     hsts = resp.headers["Strict-Transport-Security"]
     assert "includeSubDomains" in hsts
     assert "max-age=31536000" in hsts
+
+
+@pytest.mark.asyncio
+async def test_request_at_exact_limit_passes() -> None:
+    """Request with Content-Length exactly at 1 MB limit is not rejected."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/health",
+            content="x" * 100,
+            headers={"Content-Length": str(1 * 1024 * 1024)},
+        )
+    assert resp.status_code != 413

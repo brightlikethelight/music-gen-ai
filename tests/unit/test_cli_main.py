@@ -3,6 +3,7 @@ Unit tests for musicgen.cli.main module.
 """
 
 import os
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -402,3 +403,101 @@ class TestCLI:
         assert call_args[0][1] == 60.0  # duration
         assert call_args[0][2] == 0.9  # temperature
         assert call_args[0][3] == 4.0  # guidance_scale
+
+    def test_prompt_with_validate_flag(self, runner):
+        """Test prompt command with --validate flag."""
+        with patch("musicgen.cli.main.PromptEngineer") as mock_engineer:
+            mock_instance = MagicMock()
+            mock_instance.validate_prompt.return_value = (True, [])
+            mock_instance.improve_prompt.return_value = "jazz"
+            mock_engineer.return_value = mock_instance
+
+            result = runner.invoke(app, ["prompt", "jazz", "--validate"])
+
+            assert result.exit_code == 0
+            mock_instance.validate_prompt.assert_called_once_with("jazz")
+            assert "valid" in result.output.lower() or "Prompt is" in result.output
+
+    def test_prompt_with_variations(self, runner):
+        """Test prompt command with --variations flag."""
+        with patch("musicgen.cli.main.PromptEngineer") as mock_engineer:
+            mock_instance = MagicMock()
+            mock_instance.improve_prompt.return_value = "jazz"
+            mock_instance.suggest_variations.return_value = ["jazz v1", "jazz v2"]
+            mock_engineer.return_value = mock_instance
+
+            result = runner.invoke(app, ["prompt", "jazz", "--variations", "2"])
+
+            assert result.exit_code == 0
+            mock_instance.suggest_variations.assert_called_once()
+            assert "jazz v1" in result.output
+            assert "jazz v2" in result.output
+
+    def test_prompt_with_examples(self, runner):
+        """Test prompt command with --examples flag."""
+        with patch("musicgen.cli.main.PromptEngineer") as mock_engineer:
+            mock_instance = MagicMock()
+            mock_instance.get_examples.return_value = [
+                "smooth jazz piano",
+                "upbeat electronic dance",
+            ]
+            mock_engineer.return_value = mock_instance
+
+            result = runner.invoke(app, ["prompt", "--examples"])
+
+            assert result.exit_code == 0
+            mock_instance.get_examples.assert_called_once()
+            assert "smooth jazz piano" in result.output
+
+    def test_serve_no_uvicorn(self, runner):
+        """Test serve command when uvicorn is not installed."""
+        with (
+            patch("musicgen.web.app.create_app", return_value=MagicMock()),
+            patch.dict(sys.modules, {"uvicorn": None}),
+        ):
+            result = runner.invoke(app, ["serve"])
+
+        assert result.exit_code == 1
+        assert "uvicorn" in result.output.lower()
+
+    def test_api_command(self, runner):
+        """Test api command starts server with defaults."""
+        with (
+            patch("musicgen.api.app.create_app", return_value=MagicMock()),
+            patch("uvicorn.run") as mock_uvicorn_run,
+        ):
+            result = runner.invoke(app, ["api"])
+
+        assert result.exit_code == 0
+        mock_uvicorn_run.assert_called_once()
+        call_kwargs = mock_uvicorn_run.call_args[1]
+        assert call_kwargs["host"] == "127.0.0.1"
+        assert call_kwargs["port"] == 8000
+        assert call_kwargs["workers"] == 1
+
+    def test_api_command_custom_params(self, runner):
+        """Test api command with custom host/port/workers."""
+        with (
+            patch("musicgen.api.app.create_app", return_value=MagicMock()),
+            patch("uvicorn.run") as mock_uvicorn_run,
+        ):
+            result = runner.invoke(
+                app, ["api", "--host", "0.0.0.0", "--port", "9000", "--workers", "4"]
+            )
+
+        assert result.exit_code == 0
+        call_kwargs = mock_uvicorn_run.call_args[1]
+        assert call_kwargs["host"] == "0.0.0.0"
+        assert call_kwargs["port"] == 9000
+        assert call_kwargs["workers"] == 4
+
+    def test_api_no_uvicorn(self, runner):
+        """Test api command when uvicorn is not installed."""
+        with (
+            patch("musicgen.api.app.create_app", return_value=MagicMock()),
+            patch.dict(sys.modules, {"uvicorn": None}),
+        ):
+            result = runner.invoke(app, ["api"])
+
+        assert result.exit_code == 1
+        assert "uvicorn" in result.output.lower()
