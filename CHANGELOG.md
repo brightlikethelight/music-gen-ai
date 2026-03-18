@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pydantic response models for 6 API endpoints (AuthTokenResponse, UserProfileResponse, PlaylistResponse, PlaylistListResponse, BatchGenerationResponse)
 - Response contract tests verifying exact response shapes
 - 40 new unit tests across 8 modules (rate limiting, imports, state, CORS, REST, metrics, auth, web)
+- Phase 14: Documentation accuracy fixes across 6 files (test counts, coverage, Python 3.12 claims)
+- Phase 14: 15 new tests for CLI commands, generator GPU branches, request size boundary
 - ContentSizeLimitMiddleware for request body limits
 - Redis service health in `/health/services`
 - Config validation (port range, log level, rate limit sanity)
@@ -29,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated GitHub Actions to v5 for all workflows
 
 ### Fixed
+- Hardcoded JWT default in docker-compose.yml (now fail-fast)
+- Request size limit 10MB to 1MB (text-prompt API), nginx aligned 100M to 1m
+- Codecov target 35% to 75% (was 56% below actual coverage)
+- Stale F403/F405 flake8 ignores removed
+- isort violation in test_rate_limiting.py
+- Redis version constraint updated (installed 6.2.0 violated prior bound)
 - TOCTOU race condition in playlist count increment
 - Config validation wired to init (`config.validate()`)
 - Rate limiter IP tracking capped at MAX_TRACKED_IPS

@@ -13,14 +13,21 @@ music_gen/
 ├── src/musicgen/                    # Main source code
 │   ├── core/                        # Core business logic
 │   │   ├── generator.py            # Main generation engine
-│   │   ├── prompt.py               # Prompt engineering
-│   │   └── audio/                  # Audio processing utilities
+│   │   └── prompt.py               # Prompt engineering
 │   ├── api/                        # API layer
-│   │   ├── rest/                   # REST API implementation
-│   │   │   ├── app.py              # FastAPI application
-│   │   │   ├── routes/             # API route handlers
-│   │   │   └── middleware/         # API middleware (auth, CORS, etc.)
-│   │   └── streaming/              # WebSocket/SSE endpoints
+│   │   ├── app.py                  # App factory
+│   │   ├── cors_config.py          # CORS configuration
+│   │   ├── middleware/             # Auth middleware
+│   │   │   └── auth.py            # JWT authentication
+│   │   └── rest/                   # REST API implementation
+│   │       ├── app.py              # FastAPI application
+│   │       ├── models.py           # Pydantic request/response models
+│   │       ├── state.py            # Thread-safe state manager
+│   │       └── middleware/         # API middleware
+│   │           ├── rate_limiting.py
+│   │           ├── request_id.py
+│   │           ├── request_size.py
+│   │           └── security_headers.py
 │   ├── services/                   # Business services
 │   │   └── batch.py                # Batch processing service
 │   ├── infrastructure/             # Cross-cutting concerns
@@ -28,24 +35,19 @@ music_gen/
 │   │   ├── monitoring/             # Metrics and logging
 │   │   └── security/               # Security utilities
 │   ├── cli/                        # Command line interface
-│   │   ├── main.py                 # CLI entry point
-│   │   └── commands/               # Individual CLI commands
+│   │   └── main.py                 # CLI entry point (Typer)
 │   ├── web/                        # Web interface
 │   │   └── app.py                  # Web application
 │   └── utils/                      # Shared utilities
-│       ├── exceptions.py           # Custom exceptions
+│       ├── exceptions.py           # Custom exception hierarchy
 │       └── helpers.py              # Utility functions
-├── tests/                          # Comprehensive test suite
+├── tests/                          # Test suite
 │   ├── unit/                       # Unit tests
 │   ├── integration/                # Integration tests
-│   ├── e2e/                        # End-to-end tests
-│   └── fixtures/                   # Test fixtures and data
-├── examples/                       # Usage examples
-├── docs/                           # Documentation
+│   └── e2e/                        # End-to-end tests
 ├── deployment/                     # Deployment configurations
 │   ├── docker/                     # Docker configurations
-│   ├── kubernetes/                 # Kubernetes manifests
-│   └── terraform/                  # Infrastructure as Code
+│   └── kubernetes/                 # Kubernetes manifests
 ├── configs/                        # Environment configurations
 └── scripts/                        # Utility scripts
 ```

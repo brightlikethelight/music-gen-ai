@@ -71,11 +71,11 @@ pre-commit install
 ### Docker Development
 
 ```bash
-# Use the unified deployment script
-./deploy.sh
+# Use the deployment script
+deployment/deploy-example-academic.sh
 
 # Or build custom development image
-docker build -t musicgen-dev -f Dockerfile.dev .
+docker build -t musicgen-dev -f Dockerfile.academic .
 docker run -it --rm -v $(pwd):/app musicgen-dev
 ```
 
@@ -141,7 +141,7 @@ pytest -n auto
 - Write unit tests for all new functions
 - Use pytest fixtures for common test data
 - Mock external dependencies (APIs, models)
-- Aim for >80% code coverage
+- Aim for >85% code coverage (currently 91%)
 
 ### Test Structure
 
@@ -192,7 +192,6 @@ All pull requests must pass:
 
 ## Getting Help
 
-- **Discord**: Join our community server (link in README)
 - **GitHub Discussions**: For general questions
 - **GitHub Issues**: For bugs and feature requests
 - **Email**: brightliu@college.harvard.edu for direct contact
