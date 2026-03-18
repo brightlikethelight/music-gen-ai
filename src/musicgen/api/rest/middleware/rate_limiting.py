@@ -116,10 +116,8 @@ class RateLimiter:
     def _is_exempt_ip(self, ip: str) -> bool:
         """Check if IP is exempt from rate limiting."""
         exempt_networks = [
-            "127.0.0.0/8",  # Localhost
-            "10.0.0.0/8",  # Private networks
-            "172.16.0.0/12",  # Private networks
-            "192.168.0.0/16",  # Private networks
+            "127.0.0.0/8",  # Localhost only — private networks NOT exempt
+            # (in Docker/K8s, all proxied traffic arrives from private IPs)
         ]
 
         try:

@@ -80,10 +80,12 @@ class TestRateLimiter:
         """Test exempt IP networks."""
         limiter = RateLimiter()
 
-        # Local IPs should be exempt
+        # Localhost is exempt
         assert limiter._is_exempt_ip("127.0.0.1") is True
-        assert limiter._is_exempt_ip("192.168.1.1") is True
-        assert limiter._is_exempt_ip("10.0.0.1") is True
+
+        # Private IPs are NOT exempt (in Docker/K8s all traffic arrives from private IPs)
+        assert limiter._is_exempt_ip("192.168.1.1") is False
+        assert limiter._is_exempt_ip("10.0.0.1") is False
 
         # Public IPs should not be exempt
         assert limiter._is_exempt_ip("8.8.8.8") is False

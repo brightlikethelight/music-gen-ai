@@ -67,27 +67,41 @@ _playlists = state.playlists
 
 
 async def load_model(model_name: str) -> dict[str, Any]:
-    """Load MusicGen model with caching, delegating to MusicGenerator."""
+    """Load MusicGen model with caching. Uses per-model lock to prevent duplicate loads."""
+    # Fast path: check cache
     cached = await state.get_model(model_name)
     if cached is not None:
         return cached
 
-    try:
-        logger.info("Loading model: %s", model_name)
-        from musicgen.core.generator import MusicGenerator
+    # Get or create a per-model loading lock (prevents duplicate loads of same model)
+    async with state._model_lock:
+        if model_name not in state._model_loading_locks:
+            state._model_loading_locks[model_name] = asyncio.Lock()
+        loading_lock = state._model_loading_locks[model_name]
 
-        gen = MusicGenerator(model_name=model_name)
-        model_data: dict[str, Any] = {
-            "model": gen.model,
-            "processor": gen.processor,
-            "device": str(gen.device),
-        }
-        await state.set_model(model_name, model_data)
-        logger.info("Model loaded successfully: %s on %s", model_name, model_data["device"])
-        return model_data
-    except Exception as e:
-        logger.error("Failed to load model %s: %s", model_name, e)
-        raise MusicGenError(f"Failed to load model: {e}")
+    # Serialize loading for THIS model; other models can load concurrently
+    async with loading_lock:
+        # Re-check: another coroutine may have loaded while we waited
+        cached = await state.get_model(model_name)
+        if cached is not None:
+            return cached
+
+        try:
+            logger.info("Loading model: %s", model_name)
+            from musicgen.core.generator import MusicGenerator
+
+            gen = MusicGenerator(model_name=model_name)
+            model_data: dict[str, Any] = {
+                "model": gen.model,
+                "processor": gen.processor,
+                "device": str(gen.device),
+            }
+            await state.set_model(model_name, model_data)
+            logger.info("Model loaded successfully: %s on %s", model_name, model_data["device"])
+            return model_data
+        except Exception as e:
+            logger.error("Failed to load model %s: %s", model_name, e)
+            raise MusicGenError(f"Failed to load model: {e}")
 
 
 def _generate_music_sync(
@@ -413,34 +427,47 @@ async def generate_music_batch(
     current_user: UserClaims = Depends(require_auth),
 ) -> dict[str, Any]:
     """Generate multiple music tracks in batch."""
-    requests = batch_data.requests
-    batch_id = str(uuid.uuid4())
-    job_ids = []
+    try:
+        requests = batch_data.requests
+        batch_id = str(uuid.uuid4())
+        job_ids = []
 
-    for request in requests:
-        job_id = str(uuid.uuid4())
-        job = JobStatus(
-            job_id=job_id, status="queued", message=f"Batch {batch_id}: Job queued for processing"
+        for request in requests:
+            validate_prompt(request.prompt)
+            job_id = str(uuid.uuid4())
+            job = JobStatus(
+                job_id=job_id,
+                status="queued",
+                message=f"Batch {batch_id}: Job queued for processing",
+            )
+            await state.add_job(job_id, job)
+            background_tasks.add_task(generate_music_task, job_id, request)
+            job_ids.append(job_id)
+
+        logger.info("Batch generation %s created with %s jobs", batch_id, len(job_ids))
+
+        return {
+            "batch_id": batch_id,
+            "jobs": job_ids,
+            "status": "processing",
+            "total_jobs": len(job_ids),
+        }
+
+    except ValidationError as e:
+        logger.warning("Validation error on /generate/batch: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid generation parameters. Check prompt, duration, and model values.",
         )
-        await state.add_job(job_id, job)
-        background_tasks.add_task(generate_music_task, job_id, request)
-        job_ids.append(job_id)
-
-    logger.info("Batch generation %s created with %s jobs", batch_id, len(job_ids))
-
-    return {
-        "batch_id": batch_id,
-        "jobs": job_ids,
-        "status": "processing",
-        "total_jobs": len(job_ids),
-    }
 
 
 # ── Audio ────────────────────────────────────────────────────────────────────
 
 
 @app.get("/audio/{filename}")
-async def get_audio(filename: str) -> FileResponse:
+async def get_audio(
+    filename: str, current_user: UserClaims = Depends(require_auth)
+) -> FileResponse:
     """Serve generated audio files."""
     output_dir = Path(config.OUTPUT_DIR)
     if not output_dir.is_absolute():
@@ -518,15 +545,6 @@ async def generate_waveform(
 async def register_user(request: Request, user_data: UserRegistration) -> dict[str, Any]:
     """Register a new user."""
     try:
-        existing_email = await state.find_user_by_email(user_data.email)
-        existing_username = await state.find_user_by_username(user_data.username)
-
-        if existing_email or existing_username:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Registration failed. The provided details may already be in use.",
-            )
-
         user_id = str(uuid.uuid4())
         user = {
             "user_id": user_id,
@@ -540,7 +558,13 @@ async def register_user(request: Request, user_data: UserRegistration) -> dict[s
             "playlists_count": 0,
         }
 
-        await state.add_user(user_id, user)
+        conflict = await state.add_user_if_not_exists(user_id, user)
+        if conflict is not None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Registration failed. The provided details may already be in use.",
+            )
+
         log_registration(
             request=request, user_id=user_id, email=user_data.email, username=user_data.username
         )

@@ -237,17 +237,21 @@ class TestGeneration:
 class TestAudioServing:
     """Test GET /audio/{filename}."""
 
-    def test_audio_file_not_found(self, client):
+    def test_audio_requires_auth(self, client):
         resp = client.get("/audio/nonexistent.wav")
+        assert resp.status_code in (401, 403)
+
+    def test_audio_file_not_found(self, client, auth_token):
+        resp = client.get("/audio/nonexistent.wav", headers=auth_token)
         assert resp.status_code == 404
 
-    def test_audio_path_traversal(self, client):
-        resp = client.get("/audio/../../etc/passwd")
+    def test_audio_path_traversal(self, client, auth_token):
+        resp = client.get("/audio/../../etc/passwd", headers=auth_token)
         # The endpoint strips directory components, so the resolved name
         # is just "passwd" — which won't exist. Either 404 or 403 is fine.
         assert resp.status_code in (403, 404)
 
-    def test_audio_serves_existing_file(self, client):
+    def test_audio_serves_existing_file(self, client, auth_token):
         """Place a dummy wav in the outputs dir the endpoint resolves to."""
         from pathlib import Path
 
@@ -256,7 +260,7 @@ class TestAudioServing:
         wav = outputs_dir / "unit_test_served.wav"
         try:
             wav.write_bytes(b"RIFF" + b"\x00" * 100)
-            resp = client.get("/audio/unit_test_served.wav")
+            resp = client.get("/audio/unit_test_served.wav", headers=auth_token)
             assert resp.status_code == 200
         finally:
             wav.unlink(missing_ok=True)
@@ -622,7 +626,7 @@ class TestErrorPaths:
         alias = client.get(f"/generate/job/{job_id}", headers=auth_token)
         assert alias.json()["error"] == "something failed"
 
-    def test_audio_symlink_rejected(self, client, tmp_path):
+    def test_audio_symlink_rejected(self, client, auth_token, tmp_path):
         from pathlib import Path
 
         outputs_dir = Path.cwd() / "outputs"
@@ -632,14 +636,14 @@ class TestErrorPaths:
         target.write_text("secret")
         try:
             link.symlink_to(target)
-            resp = client.get("/audio/symlink_test.wav")
+            resp = client.get("/audio/symlink_test.wav", headers=auth_token)
             assert resp.status_code == 403
         finally:
             link.unlink(missing_ok=True)
 
-    def test_audio_resolve_error(self, client):
+    def test_audio_resolve_error(self, client, auth_token):
         with patch("musicgen.api.rest.app.Path.resolve", side_effect=RuntimeError("bad")):
-            resp = client.get("/audio/test.wav")
+            resp = client.get("/audio/test.wav", headers=auth_token)
             assert resp.status_code == 403
 
     @patch("musicgen.api.rest.app.hash_password", side_effect=Exception("bcrypt error"))

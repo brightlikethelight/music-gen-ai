@@ -43,6 +43,7 @@ class StateManager:
         self._users_lock = asyncio.Lock()
         self._playlists_lock = asyncio.Lock()
         self._model_lock = asyncio.Lock()
+        self._model_loading_locks: dict[str, asyncio.Lock] = {}
 
     # --- Jobs ---
 
@@ -103,6 +104,22 @@ class StateManager:
     async def get_all_users(self) -> dict[str, dict[str, Any]]:
         async with self._users_lock:
             return dict(self._users)
+
+    async def add_user_if_not_exists(self, user_id: str, user: dict[str, Any]) -> Optional[str]:
+        """Atomically check for duplicate email/username and insert user.
+
+        Returns None on success, or a reason string if a duplicate exists.
+        """
+        async with self._users_lock:
+            email = user.get("email")
+            username = user.get("username")
+            for existing in self._users.values():
+                if existing.get("email") == email:
+                    return "email"
+                if existing.get("username") == username:
+                    return "username"
+            self._users[user_id] = user
+            return None
 
     # --- Playlists ---
 

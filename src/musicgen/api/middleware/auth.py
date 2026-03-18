@@ -12,10 +12,10 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union, cast
 
+import jwt
 import redis
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
-import jwt
 from jwt.exceptions import PyJWTError
 from pydantic import BaseModel, field_validator
 
@@ -168,7 +168,7 @@ class AuthenticationMiddleware:
         }
 
         try:
-            return cast(str, jwt.encode(payload, self.secret_key, algorithm=self.algorithm))
+            return str(jwt.encode(payload, self.secret_key, algorithm=self.algorithm))
         except Exception as e:
             logger.error("Failed to create access token: %s", e)
             raise AuthenticationError("Failed to create access token")
@@ -212,7 +212,7 @@ class AuthenticationMiddleware:
         }
 
         try:
-            return cast(str, jwt.encode(payload, self.secret_key, algorithm=self.algorithm))
+            return str(jwt.encode(payload, self.secret_key, algorithm=self.algorithm))
         except Exception as e:
             logger.error("Failed to create refresh token: %s", e)
             raise AuthenticationError("Failed to create refresh token")
