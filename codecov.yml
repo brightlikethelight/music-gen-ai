@@ -19,8 +19,8 @@ coverage:
   status:
     project:
       default:
-        target: 35%
-        threshold: 1%
+        target: 75%
+        threshold: 2%
         base: auto
         flags:
           - unittests
@@ -33,7 +33,7 @@ coverage:
     patch:
       default:
         target: 80%
-        threshold: 10%
+        threshold: 5%
         base: auto
         if_ci_failed: error
         informational: false
