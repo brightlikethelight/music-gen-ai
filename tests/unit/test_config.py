@@ -319,6 +319,17 @@ class TestConfig:
         config = Config()
         assert config.validate() is True
 
+    def test_validate_called_on_init_when_not_testing(self):
+        """Verify validate() fires on __init__ outside test environments."""
+        saved = os.environ.pop("PYTEST_CURRENT_TEST", None)
+        try:
+            with patch.object(Config, "validate", return_value=True) as mock_validate:
+                Config()
+                mock_validate.assert_called_once()
+        finally:
+            if saved is not None:
+                os.environ["PYTEST_CURRENT_TEST"] = saved
+
     def test_device_configuration(self):
         """Test device configuration for model loading."""
         # Test auto device

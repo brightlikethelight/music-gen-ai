@@ -102,6 +102,11 @@ class Config:
         self.AWS_REGION: Optional[str] = os.environ.get("AWS_REGION", None)
         self.S3_BUCKET: Optional[str] = os.environ.get("S3_BUCKET", None)
 
+        # Validate on init; skip in test environments where
+        # tests deliberately create invalid configs
+        if not self.is_testing():
+            self.validate()
+
     def to_dict(self) -> dict:
         """Return configuration as dictionary."""
         return {

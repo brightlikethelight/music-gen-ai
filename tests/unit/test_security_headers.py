@@ -46,6 +46,19 @@ async def test_csp_contains_expected_directives() -> None:
 
 
 @pytest.mark.asyncio
+async def test_oversized_request_rejected() -> None:
+    """Requests with Content-Length over 10 MB get 413."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/generate",
+            content="x" * 100,
+            headers={"Content-Length": str(20 * 1024 * 1024), "Content-Type": "application/json"},
+        )
+    assert resp.status_code == 413
+
+
+@pytest.mark.asyncio
 async def test_hsts_includes_subdomains() -> None:
     """HSTS header includes includeSubDomains directive."""
     transport = ASGITransport(app=app)

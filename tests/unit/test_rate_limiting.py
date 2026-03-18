@@ -106,6 +106,16 @@ class TestRateLimiter:
         assert info["per_minute"]["count"] == 1
         assert info["per_minute"]["remaining"] == 59
 
+    def test_deque_has_bounded_maxlen(self):
+        """Per-IP request deque must have a bounded maxlen."""
+        limiter = RateLimiter()
+        request = Mock()
+        request.client = Mock()
+        request.client.host = "203.0.113.50"
+        request.headers = {}
+        limiter.is_allowed(request)
+        assert limiter.requests["203.0.113.50"].maxlen == limiter.limits["per_day"]
+
     def test_rate_limiting_exempt_ip(self):
         """Test that exempt IPs are always allowed."""
         limiter = RateLimiter()

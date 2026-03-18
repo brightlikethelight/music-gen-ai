@@ -28,6 +28,7 @@ from musicgen.api.middleware.auth import (
 )
 from musicgen.api.rest.middleware.rate_limiting import RateLimitMiddleware
 from musicgen.api.rest.middleware.request_id import RequestIDMiddleware
+from musicgen.api.rest.middleware.request_size import ContentSizeLimitMiddleware
 from musicgen.api.rest.middleware.security_headers import SecurityHeadersMiddleware
 from musicgen.api.rest.models import (
     BatchGenerationRequest,
@@ -201,10 +202,11 @@ app = FastAPI(
 
 # Middleware order: FastAPI executes in reverse order of addition.
 # Last added = first to run. Order of execution:
-#   RequestID -> SecurityHeaders -> RateLimit -> CORS -> route handler
+#   RequestID -> SecurityHeaders -> ContentSizeLimit -> RateLimit -> CORS -> route handler
 cors_options = cors_config.get_cors_options()
 app.add_middleware(CORSMiddleware, **cors_options)
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(ContentSizeLimitMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RequestIDMiddleware)
 

@@ -37,16 +37,18 @@ class RateLimiter:
     def __init__(self) -> None:
         import threading
 
-        self.requests: Dict[str, deque[float]] = defaultdict(deque)  # IP -> deque of timestamps
-        self.last_cleanup = time.time()
-        self._lock = threading.Lock()
-
         # Rate limits (requests per time window)
         self.limits = {
             "per_minute": 60,  # 60 requests per minute
             "per_hour": 1000,  # 1000 requests per hour
             "per_day": 10000,  # 10000 requests per day
         }
+
+        self.requests: Dict[str, deque[float]] = defaultdict(
+            lambda: deque(maxlen=self.limits["per_day"])
+        )
+        self.last_cleanup = time.time()
+        self._lock = threading.Lock()
 
         # Time windows in seconds
         self.windows = {"per_minute": 60, "per_hour": 3600, "per_day": 86400}
