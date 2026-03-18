@@ -501,3 +501,91 @@ class TestDashboard:
     def test_dashboard_requires_auth(self, client):
         resp = client.get("/dashboard")
         assert resp.status_code in (401, 403)
+
+
+# ── Response contract tests ───────────────────────────────────────────
+
+
+class TestResponseContracts:
+    """Verify response bodies match declared Pydantic response models."""
+
+    def test_register_response_shape(self, client):
+        resp = _register(client)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert set(data.keys()) == {"access_token", "refresh_token", "token_type", "user"}
+        user_keys = set(data["user"].keys())
+        expected = {
+            "id",
+            "user_id",
+            "username",
+            "email",
+            "roles",
+            "tier",
+            "is_verified",
+            "tracks_generated",
+            "playlists_count",
+        }
+        assert user_keys == expected
+
+    def test_login_response_shape(self, client):
+        _register(client)
+        resp = client.post(
+            "/auth/login",
+            data={"username": "alice@example.com", "password": "securepass1"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert set(data.keys()) == {"access_token", "refresh_token", "token_type", "user"}
+        assert "id" in data["user"]
+        assert "user_id" in data["user"]
+
+    def test_auth_me_response_shape(self, client, auth_token):
+        resp = client.get("/auth/me", headers=auth_token)
+        assert resp.status_code == 200
+        expected = {
+            "user_id",
+            "username",
+            "email",
+            "roles",
+            "tier",
+            "is_verified",
+            "tracks_generated",
+            "playlists_count",
+        }
+        assert set(resp.json().keys()) == expected
+
+    def test_create_playlist_response_shape(self, client, auth_token):
+        resp = client.post(
+            "/playlists",
+            json={"name": "Contract PL", "description": "test", "is_public": True},
+            headers=auth_token,
+        )
+        assert resp.status_code == 200
+        expected = {
+            "id",
+            "name",
+            "description",
+            "is_public",
+            "user_id",
+            "tracks",
+            "created_at",
+            "updated_at",
+        }
+        assert set(resp.json().keys()) == expected
+
+    def test_list_playlists_response_shape(self, client, auth_token):
+        client.post("/playlists", json={"name": "PL1"}, headers=auth_token)
+        resp = client.get("/playlists", headers=auth_token)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert set(data.keys()) == {"playlists", "total"}
+        assert isinstance(data["playlists"], list)
+
+    @patch("musicgen.api.rest.app.generate_music_task")
+    def test_batch_generate_response_shape(self, _mock_task, client, auth_token):
+        payload = {"requests": [{"prompt": "track one"}, {"prompt": "track two"}]}
+        resp = client.post("/generate/batch", json=payload, headers=auth_token)
+        assert resp.status_code == 200
+        expected = {"batch_id", "jobs", "status", "total_jobs"}
+        assert set(resp.json().keys()) == expected

@@ -31,10 +31,15 @@ from musicgen.api.rest.middleware.request_id import RequestIDMiddleware
 from musicgen.api.rest.middleware.request_size import ContentSizeLimitMiddleware
 from musicgen.api.rest.middleware.security_headers import SecurityHeadersMiddleware
 from musicgen.api.rest.models import (
+    AuthTokenResponse,
     BatchGenerationRequest,
+    BatchGenerationResponse,
     GenerationRequest,
     GenerationResponse,
     PlaylistCreate,
+    PlaylistListResponse,
+    PlaylistResponse,
+    UserProfileResponse,
     UserRegistration,
 )
 from musicgen.api.rest.state import JobStatus, state
@@ -387,7 +392,7 @@ async def get_generation_job_status(
     return response
 
 
-@app.post("/generate/batch")
+@app.post("/generate/batch", response_model=BatchGenerationResponse)
 async def generate_music_batch(
     batch_data: BatchGenerationRequest,
     background_tasks: BackgroundTasks,
@@ -495,7 +500,7 @@ async def generate_waveform(
 # ── Auth ─────────────────────────────────────────────────────────────────────
 
 
-@app.post("/auth/register")
+@app.post("/auth/register", response_model=AuthTokenResponse)
 async def register_user(request: Request, user_data: UserRegistration) -> dict[str, Any]:
     """Register a new user."""
     try:
@@ -571,7 +576,7 @@ async def register_user(request: Request, user_data: UserRegistration) -> dict[s
         )
 
 
-@app.post("/auth/login")
+@app.post("/auth/login", response_model=AuthTokenResponse)
 async def login_user(
     request: Request, form_data: OAuth2PasswordRequestForm = Depends()
 ) -> dict[str, Any]:
@@ -646,7 +651,7 @@ async def login_user(
         )
 
 
-@app.get("/auth/me")
+@app.get("/auth/me", response_model=UserProfileResponse)
 async def get_current_user_info(
     current_user: UserClaims = Depends(require_auth),
 ) -> dict[str, Any]:
@@ -668,7 +673,7 @@ async def get_current_user_info(
 # ── Social ───────────────────────────────────────────────────────────────────
 
 
-@app.post("/playlists")
+@app.post("/playlists", response_model=PlaylistResponse)
 async def create_playlist(
     playlist_data: PlaylistCreate, current_user: UserClaims = Depends(require_auth)
 ) -> dict[str, Any]:
@@ -693,7 +698,7 @@ async def create_playlist(
     return playlist
 
 
-@app.get("/playlists")
+@app.get("/playlists", response_model=PlaylistListResponse)
 async def get_playlists(current_user: UserClaims = Depends(require_auth)) -> dict[str, Any]:
     """Get user's playlists."""
     user_playlists = await state.get_playlists_for_user(current_user.user_id)

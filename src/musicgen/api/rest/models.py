@@ -2,6 +2,8 @@
 Pydantic request/response models for MusicGen API.
 """
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -54,3 +56,71 @@ class BatchGenerationRequest(BaseModel):
     """Batch generation request model."""
 
     requests: list[GenerationRequest] = Field(..., max_length=10)
+
+
+# ── Response models ──────────────────────────────────────────────────────────
+
+
+class UserPublic(BaseModel):
+    """User profile in auth responses."""
+
+    id: str
+    user_id: str
+    username: str
+    email: str
+    roles: list[str]
+    tier: str
+    is_verified: bool
+    tracks_generated: int = 0
+    playlists_count: int = 0
+
+
+class AuthTokenResponse(BaseModel):
+    """Response for /auth/register and /auth/login."""
+
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    user: UserPublic
+
+
+class UserProfileResponse(BaseModel):
+    """Response for /auth/me."""
+
+    user_id: str
+    username: str
+    email: str
+    roles: list[str]
+    tier: str
+    is_verified: bool
+    tracks_generated: int = 0
+    playlists_count: int = 0
+
+
+class PlaylistResponse(BaseModel):
+    """Single playlist object."""
+
+    id: str
+    name: str
+    description: str
+    is_public: bool
+    user_id: str
+    tracks: list[Any]
+    created_at: float
+    updated_at: float
+
+
+class PlaylistListResponse(BaseModel):
+    """Response for GET /playlists."""
+
+    playlists: list[PlaylistResponse]
+    total: int
+
+
+class BatchGenerationResponse(BaseModel):
+    """Response for POST /generate/batch."""
+
+    batch_id: str
+    jobs: list[str]
+    status: str
+    total_jobs: int
