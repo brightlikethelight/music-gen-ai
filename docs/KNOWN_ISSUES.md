@@ -11,8 +11,8 @@
 - Matrix: Python 3.10, 3.11, 3.12
 
 ### Test Suite
-- **389 tests passing**, 0 failing, 49 skipped (model-dependent)
-- **83% coverage** (threshold: 75%)
+- **429 tests passing**, 0 failing, 49 skipped (model-dependent)
+- **89% coverage** (threshold: 75%)
 - Skipped tests require GPU or real model weights
 
 ### Remaining Limitations

@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Pydantic response models for 6 API endpoints (AuthTokenResponse, UserProfileResponse, PlaylistResponse, PlaylistListResponse, BatchGenerationResponse)
+- Response contract tests verifying exact response shapes
+- 40 new unit tests across 8 modules (rate limiting, imports, state, CORS, REST, metrics, auth, web)
+- ContentSizeLimitMiddleware for request body limits
+- Redis service health in `/health/services`
+- Config validation (port range, log level, rate limit sanity)
 - Request ID middleware for distributed tracing
 - Security headers middleware (X-Content-Type-Options, X-Frame-Options, HSTS, CSP)
 - pytest markers (unit, integration, slow, gpu, asyncio, auth, cli)
@@ -23,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated GitHub Actions to v5 for all workflows
 
 ### Fixed
+- TOCTOU race condition in playlist count increment
+- Config validation wired to init (`config.validate()`)
+- Rate limiter IP tracking capped at MAX_TRACKED_IPS
+- Unreachable batch size check removed
 - User enumeration timing side-channel in registration
 - Path traversal vulnerability in batch processing and audio serving
 - CORS misconfiguration (fail-closed in production)
@@ -32,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed 2 failing tests by adding required exception classes
 
 ### Removed
+- Dead fields: `GenerationResponse.duration`, `GenerationResponse.model_used`, `UserRegistration.full_name`, `BatchGenerationRequest.sequential`
+- Unused `PROMPT_MAX_LENGTH` constant (inlined as literal 500)
 - Dead `API_KEY` config field (JWT is the auth mechanism)
 - Dead test files and legacy `requirements.txt`
 - Redundant `bcrypt` dependency (covered by `passlib[bcrypt]`)
