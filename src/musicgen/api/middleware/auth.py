@@ -15,7 +15,8 @@ from typing import Any, Dict, List, Optional, Union, cast
 import redis
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import PyJWTError
 from pydantic import BaseModel, field_validator
 
 from musicgen.infrastructure.security.secrets import get_jwt_secret
@@ -253,7 +254,7 @@ class AuthenticationMiddleware:
 
             return UserClaims(**claims_data)
 
-        except JWTError as e:
+        except PyJWTError as e:
             if "expired" in str(e).lower():
                 raise AuthenticationError("Token has expired")
             raise AuthenticationError("Invalid token")
