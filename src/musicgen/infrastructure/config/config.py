@@ -144,6 +144,21 @@ class Config:
         if self.ENVIRONMENT == "production" and self.DEBUG:
             errors.append("DEBUG must be disabled in production")
 
+        if not (1 <= self.API_PORT <= 65535):
+            errors.append(f"API_PORT must be 1-65535, got {self.API_PORT}")
+
+        valid_log_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+        if self.LOG_LEVEL not in valid_log_levels:
+            errors.append(
+                f"LOG_LEVEL must be one of {sorted(valid_log_levels)}, got '{self.LOG_LEVEL}'"
+            )
+
+        if self.RATE_LIMIT_PER_HOUR <= self.RATE_LIMIT_PER_MINUTE:
+            errors.append(
+                f"RATE_LIMIT_PER_HOUR ({self.RATE_LIMIT_PER_HOUR}) "
+                f"must exceed RATE_LIMIT_PER_MINUTE ({self.RATE_LIMIT_PER_MINUTE})"
+            )
+
         if errors:
             raise ValueError(f"Configuration errors: {'; '.join(errors)}")
 

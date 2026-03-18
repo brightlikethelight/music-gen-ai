@@ -457,9 +457,10 @@ async def get_audio(filename: str) -> FileResponse:
 async def analyze_audio(
     request: dict[str, Any], current_user: UserClaims = Depends(require_auth)
 ) -> dict[str, Any]:
-    """Analyze audio file and return metadata."""
+    """[STUB] Analyze audio file and return metadata. Returns hardcoded data."""
     audio_url = request.get("audio_url")
     return {
+        "_stub": True,
         "audio_url": audio_url,
         "duration": 30.0,
         "format": "wav",
@@ -483,9 +484,10 @@ async def generate_waveform(
     height: int = Query(default=200, description="Waveform image height"),
     current_user: UserClaims = Depends(require_auth),
 ) -> dict[str, Any]:
-    """Generate waveform visualization for audio file."""
+    """[STUB] Generate waveform visualization for audio file. Returns hardcoded data."""
     waveform_id = str(uuid.uuid4())
     return {
+        "_stub": True,
         "waveform_url": f"/static/waveforms/{waveform_id}.png",
         "width": width,
         "height": height,
@@ -717,14 +719,14 @@ async def get_dashboard_data(current_user: UserClaims = Depends(require_auth)) -
             "tracks_generated": user_data.get("tracks_generated", 0),
             "playlists_count": user_data.get("playlists_count", 0),
             "total_duration": user_data.get("tracks_generated", 0) * 30.0,
-            "favorite_genres": ["Electronic", "Ambient", "Classical"],
+            "favorite_genres": ["Electronic", "Ambient", "Classical"],  # placeholder
         },
         "recent_activity": {"last_generation": time.time() - 3600, "last_login": time.time()},
         "user_profile": {
             "username": current_user.username,
             "email": current_user.email,
             "tier": current_user.tier,
-            "member_since": time.time() - 86400,
+            "member_since": time.time() - 86400,  # placeholder
         },
         "social_profile": {
             "followers": 0,
@@ -752,8 +754,9 @@ async def search(
     type: str = Query(default="all", description="Type to search: all, tracks, playlists, users"),
     current_user: UserClaims = Depends(require_auth),
 ) -> dict[str, Any]:
-    """Search for tracks, playlists, or users."""
+    """[STUB] Search for tracks, playlists, or users. Returns hardcoded data."""
     results = {
+        "_stub": True,
         "query": query,
         "type": type,
         "results": {

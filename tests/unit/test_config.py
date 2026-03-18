@@ -285,6 +285,40 @@ class TestConfig:
             with pytest.raises(ValueError, match="DEBUG must be disabled in production"):
                 config.validate()
 
+    def test_validate_invalid_port(self):
+        """Test that invalid port fails validation."""
+        with patch.dict(os.environ, {"API_PORT": "0"}):
+            config = Config()
+            with pytest.raises(ValueError, match="API_PORT must be 1-65535"):
+                config.validate()
+
+        with patch.dict(os.environ, {"API_PORT": "70000"}):
+            config = Config()
+            with pytest.raises(ValueError, match="API_PORT must be 1-65535"):
+                config.validate()
+
+    def test_validate_invalid_log_level(self):
+        """Test that invalid log level fails validation."""
+        with patch.dict(os.environ, {"LOG_LEVEL": "VERBOSE"}):
+            config = Config()
+            with pytest.raises(ValueError, match="LOG_LEVEL must be one of"):
+                config.validate()
+
+    def test_validate_rate_limit_sanity(self):
+        """Test that per-hour rate limit must exceed per-minute."""
+        with patch.dict(
+            os.environ,
+            {"RATE_LIMIT_PER_MINUTE": "100", "RATE_LIMIT_PER_HOUR": "50"},
+        ):
+            config = Config()
+            with pytest.raises(ValueError, match="RATE_LIMIT_PER_HOUR"):
+                config.validate()
+
+    def test_validate_passes_with_defaults(self):
+        """Test that default config passes validation."""
+        config = Config()
+        assert config.validate() is True
+
     def test_device_configuration(self):
         """Test device configuration for model loading."""
         # Test auto device
