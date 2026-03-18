@@ -232,8 +232,3 @@ class CORSConfig:
 
 # Global instance
 cors_config = CORSConfig()
-
-
-def get_cors_config() -> Dict[str, Any]:
-    """Get the CORS configuration options for middleware."""
-    return cors_config.get_cors_options()

@@ -305,3 +305,51 @@ class TestValidateUsername:
         """Empty username raises ValidationError."""
         with pytest.raises(ValidationError, match="empty"):
             validate_username("")
+
+    def test_username_too_long(self):
+        """Username > max_length raises ValidationError."""
+        with pytest.raises(ValidationError):
+            validate_username("a" * 51)
+
+
+class TestEdgeCases:
+    """Test edge cases across validation, sanitization, and password modules."""
+
+    def test_email_too_long(self):
+        """Email > 254 chars raises ValidationError."""
+        with pytest.raises(ValidationError):
+            validate_email("a" * 246 + "@test.com")
+
+    def test_sanitize_all_dots(self):
+        """Filename of only dots is invalid after sanitization."""
+        with pytest.raises(ValidationError):
+            sanitize_filename("...")
+
+    def test_sanitize_long_filename(self):
+        """Long filenames are truncated preserving extension."""
+        result = sanitize_filename("a" * 300 + ".wav")
+        assert len(result) <= 255
+        assert result.endswith(".wav")
+
+
+class TestPasswordRehash:
+    """Test password rehash detection."""
+
+    def test_needs_rehash_old_rounds(self):
+        """Hash with fewer rounds than target needs rehash."""
+        from musicgen.infrastructure.security.password import needs_rehash
+
+        assert needs_rehash("$2b$04$fakesaltandhashdata") is True
+
+    def test_needs_rehash_garbled(self):
+        """Malformed hash string needs rehash."""
+        from musicgen.infrastructure.security.password import needs_rehash
+
+        assert needs_rehash("not-a-hash") is True
+
+    def test_needs_rehash_current_rounds(self):
+        """Hash with current rounds does not need rehash."""
+        from musicgen.infrastructure.security.password import hash_password, needs_rehash
+
+        hashed = hash_password("testpass")
+        assert needs_rehash(hashed) is False

@@ -176,24 +176,6 @@ class Config:
 
         return True
 
-    def get_model_config(self) -> dict:
-        """Get model-specific configuration."""
-        return {
-            "model_name": self.MODEL_NAME,
-            "device": self.DEVICE,
-            "optimize": self.OPTIMIZE,
-            "cache_dir": self.MODEL_CACHE_DIR,
-        }
-
-    def get_api_config(self) -> dict:
-        """Get API-specific configuration."""
-        return {
-            "host": self.API_HOST,
-            "port": self.API_PORT,
-            "workers": self.API_WORKERS,
-            "rate_limit_enabled": self.RATE_LIMIT_ENABLED,
-        }
-
     def is_development(self) -> bool:
         """Check if running in development environment."""
         return self.ENVIRONMENT == "development"
@@ -201,10 +183,6 @@ class Config:
     def is_production(self) -> bool:
         """Check if running in production environment."""
         return self.ENVIRONMENT == "production"
-
-    def is_staging(self) -> bool:
-        """Check if running in staging environment."""
-        return self.ENVIRONMENT == "staging"
 
     def is_testing(self) -> bool:
         """Check if running in testing environment."""

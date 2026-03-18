@@ -97,6 +97,12 @@ class TestLazyImports:
         cls = getattr(musicgen, "BatchProcessor")
         assert cls.__name__ == "BatchProcessor"
 
+    def test_lazy_import_PromptEngineer(self):
+        import musicgen
+
+        cls = getattr(musicgen, "PromptEngineer")
+        assert cls.__name__ == "PromptEngineer"
+
     def test_lazy_import_unknown_raises_AttributeError(self):
         import musicgen
 

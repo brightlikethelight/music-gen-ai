@@ -2,7 +2,7 @@
 
 ## Overview
 
-**⚠️ Academic Project**: This architecture documentation describes the design goals and patterns for an educational project developed for Harvard CS 109B. While the structure follows industry standards, the implementation is experimental and not production-ready (test coverage: 91%, 444 passing tests, 0 failing).
+**⚠️ Academic Project**: This architecture documentation describes the design goals and patterns for an educational project developed for Harvard CS 109B. While the structure follows industry standards, the implementation is experimental and not production-ready (test coverage: 92%, 452+ passing tests, 0 failing).
 
 The architecture demonstrates educational concepts in ML application design, emphasizing separation of concerns, modularity, and maintainability for learning purposes.
 
@@ -86,13 +86,10 @@ music_gen/
 
 ### API Layer
 - **REST API**: RESTful endpoints for generation and management
-- **Streaming API**: WebSocket/SSE for real-time updates
-- **Middleware**: Authentication, CORS, rate limiting
+- **Middleware**: JWT authentication, CORS, rate limiting, security headers
 
 ### Services Layer
 - **BatchProcessor**: Efficient batch processing with parallelization
-- **Cache Service**: Model and result caching
-- **Storage Service**: File and artifact management
 
 ### Infrastructure Layer
 - **Configuration**: Multi-environment config management
@@ -184,8 +181,8 @@ tests/
 - Rate limiting and request throttling
 
 ### Authentication & Authorization
-- API key authentication
-- RBAC for different user roles
+- JWT token authentication (access + refresh tokens)
+- Role-based access control (user, admin)
 - CORS configuration for web access
 
 ### Data Protection
@@ -222,7 +219,7 @@ This architecture provides an educational foundation for understanding ML/audio 
 
 ## Current Limitations
 
-- **Test Coverage**: 91% (444 passing, 0 failing, 49 skipped)
+- **Test Coverage**: 92% (452+ passing, 0 failing, ~20 skipped)
 - **Monitoring**: Placeholder implementations only
 - **Deployment**: Example configurations, not tested
 - **Scalability**: Theoretical design, not implemented
