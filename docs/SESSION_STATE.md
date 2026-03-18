@@ -1,11 +1,11 @@
 # Session State
 
 ## Current Focus
-Phase 11: Documentation accuracy, dependency hygiene, security headers, config validation.
+Phase 12: Correctness, memory safety, state hardening.
 
 ## Progress
-- Phase 10 complete — CI green (8/8 jobs pass, commit `cd5e803`)
-- 374 tests passing, 0 failing, 49 skipped, 83% coverage
+- Phase 11 complete — CI green (8/8 jobs pass, commit `7513c4e`)
+- 381 tests passing, 0 failing, 49 skipped, 83% coverage
 - All lint clean (black, isort, flake8, mypy)
 
 ## Key Decisions

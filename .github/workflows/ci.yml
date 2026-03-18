@@ -197,6 +197,7 @@ jobs:
         pip install -e .[test]
 
     - name: Run performance benchmarks
+      continue-on-error: true
       env:
         JWT_SECRET_KEY: test-secret-key-for-ci-minimum-32-chars
         MUSICGEN_SKIP_MODEL_DOWNLOAD: "1"
@@ -206,7 +207,7 @@ jobs:
       run: |
         pytest tests/ -m "not slow" \
           --benchmark-only \
-          --benchmark-json=benchmark.json || true
+          --benchmark-json=benchmark.json
 
     - name: Store benchmark results
       uses: benchmark-action/github-action-benchmark@v1

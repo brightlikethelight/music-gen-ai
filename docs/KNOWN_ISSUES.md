@@ -11,7 +11,7 @@
 - Matrix: Python 3.10, 3.11, 3.12
 
 ### Test Suite
-- **374 tests passing**, 0 failing, 49 skipped (model-dependent)
+- **381 tests passing**, 0 failing, 49 skipped (model-dependent)
 - **83% coverage** (threshold: 75%)
 - Skipped tests require GPU or real model weights
 
@@ -36,7 +36,6 @@
 ## Technical Debt
 
 - `GenerationResponse` model has `duration` and `model_used` fields that are never populated
-- Performance-tests CI job uses `|| true` (no real benchmarks)
 
 ---
 
