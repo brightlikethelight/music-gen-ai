@@ -1,42 +1,39 @@
 # Session State
 
 ## Current Focus
-Phase 16 complete. Security hardening, dependency migration, dead code cleanup.
+Phase 17 in progress. API correctness, route wiring, cleanup.
 
 ## Progress
-- CI GREEN on `d3706fe` (all 8 jobs pass)
-- Phase 16: 3 commits pushed (`5cd0bca`→`be66751`)
-- 422 unit tests passing, 0 failing, 3 skipped, 91% coverage
+- CI GREEN on `9734278` (all 8 jobs pass)
+- Phase 17: 3 commits pushed (`22e0af8`→`e96c9be`)
+- 456 unit+integration tests passing, 0 failing, 3 skipped
 - All lint clean (black, isort, flake8, mypy)
 
 ## Key Decisions
-- Replaced python-jose (abandoned 2021) with PyJWT
-- Replaced passlib (abandoned 2020) with direct bcrypt
-- Bumped python-multipart >=0.0.22 (CVE-2026-24486)
-- Bumped fastapi >=0.125.0 (unblocks starlette CVE fix)
-- Fixed load_model TOCTOU with per-model asyncio.Lock
-- Fixed register_user TOCTOU with atomic add_user_if_not_exists
-- Added auth to /audio/{filename}
-- Rate limiter: only exempt localhost, not all RFC1918
-- Request ID: validate UUID format (prevent log injection)
-- Deleted 3 dead test files (test_mock_api, test_basic, test_multi_instrument)
-- Deleted dead source code (get_cors_config, get_model_config, get_api_config, is_staging)
+- HTTP status codes: register→201, generate→202, batch→202, playlists→201
+- Wired /auth/logout (blacklists token via JTI) and /auth/refresh (token pair exchange)
+- Stub endpoints (/audio/analyze, /audio/waveform, /search) now return 501 Not Implemented
+- Deleted MusicGenException alias + AudioGenerationError (dead code)
+- Deleted 10 empty test directories
+- Fixed Python 3.12 "Does NOT Work" → "works, 3.10/3.11 recommended"
+- Fixed save_audio arg order in docs/index.md
+- Fixed CI platform claim "Linux/macOS/Windows" → "Linux (Ubuntu)"
 
 ## Blockers
-- CI run pending for `be66751`
+- CI run pending for `e96c9be`
 
-## Modified Files (Phase 16)
-- src/musicgen/api/middleware/auth.py (python-jose→PyJWT)
-- src/musicgen/api/rest/app.py (TOCTOU fixes, auth /audio, batch validation)
-- src/musicgen/api/rest/state.py (model loading locks, atomic user insert)
-- src/musicgen/api/rest/middleware/rate_limiting.py (private IP exemption)
-- src/musicgen/api/rest/middleware/request_id.py (UUID validation)
-- src/musicgen/api/cors_config.py (removed dead get_cors_config)
-- src/musicgen/infrastructure/config/config.py (removed dead methods)
-- src/musicgen/infrastructure/security/password.py (passlib→bcrypt)
-- pyproject.toml (dep swaps: python-jose→PyJWT, passlib→bcrypt, multipart/fastapi bumps)
-- tests/ (deleted 3 dead files, updated audio tests for auth, +8 coverage tests)
-- docs/ (KNOWN_ISSUES, LIMITATIONS, ARCHITECTURE: fix counts, remove false claims)
+## Modified Files (Phase 17)
+- src/musicgen/api/rest/app.py (status codes, logout/refresh routes, stubs→501)
+- src/musicgen/api/rest/models.py (RefreshTokenRequest, RefreshTokenResponse, LogoutResponse)
+- src/musicgen/utils/exceptions.py (removed dead classes)
+- tests/ (17 status code assertion updates, stub test updates, deleted empty dirs)
+- CONTRIBUTING.md, CONTRIBUTING_ACADEMIC.md, docs/index.md, ACADEMIC_DEPLOYMENT_EXAMPLES.md
+
+## Remaining for Phase 17 (if continuing)
+- IDOR fix: add user_id to JobStatus + ownership check
+- Split app.py into APIRouter modules (838 lines → ~120)
+- Add response_model to endpoints missing them
+- Document nginx /outputs/ auth bypass in KNOWN_ISSUES.md
 
 ## Active Experiments
-None — security/quality hardening.
+None — API correctness/cleanup work.
