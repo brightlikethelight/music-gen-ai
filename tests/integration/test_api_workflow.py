@@ -656,13 +656,18 @@ class TestErrorHandling:
         )
         assert response.status_code == 422
 
-    def test_audio_file_not_found(self, client):
-        """Test requesting non-existent audio file."""
+    def test_audio_requires_auth(self, client):
+        """Test that audio endpoint requires authentication."""
         response = client.get("/audio/nonexistent.wav")
+        assert response.status_code in [401, 403]
+
+    def test_audio_file_not_found(self, client, auth_headers):
+        """Test requesting non-existent audio file."""
+        response = client.get("/audio/nonexistent.wav", headers=auth_headers)
         assert response.status_code == 404
         assert "Audio file not found" in response.json()["detail"]
 
-    def test_directory_traversal_prevention(self, client):
+    def test_directory_traversal_prevention(self, client, auth_headers):
         """Test that directory traversal attacks are prevented."""
         # Attempt directory traversal
         malicious_filenames = [
@@ -672,7 +677,7 @@ class TestErrorHandling:
         ]
 
         for filename in malicious_filenames:
-            response = client.get(f"/audio/{filename}")
+            response = client.get(f"/audio/{filename}", headers=auth_headers)
             # Should return 404 (not found) or 403 (forbidden), not actual file content
             assert response.status_code in [403, 404]
 
