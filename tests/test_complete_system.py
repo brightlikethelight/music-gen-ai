@@ -260,7 +260,7 @@ class TestMusicGeneration:
             f"{api_client.base_url}/generate", json=data, headers=headers
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 202
         job = response.json()
         assert "job_id" in job
 
@@ -285,7 +285,7 @@ class TestMusicGeneration:
             f"{api_client.base_url}/generate/batch", json=data, headers=headers
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 202
         batch = response.json()
         assert "batch_id" in batch
         assert "jobs" in batch

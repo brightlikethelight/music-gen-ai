@@ -125,7 +125,7 @@ def registered_user(client):
     }
 
     response = client.post("/auth/register", json=user_data)
-    assert response.status_code == 200
+    assert response.status_code == 201
 
     result = response.json()
     return {
@@ -206,7 +206,7 @@ class TestGenerationWorkflow:
                 json=generation_request,
                 headers={"Authorization": f"Bearer {registered_user['access_token']}"},
             )
-            assert response.status_code == 200
+            assert response.status_code == 202
 
             result = response.json()
             assert "job_id" in result
@@ -249,7 +249,7 @@ class TestGenerationWorkflow:
                 json=generation_request,
                 headers={"Authorization": f"Bearer {registered_user['access_token']}"},
             )
-            assert response.status_code == 200
+            assert response.status_code == 202
             job_id = response.json()["job_id"]
 
             # Use the alias endpoint
@@ -288,7 +288,7 @@ class TestGenerationWorkflow:
                 json=batch_request,
                 headers={"Authorization": f"Bearer {registered_user['access_token']}"},
             )
-            assert response.status_code == 200
+            assert response.status_code == 202
 
             result = response.json()
             assert "batch_id" in result
@@ -331,7 +331,7 @@ class TestGenerationWorkflow:
                 json=generation_request,
                 headers={"Authorization": f"Bearer {registered_user['access_token']}"},
             )
-            assert response.status_code == 200
+            assert response.status_code == 202
 
             result = response.json()
             assert result["status"] in ["queued", "processing"]
@@ -393,7 +393,7 @@ class TestAuthWorkflow:
         }
 
         register_response = client.post("/auth/register", json=registration_data)
-        assert register_response.status_code == 200
+        assert register_response.status_code == 201
 
         register_result = register_response.json()
         assert "access_token" in register_result
@@ -456,7 +456,7 @@ class TestAuthWorkflow:
                 json=generation_request,
                 headers={"Authorization": f"Bearer {registered_user['access_token']}"},
             )
-            assert response.status_code == 200
+            assert response.status_code == 202
             assert "job_id" in response.json()
         finally:
             app.dependency_overrides.pop(require_auth, None)
@@ -766,7 +766,7 @@ class TestPlaylistWorkflow:
             }
 
             create_response = client.post("/playlists", json=playlist_data, headers=headers)
-            assert create_response.status_code == 200
+            assert create_response.status_code == 201
 
             created_playlist = create_response.json()
             assert created_playlist["name"] == playlist_data["name"]

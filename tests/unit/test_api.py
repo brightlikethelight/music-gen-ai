@@ -86,10 +86,10 @@ class TestGenerationEndpoint:
 
         # Valid minimal request (will fail with 503 if model not loaded)
         response = client.post("/generate", json={"prompt": "Test music"}, headers=auth_headers)
-        assert response.status_code in [200, 503]
+        assert response.status_code in [202, 503]
 
         # If successful, verify background task was added
-        if response.status_code == 200:
+        if response.status_code == 202:
             assert mock_add_task.called
 
     @patch("musicgen.api.rest.app.load_model")
@@ -110,7 +110,7 @@ class TestGenerationEndpoint:
         )
 
         # Check response
-        assert response.status_code == 200
+        assert response.status_code == 202
         data = response.json()
         assert "job_id" in data
         assert data["status"] == "queued"

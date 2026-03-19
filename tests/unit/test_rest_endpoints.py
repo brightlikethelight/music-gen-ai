@@ -87,7 +87,7 @@ class TestRegistration:
 
     def test_register_success(self, client):
         resp = _register(client)
-        assert resp.status_code == 200
+        assert resp.status_code == 201
         data = resp.json()
         assert "access_token" in data
         assert "refresh_token" in data
@@ -167,7 +167,7 @@ class TestGeneration:
             json={"prompt": "upbeat jazz"},
             headers=auth_token,
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 202
         data = resp.json()
         assert data["status"] == "queued"
         assert "job_id" in data
@@ -281,7 +281,7 @@ class TestBatchGeneration:
             ],
         }
         resp = client.post("/generate/batch", json=payload, headers=auth_token)
-        assert resp.status_code == 200
+        assert resp.status_code == 202
         data = resp.json()
         assert data["total_jobs"] == 2
         assert len(data["jobs"]) == 2
@@ -397,7 +397,7 @@ class TestPlaylists:
             json={"name": "My Playlist", "description": "Test playlist", "is_public": True},
             headers=auth_token,
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 201
         data = resp.json()
         assert data["name"] == "My Playlist"
         assert data["is_public"] is True
@@ -515,7 +515,7 @@ class TestResponseContracts:
 
     def test_register_response_shape(self, client):
         resp = _register(client)
-        assert resp.status_code == 200
+        assert resp.status_code == 201
         data = resp.json()
         assert set(data.keys()) == {"access_token", "refresh_token", "token_type", "user"}
         user_keys = set(data["user"].keys())
@@ -565,7 +565,7 @@ class TestResponseContracts:
             json={"name": "Contract PL", "description": "test", "is_public": True},
             headers=auth_token,
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 201
         expected = {
             "id",
             "name",
@@ -590,7 +590,7 @@ class TestResponseContracts:
     def test_batch_generate_response_shape(self, _mock_task, client, auth_token):
         payload = {"requests": [{"prompt": "track one"}, {"prompt": "track two"}]}
         resp = client.post("/generate/batch", json=payload, headers=auth_token)
-        assert resp.status_code == 200
+        assert resp.status_code == 202
         expected = {"batch_id", "jobs", "status", "total_jobs"}
         assert set(resp.json().keys()) == expected
 

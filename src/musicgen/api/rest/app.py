@@ -336,7 +336,7 @@ async def get_metrics(
 # ── Generation ───────────────────────────────────────────────────────────────
 
 
-@app.post("/generate", response_model=GenerationResponse)
+@app.post("/generate", response_model=GenerationResponse, status_code=status.HTTP_202_ACCEPTED)
 async def generate_music(
     request: GenerationRequest,
     background_tasks: BackgroundTasks,
@@ -420,7 +420,9 @@ async def get_generation_job_status(
     return response
 
 
-@app.post("/generate/batch", response_model=BatchGenerationResponse)
+@app.post(
+    "/generate/batch", response_model=BatchGenerationResponse, status_code=status.HTTP_202_ACCEPTED
+)
 async def generate_music_batch(
     batch_data: BatchGenerationRequest,
     background_tasks: BackgroundTasks,
@@ -541,7 +543,7 @@ async def generate_waveform(
 # ── Auth ─────────────────────────────────────────────────────────────────────
 
 
-@app.post("/auth/register", response_model=AuthTokenResponse)
+@app.post("/auth/register", response_model=AuthTokenResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(request: Request, user_data: UserRegistration) -> dict[str, Any]:
     """Register a new user."""
     try:
@@ -711,7 +713,7 @@ async def get_current_user_info(
 # ── Social ───────────────────────────────────────────────────────────────────
 
 
-@app.post("/playlists", response_model=PlaylistResponse)
+@app.post("/playlists", response_model=PlaylistResponse, status_code=status.HTTP_201_CREATED)
 async def create_playlist(
     playlist_data: PlaylistCreate, current_user: UserClaims = Depends(require_auth)
 ) -> dict[str, Any]:
