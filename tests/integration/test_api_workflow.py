@@ -859,27 +859,11 @@ class TestDashboardWorkflow:
         try:
             headers = {"Authorization": f"Bearer {registered_user['access_token']}"}
 
-            # Search all types
+            # Search returns 501 (not yet implemented)
             response = client.get(
-                "/search", params={"query": "test", "type": "all"}, headers=headers
+                "/search", params={"query": "test"}, headers=headers
             )
-            assert response.status_code == 200
-
-            data = response.json()
-            assert data["query"] == "test"
-            assert "results" in data
-            assert "tracks" in data["results"]
-            assert "playlists" in data["results"]
-            assert "users" in data["results"]
-
-            # Search specific type
-            response = client.get(
-                "/search", params={"query": "test", "type": "tracks"}, headers=headers
-            )
-            assert response.status_code == 200
-
-            data = response.json()
-            assert data["type"] == "tracks"
+            assert response.status_code == 501
         finally:
             app.dependency_overrides.pop(require_auth, None)
 
@@ -903,13 +887,7 @@ class TestAudioProcessing:
                 json={"audio_url": "https://example.com/test.wav"},
                 headers=headers,
             )
-            assert response.status_code == 200
-
-            data = response.json()
-            assert "duration" in data
-            assert "format" in data
-            assert "sample_rate" in data
-            assert "analysis" in data
+            assert response.status_code == 501
         finally:
             app.dependency_overrides.pop(require_auth, None)
 
@@ -925,15 +903,10 @@ class TestAudioProcessing:
 
             response = client.post(
                 "/audio/waveform",
-                params={"audio_url": "https://example.com/test.wav", "width": 1920, "height": 200},
+                params={"audio_url": "https://example.com/test.wav"},
                 headers=headers,
             )
-            assert response.status_code == 200
-
-            data = response.json()
-            assert "waveform_url" in data
-            assert "width" in data
-            assert "height" in data
+            assert response.status_code == 501
         finally:
             app.dependency_overrides.pop(require_auth, None)
 

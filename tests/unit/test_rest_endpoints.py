@@ -343,22 +343,9 @@ class TestInfoEndpoints:
 class TestSearch:
     """Test GET /search."""
 
-    def test_search_all(self, client, auth_token):
+    def test_search_returns_501(self, client, auth_token):
         resp = client.get("/search?query=jazz", headers=auth_token)
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["query"] == "jazz"
-        assert "tracks" in data["results"]
-        assert "playlists" in data["results"]
-        assert "users" in data["results"]
-
-    def test_search_tracks_only(self, client, auth_token):
-        resp = client.get("/search?query=rock&type=tracks", headers=auth_token)
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["type"] == "tracks"
-        assert len(data["results"]["playlists"]) == 0
-        assert len(data["results"]["users"]) == 0
+        assert resp.status_code == 501
 
     def test_search_requires_auth(self, client):
         resp = client.get("/search?query=test")
@@ -443,30 +430,24 @@ class TestPlaylists:
 class TestAudioEndpoints:
     """Test audio analysis and waveform endpoints."""
 
-    def test_analyze_audio(self, client, auth_token):
+    def test_analyze_audio_returns_501(self, client, auth_token):
         resp = client.post(
             "/audio/analyze",
             json={"audio_url": "/audio/test.wav"},
             headers=auth_token,
         )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "duration" in data
-        assert "analysis" in data
+        assert resp.status_code == 501
 
     def test_analyze_audio_requires_auth(self, client):
         resp = client.post("/audio/analyze", json={"audio_url": "/audio/test.wav"})
         assert resp.status_code in (401, 403)
 
-    def test_waveform(self, client, auth_token):
+    def test_waveform_returns_501(self, client, auth_token):
         resp = client.post(
             "/audio/waveform?audio_url=/audio/test.wav",
             headers=auth_token,
         )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "waveform_url" in data
-        assert "width" in data
+        assert resp.status_code == 501
 
     def test_waveform_requires_auth(self, client):
         resp = client.post("/audio/waveform?audio_url=/audio/test.wav")

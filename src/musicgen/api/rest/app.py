@@ -36,9 +36,12 @@ from musicgen.api.rest.models import (
     BatchGenerationResponse,
     GenerationRequest,
     GenerationResponse,
+    LogoutResponse,
     PlaylistCreate,
     PlaylistListResponse,
     PlaylistResponse,
+    RefreshTokenRequest,
+    RefreshTokenResponse,
     UserProfileResponse,
     UserRegistration,
 )
@@ -502,42 +505,17 @@ async def get_audio(
 async def analyze_audio(
     request: dict[str, Any], current_user: UserClaims = Depends(require_auth)
 ) -> dict[str, Any]:
-    """[STUB] Analyze audio file and return metadata. Returns hardcoded data."""
-    audio_url = request.get("audio_url")
-    return {
-        "_stub": True,
-        "audio_url": audio_url,
-        "duration": 30.0,
-        "format": "wav",
-        "sample_rate": 32000,
-        "channels": 1,
-        "bitrate": 512000,
-        "analysis": {
-            "tempo": 120,
-            "key": "C major",
-            "mood": "uplifting",
-            "energy": 0.7,
-            "danceability": 0.8,
-        },
-    }
+    """Analyze audio file and return metadata. Not yet implemented."""
+    raise HTTPException(status_code=501, detail="Audio analysis not yet implemented")
 
 
 @app.post("/audio/waveform")
 async def generate_waveform(
     audio_url: str = Query(..., description="URL of audio file"),
-    width: int = Query(default=1920, description="Waveform image width"),
-    height: int = Query(default=200, description="Waveform image height"),
     current_user: UserClaims = Depends(require_auth),
 ) -> dict[str, Any]:
-    """[STUB] Generate waveform visualization for audio file. Returns hardcoded data."""
-    waveform_id = str(uuid.uuid4())
-    return {
-        "_stub": True,
-        "waveform_url": f"/static/waveforms/{waveform_id}.png",
-        "width": width,
-        "height": height,
-        "audio_url": audio_url,
-    }
+    """Generate waveform visualization. Not yet implemented."""
+    raise HTTPException(status_code=501, detail="Waveform generation not yet implemented")
 
 
 # ── Auth ─────────────────────────────────────────────────────────────────────
@@ -710,6 +688,35 @@ async def get_current_user_info(
     }
 
 
+@app.post("/auth/logout", response_model=LogoutResponse)
+async def logout(
+    current_user: UserClaims = Depends(require_auth),
+) -> dict[str, Any]:
+    """Logout user by blacklisting their current token."""
+    if current_user.jti:
+        success = get_auth_middleware().blacklist_token(current_user.jti, current_user.expires_at)
+        return {"message": "Logged out successfully", "success": success}
+    return {"message": "Logged out successfully", "success": True}
+
+
+@app.post("/auth/refresh", response_model=RefreshTokenResponse)
+async def refresh_access(body: RefreshTokenRequest) -> dict[str, Any]:
+    """Refresh access token using a valid refresh token."""
+    try:
+        access_token, new_refresh = get_auth_middleware().refresh_access_token(body.refresh_token)
+        return {
+            "access_token": access_token,
+            "refresh_token": new_refresh,
+            "token_type": "bearer",
+        }
+    except Exception as e:
+        logger.warning("Token refresh failed: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+        )
+
+
 # ── Social ───────────────────────────────────────────────────────────────────
 
 
@@ -788,50 +795,10 @@ async def get_dashboard_data(current_user: UserClaims = Depends(require_auth)) -
 @app.get("/search")
 async def search(
     query: str = Query(..., description="Search query"),
-    type: str = Query(default="all", description="Type to search: all, tracks, playlists, users"),
     current_user: UserClaims = Depends(require_auth),
 ) -> dict[str, Any]:
-    """[STUB] Search for tracks, playlists, or users. Returns hardcoded data."""
-    results = {
-        "_stub": True,
-        "query": query,
-        "type": type,
-        "results": {
-            "tracks": (
-                [
-                    {
-                        "id": "track-1",
-                        "title": f"Generated Track matching '{query}'",
-                        "duration": 30.0,
-                        "created_at": time.time() - 7200,
-                        "genre": "Electronic",
-                    }
-                ]
-                if type in ["all", "tracks"]
-                else []
-            ),
-            "playlists": (
-                [
-                    {
-                        "id": "playlist-1",
-                        "name": f"Playlist matching '{query}'",
-                        "track_count": 5,
-                        "owner": "user123",
-                    }
-                ]
-                if type in ["all", "playlists"]
-                else []
-            ),
-            "users": (
-                [{"id": "user-1", "username": f"User matching '{query}'", "tracks_count": 10}]
-                if type in ["all", "users"]
-                else []
-            ),
-        },
-        "total_results": 3 if type == "all" else 1,
-    }
-
-    return results
+    """Search for tracks, playlists, or users. Not yet implemented."""
+    raise HTTPException(status_code=501, detail="Search not yet implemented")
 
 
 if __name__ == "__main__":

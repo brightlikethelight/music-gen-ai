@@ -84,6 +84,27 @@ class AuthTokenResponse(BaseModel):
     user: UserPublic
 
 
+class RefreshTokenRequest(BaseModel):
+    """Request for POST /auth/refresh."""
+
+    refresh_token: str = Field(..., description="Refresh token to exchange for new tokens")
+
+
+class RefreshTokenResponse(BaseModel):
+    """Response for POST /auth/refresh."""
+
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class LogoutResponse(BaseModel):
+    """Response for POST /auth/logout."""
+
+    message: str
+    success: bool
+
+
 class UserProfileResponse(BaseModel):
     """Response for /auth/me."""
 
