@@ -1,8 +1,8 @@
 # 🚀 MusicGen Production Deployment Guide
 
-## 🚨 CRITICAL: Python 3.12 Does NOT Work
+## Python Version Recommendation
 
-After extensive testing and research, **Python 3.12 is fundamentally incompatible** with the ML ecosystem required for MusicGen. This guide provides **actually working solutions**.
+Python **3.10 or 3.11** is recommended for the smoothest experience. Python 3.12 is tested in CI and works with the current dependency set, but some ML ecosystem packages may have rough edges on 3.12.
 
 ## 📊 Deployment Options Comparison
 
@@ -56,7 +56,7 @@ docker run -d \
 ```dockerfile
 FROM python:3.10-slim
 
-# Critical: Use Python 3.10, NOT 3.12!
+# Recommended: Python 3.10 or 3.11 (3.12 also works)
 RUN apt-get update && apt-get install -y \
     git ffmpeg build-essential curl \
     && rm -rf /var/lib/apt/lists/*
@@ -316,7 +316,7 @@ pip install torchaudio==2.1.0 --index-url https://download.pytorch.org/whl/cu118
 
 ## 🎯 Production Checklist
 
-- [ ] Use Python 3.10 or 3.11 (NOT 3.12)
+- [ ] Use Python 3.10, 3.11, or 3.12
 - [ ] Test with actual GPU
 - [ ] Implement health checks
 - [ ] Set up monitoring

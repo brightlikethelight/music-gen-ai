@@ -177,7 +177,7 @@ def test_function_name_describes_what_it_tests():
 All pull requests must pass:
 
 1. **Code quality checks**: black, isort, flake8, mypy
-2. **Unit tests**: All platforms (Linux, macOS, Windows)
+2. **Unit tests**: Linux (Ubuntu), Python 3.10/3.11/3.12
 3. **Integration tests**: API and CLI functionality
 4. **Security scans**: safety, bandit
 5. **Coverage requirements**: No decrease from main branch

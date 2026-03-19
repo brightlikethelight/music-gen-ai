@@ -173,12 +173,6 @@ class TestAPIDocs:
 
         assert app is not None
 
-    def test_api_main_import(self):
-        """Test API app module."""
-        from musicgen.api import app
-
-        assert app is not None
-
 
 class TestExceptionClasses:
     """Test exception class definitions."""

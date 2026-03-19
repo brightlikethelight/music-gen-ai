@@ -83,7 +83,7 @@ audio, sample_rate = generator.generate(
 )
 
 # Save audio
-generator.save_audio(audio, "output.wav", sample_rate)
+generator.save_audio(audio, sample_rate, "output.wav")
 ```
 
 ### Batch Processing

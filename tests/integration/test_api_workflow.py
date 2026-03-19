@@ -860,9 +860,7 @@ class TestDashboardWorkflow:
             headers = {"Authorization": f"Bearer {registered_user['access_token']}"}
 
             # Search returns 501 (not yet implemented)
-            response = client.get(
-                "/search", params={"query": "test"}, headers=headers
-            )
+            response = client.get("/search", params={"query": "test"}, headers=headers)
             assert response.status_code == 501
         finally:
             app.dependency_overrides.pop(require_auth, None)
