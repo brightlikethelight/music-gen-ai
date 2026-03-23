@@ -61,7 +61,7 @@ dependencies = [
 
     # Authentication and Security
     "PyJWT>=2.8.0,<3.0.0",
-    "bcrypt>=4.0.0,<5.0.0",
+    "bcrypt>=4.0.0,<6.0.0",
     "redis>=4.5.0,<7.0.0",
 ]
 
