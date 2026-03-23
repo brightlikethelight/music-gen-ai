@@ -85,7 +85,7 @@ lint = [
 ]
 security = [
     "safety>=2.3.0,<3.0.0",
-    "bandit==1.7.10",
+    "bandit==1.9.4",
 ]
 docs = [
     "sphinx>=6.0.0",
