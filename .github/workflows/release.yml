@@ -37,13 +37,13 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.11'
 
@@ -103,7 +103,7 @@ jobs:
 
     - name: Create GitHub Release
       if: steps.check_release.outputs.should_release == 'true'
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         tag_name: v${{ steps.bump_version.outputs.new_version }}
         name: Release v${{ steps.bump_version.outputs.new_version }}
